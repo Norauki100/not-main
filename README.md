@@ -2,3 +2,7 @@
 
 
 
+リンク
+
+https://norauki100.github.io/not-main/ (htmlのパス)
+
