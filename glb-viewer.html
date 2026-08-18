@@ -1,0 +1,1017 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>GLB Viewer</title>
+<style>
+  html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #0c0d10; }
+  * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif; }
+
+  #app { display: flex; flex-direction: column; height: 100vh; color: #e4e4e7; }
+
+  #topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 16px; border-bottom: 1px solid #27272a; background: #111318;
+    flex-shrink: 0;
+  }
+  #topbar-left { display: flex; align-items: center; gap: 12px; min-width: 0; }
+  #app-title { font-size: 13px; font-weight: 600; color: #d4d4d8; letter-spacing: 0.02em; }
+  #file-name { font-size: 12px; color: #71717a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 40vw; }
+
+  #topbar-right { display: flex; align-items: center; gap: 8px; }
+
+  button.icon-btn {
+    display: flex; align-items: center; justify-content: center;
+    width: 34px; height: 34px; border-radius: 6px;
+    border: 1px solid #3f3f46; background: transparent; color: #d4d4d8;
+    cursor: pointer; transition: background 0.15s;
+  }
+  button.icon-btn:hover { background: #27272a; }
+  button.icon-btn:disabled { opacity: 0.3; cursor: default; }
+  button.icon-btn:disabled:hover { background: transparent; }
+
+  #upload-btn {
+    display: flex; align-items: center; gap: 6px;
+    padding: 8px 14px; border-radius: 6px; border: none;
+    background: #f4f4f5; color: #18181b; font-size: 13px; font-weight: 500;
+    cursor: pointer; transition: background 0.15s;
+  }
+  #upload-btn:hover { background: #ffffff; }
+
+  /* Settings panel */
+  #settings-panel {
+    position: absolute; top: 8px; right: 8px; width: 260px;
+    background: #17191e; border: 1px solid #27272a; border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    display: none; flex-direction: column; overflow: hidden; z-index: 10;
+  }
+  #settings-panel.active { display: flex; }
+  #settings-tabs { display: flex; border-bottom: 1px solid #27272a; }
+  .settings-tab {
+    flex: 1; padding: 10px; text-align: center; font-size: 12px; color: #71717a;
+    cursor: pointer; background: none; border: none; border-bottom: 2px solid transparent;
+  }
+  .settings-tab.active { color: #e4e4e7; border-bottom-color: #e4e4e7; }
+  #settings-body { padding: 14px; }
+  .settings-row { margin-bottom: 14px; }
+  .settings-row:last-child { margin-bottom: 0; }
+  .settings-label {
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 12px; color: #a1a1aa; margin-bottom: 6px;
+  }
+  .settings-label span.val { color: #e4e4e7; font-variant-numeric: tabular-nums; }
+  input[type="range"] {
+    width: 100%; -webkit-appearance: none; height: 4px; border-radius: 2px;
+    background: #3f3f46; outline: none;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%;
+    background: #f4f4f5; cursor: pointer;
+  }
+  input[type="range"]::-moz-range-thumb {
+    width: 14px; height: 14px; border-radius: 50%; background: #f4f4f5; border: none; cursor: pointer;
+  }
+  .settings-hint { font-size: 11px; color: #52525b; margin-top: 8px; line-height: 1.5; }
+
+  .size-readout {
+    font-size: 13px; color: #e4e4e7; background: #111318; border: 1px solid #27272a;
+    border-radius: 6px; padding: 8px 10px; line-height: 1.6; font-variant-numeric: tabular-nums;
+  }
+  .size-readout .dim-row { display: flex; justify-content: space-between; }
+  .size-readout .dim-label { color: #71717a; }
+  .size-input-row { display: flex; gap: 6px; }
+  .size-input-row input[type="number"] {
+    flex: 1; background: #111318; border: 1px solid #3f3f46; border-radius: 6px;
+    padding: 6px 8px; color: #e4e4e7; font-size: 13px; outline: none;
+  }
+  .size-input-row input[type="number"]:focus { border-color: #71717a; }
+  .size-input-row button {
+    padding: 6px 12px; border-radius: 6px; border: none; background: #f4f4f5;
+    color: #18181b; font-size: 12px; font-weight: 500; cursor: pointer;
+  }
+  .size-input-row button:hover { background: #ffffff; }
+  .text-btn {
+    background: none; border: none; color: #71717a; font-size: 12px;
+    cursor: pointer; padding: 0; text-decoration: underline;
+  }
+  .text-btn:hover { color: #a1a1aa; }
+
+  #viewport { position: relative; flex: 1; min-height: 0; }
+  #canvas-mount { width: 100%; height: 100%; }
+  #canvas-mount canvas { display: block; touch-action: none; }
+
+  #empty-state {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    pointer-events: none; text-align: center;
+  }
+  #empty-state .circle {
+    margin: 0 auto 12px; width: 48px; height: 48px; border-radius: 50%;
+    border: 1px solid #3f3f46; display: flex; align-items: center; justify-content: center;
+  }
+  #empty-state p.main { color: #a1a1aa; font-size: 14px; margin: 0; }
+  #empty-state p.sub { color: #52525b; font-size: 12px; margin: 4px 0 0; }
+
+  #loading-state {
+    position: absolute; inset: 0; display: none; align-items: center; justify-content: center;
+    background: rgba(0,0,0,0.4);
+  }
+  #loading-state.active { display: flex; }
+  .spinner {
+    width: 16px; height: 16px; border: 2px solid #71717a; border-top-color: #f4f4f5;
+    border-radius: 50%; animation: spin 0.7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-row { display: flex; align-items: center; gap: 8px; color: #d4d4d8; font-size: 13px; }
+
+  #error-toast {
+    position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%);
+    background: #450a0a; border: 1px solid #7f1d1d; color: #fecaca;
+    font-size: 13px; padding: 8px 16px; border-radius: 6px; display: none;
+  }
+  #error-toast.active { display: block; }
+
+  #drag-overlay {
+    position: absolute; inset: 0; border: 2px dashed #a1a1aa; background: rgba(244,244,245,0.05);
+    display: none; align-items: center; justify-content: center;
+  }
+  #drag-overlay.active { display: flex; }
+  #drag-overlay p { color: #e4e4e7; font-size: 14px; font-weight: 500; }
+
+  input[type="file"] { display: none; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="topbar">
+    <div id="topbar-left">
+      <span id="app-title">GLB Viewer</span>
+      <span id="file-name"></span>
+    </div>
+    <div id="topbar-right">
+      <button class="icon-btn" id="light-btn" title="ライティング切り替え">
+        <svg id="sun-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
+        <svg id="moon-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+      </button>
+      <button class="icon-btn" id="reset-btn" title="表示をリセット" disabled>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+      </button>
+      <button class="icon-btn" id="settings-btn" title="設定">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </button>
+      <button id="upload-btn">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        アップロード
+      </button>
+      <input type="file" id="file-input" accept=".glb,.gltf" />
+    </div>
+  </div>
+
+  <div id="viewport">
+    <div id="canvas-mount"></div>
+
+    <div id="settings-panel">
+      <div id="settings-tabs">
+        <button class="settings-tab active" data-tab="controls">操作</button>
+        <button class="settings-tab" data-tab="size">サイズ</button>
+      </div>
+      <div id="settings-body">
+        <div class="settings-tab-panel" data-panel="controls">
+          <div class="settings-row">
+            <div class="settings-label">回転感度 <span class="val" id="rotate-sens-val">1.0</span></div>
+            <input type="range" id="rotate-sens" min="0.1" max="3" step="0.1" value="1.0" />
+          </div>
+          <div class="settings-row">
+            <div class="settings-label">ズーム感度 <span class="val" id="zoom-sens-val">1.0</span></div>
+            <input type="range" id="zoom-sens" min="0.1" max="3" step="0.1" value="1.0" />
+          </div>
+          <div class="settings-row">
+            <div class="settings-label">パン感度 <span class="val" id="pan-sens-val">1.0</span></div>
+            <input type="range" id="pan-sens" min="0.1" max="3" step="0.1" value="1.0" />
+          </div>
+          <div class="settings-hint">PC: 左ドラッグで回転 / 右ドラッグでパン / ホイールでズーム<br>スマホ: 1本指で回転 / 2本指でズーム・パン</div>
+        </div>
+        <div class="settings-tab-panel" data-panel="size" style="display:none;">
+          <div class="settings-row">
+            <div class="settings-label">ファイルの実測サイズ</div>
+            <div id="size-readout" class="size-readout">モデル未読み込み</div>
+          </div>
+          <div class="settings-row">
+            <div class="settings-label">実寸補正(高さ・cm)</div>
+            <div class="size-input-row">
+              <input type="number" id="real-height-input" placeholder="例: 30" min="0.01" step="0.1" />
+              <button id="apply-real-size-btn">適用</button>
+            </div>
+            <div class="settings-hint">モデルの実際の高さをcmで入力すると、その比率で他の寸法も補正表示されます</div>
+          </div>
+          <div class="settings-row">
+            <button id="reset-real-size-btn" class="text-btn">補正をリセット(ファイル値に戻す)</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="empty-state">
+      <div>
+        <div class="circle">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#71717a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        </div>
+        <p class="main">.glbファイルをドラッグ&ドロップ</p>
+        <p class="sub">またはアップロードボタンから選択</p>
+      </div>
+    </div>
+
+    <div id="loading-state">
+      <div class="loading-row"><div class="spinner"></div>読み込み中...</div>
+    </div>
+
+    <div id="error-toast"></div>
+    <div id="drag-overlay"><p>ドロップして読み込む</p></div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function () {
+  const mount = document.getElementById('canvas-mount');
+  const fileInput = document.getElementById('file-input');
+  const uploadBtn = document.getElementById('upload-btn');
+  const resetBtn = document.getElementById('reset-btn');
+  const lightBtn = document.getElementById('light-btn');
+  const sunIcon = document.getElementById('sun-icon');
+  const moonIcon = document.getElementById('moon-icon');
+  const fileNameEl = document.getElementById('file-name');
+  const emptyState = document.getElementById('empty-state');
+  const loadingState = document.getElementById('loading-state');
+  const errorToast = document.getElementById('error-toast');
+  const dragOverlay = document.getElementById('drag-overlay');
+  const viewport = document.getElementById('viewport');
+  const settingsBtn = document.getElementById('settings-btn');
+  const settingsPanel = document.getElementById('settings-panel');
+  const rotateSensInput = document.getElementById('rotate-sens');
+  const zoomSensInput = document.getElementById('zoom-sens');
+  const panSensInput = document.getElementById('pan-sens');
+  const rotateSensVal = document.getElementById('rotate-sens-val');
+  const zoomSensVal = document.getElementById('zoom-sens-val');
+  const panSensVal = document.getElementById('pan-sens-val');
+  const settingsTabs = document.querySelectorAll('.settings-tab');
+  const settingsTabPanels = document.querySelectorAll('.settings-tab-panel');
+  const sizeReadout = document.getElementById('size-readout');
+  const realHeightInput = document.getElementById('real-height-input');
+  const applyRealSizeBtn = document.getElementById('apply-real-size-btn');
+  const resetRealSizeBtn = document.getElementById('reset-real-size-btn');
+
+  let scene, camera, renderer, controls, currentModel;
+  let lightMode = 'studio';
+  const lights = {};
+
+  // Raw model dimensions in glTF units (meters, per spec) at scale=1,
+  // captured right after loading, before any viewer display-scale is applied.
+  let rawDimsMeters = null;
+  // User correction factor: realHeightCm / (rawHeightMeters * 100).
+  // 1 means "trust the file's own units as-is".
+  let sizeCorrectionFactor = 1;
+
+  settingsTabs.forEach((tab) => {
+    tab.addEventListener('click', () => {
+      settingsTabs.forEach((t) => t.classList.remove('active'));
+      tab.classList.add('active');
+      const target = tab.dataset.tab;
+      settingsTabPanels.forEach((p) => {
+        p.style.display = p.dataset.panel === target ? '' : 'none';
+      });
+    });
+  });
+
+  function formatCm(cm) {
+    if (cm >= 100) return (cm / 100).toFixed(2) + ' m';
+    return cm.toFixed(1) + ' cm';
+  }
+
+  function updateSizeReadout() {
+    if (!rawDimsMeters) {
+      sizeReadout.textContent = 'モデル未読み込み';
+      return;
+    }
+    const w = rawDimsMeters.x * 100 * sizeCorrectionFactor;
+    const h = rawDimsMeters.y * 100 * sizeCorrectionFactor;
+    const d = rawDimsMeters.z * 100 * sizeCorrectionFactor;
+    const note = sizeCorrectionFactor !== 1 ? '(補正適用中)' : '(ファイル値)';
+    sizeReadout.innerHTML =
+      '<div class="dim-row"><span class="dim-label">幅 (X)</span><span>' + formatCm(w) + '</span></div>' +
+      '<div class="dim-row"><span class="dim-label">高さ (Y)</span><span>' + formatCm(h) + '</span></div>' +
+      '<div class="dim-row"><span class="dim-label">奥行き (Z)</span><span>' + formatCm(d) + '</span></div>' +
+      '<div class="dim-row" style="margin-top:4px;"><span class="dim-label" style="font-size:10px;">' + note + '</span></div>';
+  }
+
+  applyRealSizeBtn.addEventListener('click', () => {
+    if (!rawDimsMeters) return;
+    const inputCm = parseFloat(realHeightInput.value);
+    if (!inputCm || inputCm <= 0) return;
+    const rawHeightCm = rawDimsMeters.y * 100;
+    if (rawHeightCm <= 0) return;
+    sizeCorrectionFactor = inputCm / rawHeightCm;
+    updateSizeReadout();
+  });
+  realHeightInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') applyRealSizeBtn.click();
+  });
+
+  resetRealSizeBtn.addEventListener('click', () => {
+    sizeCorrectionFactor = 1;
+    realHeightInput.value = '';
+    updateSizeReadout();
+  });
+  settingsBtn.addEventListener('click', () => {
+    settingsPanel.classList.toggle('active');
+  });
+  document.addEventListener('click', (e) => {
+    if (!settingsPanel.contains(e.target) && e.target !== settingsBtn && !settingsBtn.contains(e.target)) {
+      settingsPanel.classList.remove('active');
+    }
+  });
+  rotateSensInput.addEventListener('input', () => {
+    rotateSensVal.textContent = parseFloat(rotateSensInput.value).toFixed(1);
+    if (controls) controls.rotateSensitivity = parseFloat(rotateSensInput.value);
+  });
+  zoomSensInput.addEventListener('input', () => {
+    zoomSensVal.textContent = parseFloat(zoomSensInput.value).toFixed(1);
+    if (controls) controls.zoomSensitivity = parseFloat(zoomSensInput.value);
+  });
+  panSensInput.addEventListener('input', () => {
+    panSensVal.textContent = parseFloat(panSensInput.value).toFixed(1);
+    if (controls) controls.panSensitivity = parseFloat(panSensInput.value);
+  });
+
+  function initScene() {
+    const width = mount.clientWidth;
+    const height = mount.clientHeight;
+
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x14161a);
+
+    camera = new THREE.PerspectiveCamera(45, width / height, 0.01, 1000);
+    camera.position.set(2, 1.5, 3);
+
+    renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(width, height);
+    if (renderer.outputColorSpace !== undefined) renderer.outputColorSpace = THREE.SRGBColorSpace;
+    else renderer.outputEncoding = THREE.sRGBEncoding;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.1;
+    mount.appendChild(renderer.domElement);
+
+    lights.hemi = new THREE.HemisphereLight(0xffffff, 0x22242a, 0.6);
+    scene.add(lights.hemi);
+
+    lights.key = new THREE.DirectionalLight(0xffffff, 1.6);
+    lights.key.position.set(3, 4, 2);
+    scene.add(lights.key);
+
+    lights.fill = new THREE.DirectionalLight(0xbcd4ff, 0.5);
+    lights.fill.position.set(-3, 1, -2);
+    scene.add(lights.fill);
+
+    lights.rim = new THREE.DirectionalLight(0xffffff, 0.8);
+    lights.rim.position.set(-2, 3, -4);
+    scene.add(lights.rim);
+
+    const grid = new THREE.GridHelper(10, 20, 0x333744, 0x22242c);
+    grid.position.y = 0;
+    scene.add(grid);
+    window.__grid = grid;
+
+    controls = new SimpleOrbitControls(camera, renderer.domElement);
+
+    animate();
+
+    const resizeObserver = new ResizeObserver(() => {
+      const w = mount.clientWidth;
+      const h = mount.clientHeight;
+      if (w === 0 || h === 0) return;
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+      renderer.setSize(w, h);
+    });
+    resizeObserver.observe(mount);
+  }
+
+  function animate() {
+    requestAnimationFrame(animate);
+    controls.update();
+    renderer.render(scene, camera);
+  }
+
+  function applyLightMode() {
+    if (lightMode === 'studio') {
+      lights.hemi.intensity = 0.6;
+      lights.key.intensity = 1.6;
+      lights.fill.intensity = 0.5;
+      lights.rim.intensity = 0.8;
+      scene.background = new THREE.Color(0x14161a);
+      sunIcon.style.display = '';
+      moonIcon.style.display = 'none';
+    } else {
+      lights.hemi.intensity = 0.25;
+      lights.key.intensity = 0.6;
+      lights.fill.intensity = 0.15;
+      lights.rim.intensity = 0.25;
+      scene.background = new THREE.Color(0x08090b);
+      sunIcon.style.display = 'none';
+      moonIcon.style.display = '';
+    }
+  }
+
+  function frameModel(object) {
+    const box = new THREE.Box3().setFromObject(object);
+    const size = box.getSize(new THREE.Vector3());
+
+    // Capture raw dimensions in glTF units (meters, per spec) before any
+    // display-normalization scale is applied - this is what "size" reflects.
+    rawDimsMeters = size.clone();
+    sizeCorrectionFactor = 1;
+    realHeightInput.value = '';
+    updateSizeReadout();
+
+    const maxDim = Math.max(size.x, size.y, size.z) || 1;
+    const scale = 1.5 / maxDim;
+    object.scale.setScalar(scale);
+
+    // center on X/Z, rest bottom on the grid (y=0)
+    const box2 = new THREE.Box3().setFromObject(object);
+    const center2 = box2.getCenter(new THREE.Vector3());
+    object.position.x -= center2.x;
+    object.position.z -= center2.z;
+    object.position.y -= box2.min.y;
+
+    // recompute final bounds for camera target/grid sizing
+    const box3 = new THREE.Box3().setFromObject(object);
+    const finalSize = box3.getSize(new THREE.Vector3());
+    const midHeight = finalSize.y / 2;
+
+    const dist = 3;
+    camera.position.set(dist * 0.6, dist * 0.45 + midHeight * 0.3, dist * 0.8);
+    camera.near = 0.01;
+    camera.far = Math.max(100, dist * 20);
+    camera.updateProjectionMatrix();
+    controls.target.set(0, midHeight, 0);
+    controls.update();
+  }
+
+  function showError(msg) {
+    errorToast.textContent = msg;
+    errorToast.classList.add('active');
+    setTimeout(() => errorToast.classList.remove('active'), 4000);
+  }
+
+  function loadFile(file) {
+    if (!file) return;
+    if (!/\.(glb|gltf)$/i.test(file.name)) {
+      showError('GLBまたはGLTFファイルを選んでください');
+      return;
+    }
+    fileNameEl.textContent = file.name;
+    emptyState.style.display = 'none';
+    loadingState.classList.add('active');
+
+    const reader = new FileReader();
+    reader.onload = function (e) {
+      const arrayBuffer = e.target.result;
+      const loader = new SimpleGLTFLoader();
+      loader.parse(
+        arrayBuffer,
+        function (gltf) {
+          if (currentModel) {
+            scene.remove(currentModel);
+            disposeObject(currentModel);
+          }
+          scene.add(gltf.scene);
+          currentModel = gltf.scene;
+          frameModel(currentModel);
+          resetBtn.disabled = false;
+          loadingState.classList.remove('active');
+        },
+        function (err) {
+          console.error(err);
+          showError('読み込みに失敗しました。ファイルが壊れているかもしれません');
+          loadingState.classList.remove('active');
+        }
+      );
+    };
+    reader.onerror = function () {
+      showError('ファイルの読み込みに失敗しました');
+      loadingState.classList.remove('active');
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
+  function disposeObject(obj) {
+    obj.traverse((child) => {
+      if (child.geometry) child.geometry.dispose();
+      if (child.material) {
+        const mats = Array.isArray(child.material) ? child.material : [child.material];
+        mats.forEach((m) => {
+          Object.keys(m).forEach((key) => {
+            if (m[key] && m[key].isTexture) m[key].dispose();
+          });
+          m.dispose();
+        });
+      }
+    });
+  }
+
+  uploadBtn.addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', (e) => {
+    loadFile(e.target.files[0]);
+    e.target.value = '';
+  });
+  resetBtn.addEventListener('click', () => {
+    if (currentModel) frameModel(currentModel);
+  });
+  lightBtn.addEventListener('click', () => {
+    lightMode = lightMode === 'studio' ? 'dim' : 'studio';
+    applyLightMode();
+  });
+
+  viewport.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    dragOverlay.classList.add('active');
+  });
+  viewport.addEventListener('dragleave', () => {
+    dragOverlay.classList.remove('active');
+  });
+  viewport.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dragOverlay.classList.remove('active');
+    loadFile(e.dataTransfer.files[0]);
+  });
+
+  // ---- Minimal OrbitControls (rotate + zoom + pan), mouse + touch, adjustable sensitivity ----
+  function SimpleOrbitControls(camera, domElement) {
+    this.camera = camera;
+    this.domElement = domElement;
+    this.target = new THREE.Vector3(0, 0, 0);
+    this.enableDamping = true;
+    this.dampingFactor = 0.08;
+    this.minDistance = 0.1;
+    this.maxDistance = 50;
+    this.rotateSensitivity = 1.0;
+    this.zoomSensitivity = 1.0;
+    this.panSensitivity = 1.0;
+
+    let spherical = new THREE.Spherical();
+    let sphericalDelta = new THREE.Spherical(0, 0, 0);
+    let scale = 1;
+    let panOffset = new THREE.Vector3();
+
+    let rotating = false, panning = false;
+    let lastX = 0, lastY = 0;
+
+    // touch state
+    const activeTouches = new Map(); // pointerId -> {x, y}
+    let touchMode = null; // 'rotate' | 'pinch'
+    let pinchStartDist = null;
+    let pinchStartMid = null;
+
+    const offset = new THREE.Vector3();
+    const self = this;
+
+    domElement.style.touchAction = 'none';
+
+    function panWithDelta(dx, dy) {
+      // Clamp per-event pixel delta - a stray large jump (finger-lift glitch,
+      // synthetic event, etc.) should never translate into a huge pan.
+      const maxPx = 120;
+      dx = Math.max(-maxPx, Math.min(maxPx, dx));
+      dy = Math.max(-maxPx, Math.min(maxPx, dy));
+
+      const el = domElement.clientHeight || 1;
+      const distance = camera.position.distanceTo(self.target);
+      const panSpeed = distance * Math.tan((camera.fov / 2) * Math.PI / 180) * 2 / el * self.panSensitivity;
+      const xDir = new THREE.Vector3();
+      const yDir = new THREE.Vector3();
+      const zDir = new THREE.Vector3();
+      zDir.subVectors(camera.position, self.target).normalize();
+      // camera.up can be near-parallel to zDir at extreme polar angles, which
+      // makes crossVectors unstable - fall back to world Y if that happens.
+      let upRef = camera.up;
+      if (Math.abs(zDir.dot(camera.up)) > 0.999) {
+        upRef = new THREE.Vector3(0, 0, 1);
+      }
+      xDir.crossVectors(upRef, zDir).normalize();
+      yDir.crossVectors(zDir, xDir).normalize();
+      panOffset.addScaledVector(xDir, -dx * panSpeed);
+      panOffset.addScaledVector(yDir, dy * panSpeed);
+    }
+
+    function rotateWithDelta(dx, dy) {
+      const maxPx = 120;
+      dx = Math.max(-maxPx, Math.min(maxPx, dx));
+      dy = Math.max(-maxPx, Math.min(maxPx, dy));
+      const el = domElement.clientHeight || 1;
+      sphericalDelta.theta -= 2 * Math.PI * dx / el * self.rotateSensitivity;
+      sphericalDelta.phi -= 2 * Math.PI * dy / el * self.rotateSensitivity;
+    }
+
+    // ---- Mouse (pointer) events for desktop ----
+    domElement.addEventListener('pointerdown', (e) => {
+      if (e.pointerType === 'touch') return; // handled by touch events below
+      if (e.button === 0) rotating = true;
+      else if (e.button === 2 || e.button === 1) panning = true;
+      lastX = e.clientX; lastY = e.clientY;
+      domElement.setPointerCapture(e.pointerId);
+    });
+    domElement.addEventListener('pointermove', (e) => {
+      if (e.pointerType === 'touch') return;
+      const dx = e.clientX - lastX;
+      const dy = e.clientY - lastY;
+      lastX = e.clientX; lastY = e.clientY;
+      if (rotating) rotateWithDelta(dx, dy);
+      else if (panning) panWithDelta(dx, dy);
+    });
+    window.addEventListener('pointerup', (e) => {
+      if (e.pointerType === 'touch') return;
+      rotating = false; panning = false;
+    });
+    domElement.addEventListener('contextmenu', (e) => e.preventDefault());
+
+    domElement.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      const zoomSpeed = 1 - 0.05 * self.zoomSensitivity;
+      const clamped = Math.max(0.5, Math.min(0.98, zoomSpeed));
+      if (e.deltaY < 0) scale *= clamped;
+      else scale /= clamped;
+    }, { passive: false });
+
+    // ---- Touch events for mobile: 1 finger = rotate, 2 fingers = pinch zoom + pan ----
+    domElement.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      for (const t of e.changedTouches) {
+        activeTouches.set(t.identifier, { x: t.clientX, y: t.clientY });
+      }
+      if (activeTouches.size === 1) {
+        touchMode = 'rotate';
+        const t = e.touches[0];
+        lastX = t.clientX; lastY = t.clientY;
+        pinchStartDist = null;
+        pinchStartMid = null;
+      } else if (activeTouches.size >= 2) {
+        touchMode = 'pinch';
+        // Reset to null - the next touchmove will establish fresh reference
+        // points instead of computing a delta against a stale start.
+        pinchStartDist = null;
+        pinchStartMid = null;
+      }
+    }, { passive: false });
+
+    domElement.addEventListener('touchmove', (e) => {
+      e.preventDefault();
+      if (touchMode === 'rotate' && e.touches.length === 1) {
+        const t = e.touches[0];
+        const dx = t.clientX - lastX;
+        const dy = t.clientY - lastY;
+        lastX = t.clientX; lastY = t.clientY;
+        rotateWithDelta(dx, dy);
+      } else if (touchMode === 'pinch' && e.touches.length >= 2) {
+        const t0 = e.touches[0], t1 = e.touches[1];
+        const dx = t0.clientX - t1.clientX;
+        const dy = t0.clientY - t1.clientY;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const mid = { x: (t0.clientX + t1.clientX) / 2, y: (t0.clientY + t1.clientY) / 2 };
+
+        // If we just regained a second finger (or this is the first pinch move),
+        // pinchStartDist/Mid are null - resync instead of jumping.
+        if (pinchStartDist !== null && pinchStartDist > 0) {
+          let ratio = dist / pinchStartDist;
+          // Clamp per-event ratio - guards against a single glitchy frame
+          // (e.g. a finger briefly reporting a wrong position) causing a snap.
+          ratio = Math.max(0.5, Math.min(2, ratio));
+          const zoomFactor = Math.pow(ratio, self.zoomSensitivity);
+          scale /= zoomFactor;
+        }
+        if (pinchStartMid !== null) {
+          panWithDelta(mid.x - pinchStartMid.x, mid.y - pinchStartMid.y);
+        }
+        pinchStartDist = dist;
+        pinchStartMid = mid;
+      }
+    }, { passive: false });
+
+    function touchEnd(e) {
+      for (const t of e.changedTouches) {
+        activeTouches.delete(t.identifier);
+      }
+      // A finger just lifted - always resync reference points so the next
+      // move event measures a fresh delta instead of jumping from stale data.
+      pinchStartDist = null;
+      pinchStartMid = null;
+
+      if (activeTouches.size === 0) {
+        touchMode = null;
+      } else if (activeTouches.size === 1) {
+        touchMode = 'rotate';
+        const remaining = Array.from(activeTouches.values())[0];
+        lastX = remaining.x; lastY = remaining.y;
+      }
+    }
+    domElement.addEventListener('touchend', touchEnd, { passive: false });
+    domElement.addEventListener('touchcancel', touchEnd, { passive: false });
+
+    this.update = function () {
+      offset.copy(camera.position).sub(self.target);
+      spherical.setFromVector3(offset);
+
+      spherical.theta += sphericalDelta.theta;
+      spherical.phi += sphericalDelta.phi;
+      spherical.phi = Math.max(0.001, Math.min(Math.PI - 0.001, spherical.phi));
+      spherical.radius *= scale;
+      spherical.radius = Math.max(self.minDistance, Math.min(self.maxDistance, spherical.radius));
+
+      self.target.add(panOffset);
+
+      offset.setFromSpherical(spherical);
+      camera.position.copy(self.target).add(offset);
+      camera.lookAt(self.target);
+
+      if (self.enableDamping) {
+        sphericalDelta.theta *= (1 - self.dampingFactor);
+        sphericalDelta.phi *= (1 - self.dampingFactor);
+      } else {
+        sphericalDelta.set(0, 0, 0);
+      }
+      scale = 1;
+      panOffset.multiplyScalar(self.enableDamping ? (1 - self.dampingFactor) : 0);
+    };
+
+    this.dispose = function () {};
+  }
+
+  // ---- Minimal GLTF/GLB loader (binary .glb + embedded/relative .gltf, core features) ----
+  function SimpleGLTFLoader() {}
+  SimpleGLTFLoader.prototype.parse = function (data, onLoad, onError) {
+    try {
+      const dv = new DataView(data);
+      const magic = dv.getUint32(0, true);
+      let json, binaryChunk = null;
+
+      if (magic === 0x46546c67) { // 'glTF'
+        let offset = 12;
+        while (offset < data.byteLength) {
+          const chunkLength = dv.getUint32(offset, true);
+          const chunkType = dv.getUint32(offset + 4, true);
+          const chunkData = data.slice(offset + 8, offset + 8 + chunkLength);
+          if (chunkType === 0x4e4f534a) { // JSON
+            json = JSON.parse(new TextDecoder('utf-8').decode(chunkData));
+          } else if (chunkType === 0x004e4942) { // BIN
+            binaryChunk = chunkData;
+          }
+          offset += 8 + chunkLength;
+        }
+      } else {
+        json = JSON.parse(new TextDecoder('utf-8').decode(data));
+      }
+
+      if (!json) throw new Error('Invalid glTF/glb file');
+
+      buildScene(json, binaryChunk, onLoad, onError);
+    } catch (err) {
+      onError(err);
+    }
+  };
+
+  function getAccessorArray(json, binaryChunk, accessorIndex) {
+    const accessor = json.accessors[accessorIndex];
+    const bufferView = json.bufferViews[accessor.bufferView];
+    const byteOffset = (bufferView.byteOffset || 0) + (accessor.byteOffset || 0);
+
+    const componentTypes = {
+      5120: Int8Array, 5121: Uint8Array, 5122: Int16Array,
+      5123: Uint16Array, 5125: Uint32Array, 5126: Float32Array
+    };
+    const typeSizes = { SCALAR: 1, VEC2: 2, VEC3: 3, VEC4: 4, MAT4: 16 };
+    const ArrType = componentTypes[accessor.componentType];
+    const numComponents = typeSizes[accessor.type];
+    const count = accessor.count;
+
+    // buffer 0 is assumed to be the binary chunk (no external .bin support)
+    const arr = new ArrType(binaryChunk, byteOffset, count * numComponents);
+    return { array: arr, itemSize: numComponents, normalized: !!accessor.normalized };
+  }
+
+  function loadTextureFromImageDef(json, binaryChunk, imageIndex, textureLoader, callback) {
+    const imgDef = json.images[imageIndex];
+    if (imgDef.uri) {
+      if (imgDef.uri.startsWith('data:')) {
+        textureLoader.load(imgDef.uri, callback);
+      } else {
+        // external relative file reference - not resolvable from a single .glb, skip
+        callback(null);
+      }
+      return;
+    }
+    if (imgDef.bufferView !== undefined) {
+      const bufferView = json.bufferViews[imgDef.bufferView];
+      const byteOffset = bufferView.byteOffset || 0;
+      const byteLength = bufferView.byteLength;
+      const blob = new Blob([binaryChunk.slice(byteOffset, byteOffset + byteLength)], { type: imgDef.mimeType || 'image/png' });
+      const url = URL.createObjectURL(blob);
+      textureLoader.load(url, (tex) => {
+        URL.revokeObjectURL(url);
+        callback(tex);
+      }, undefined, () => {
+        URL.revokeObjectURL(url);
+        callback(null);
+      });
+      return;
+    }
+    callback(null);
+  }
+
+  function buildScene(json, binaryChunk, onLoad, onError) {
+    try {
+      const root = new THREE.Group();
+      const textureLoader = new THREE.TextureLoader();
+      const textureCache = new Map(); // textureIndex -> THREE.Texture
+      let pendingTextures = 0;
+      let texturesDone = false;
+
+      // Pre-load all textures referenced by materials before building meshes,
+      // so materials are ready when meshes are created.
+      const textureIndices = new Set();
+      if (json.materials) {
+        json.materials.forEach((m) => {
+          const pbr = m.pbrMetallicRoughness || {};
+          if (pbr.baseColorTexture) textureIndices.add(pbr.baseColorTexture.index);
+          if (pbr.metallicRoughnessTexture) textureIndices.add(pbr.metallicRoughnessTexture.index);
+          if (m.normalTexture) textureIndices.add(m.normalTexture.index);
+          if (m.emissiveTexture) textureIndices.add(m.emissiveTexture.index);
+          if (m.occlusionTexture) textureIndices.add(m.occlusionTexture.index);
+        });
+      }
+
+      function finalizeIfReady() {
+        if (pendingTextures === 0) {
+          texturesDone = true;
+          buildAndEmit();
+        }
+      }
+
+      const sceneDef = json.scenes[json.scene || 0];
+
+      function buildNode(nodeIndex) {
+        const nodeDef = json.nodes[nodeIndex];
+        const obj = new THREE.Group();
+        if (nodeDef.name) obj.name = nodeDef.name;
+
+        if (nodeDef.matrix) {
+          const m = new THREE.Matrix4().fromArray(nodeDef.matrix);
+          m.decompose(obj.position, obj.quaternion, obj.scale);
+        } else {
+          if (nodeDef.translation) obj.position.fromArray(nodeDef.translation);
+          if (nodeDef.rotation) obj.quaternion.fromArray(nodeDef.rotation);
+          if (nodeDef.scale) obj.scale.fromArray(nodeDef.scale);
+        }
+
+        if (nodeDef.mesh !== undefined) {
+          const meshDef = json.meshes[nodeDef.mesh];
+          meshDef.primitives.forEach((prim) => {
+            const geometry = new THREE.BufferGeometry();
+            const posAttr = getAccessorArray(json, binaryChunk, prim.attributes.POSITION);
+            geometry.setAttribute('position', new THREE.BufferAttribute(posAttr.array, posAttr.itemSize));
+
+            if (prim.attributes.NORMAL !== undefined) {
+              const n = getAccessorArray(json, binaryChunk, prim.attributes.NORMAL);
+              geometry.setAttribute('normal', new THREE.BufferAttribute(n.array, n.itemSize));
+            } else {
+              geometry.computeVertexNormals();
+            }
+
+            if (prim.attributes.TEXCOORD_0 !== undefined) {
+              const uv = getAccessorArray(json, binaryChunk, prim.attributes.TEXCOORD_0);
+              geometry.setAttribute('uv', new THREE.BufferAttribute(uv.array, uv.itemSize));
+            }
+
+            if (prim.attributes.COLOR_0 !== undefined) {
+              const c = getAccessorArray(json, binaryChunk, prim.attributes.COLOR_0);
+              geometry.setAttribute('color', new THREE.BufferAttribute(c.array, c.itemSize, c.normalized));
+            }
+
+            if (prim.indices !== undefined) {
+              const idx = getAccessorArray(json, binaryChunk, prim.indices);
+              geometry.setIndex(new THREE.BufferAttribute(idx.array, 1));
+            }
+
+            let color = 0xcccccc;
+            let metalness = 0.3;
+            let roughness = 0.7;
+            let vertexColors = prim.attributes.COLOR_0 !== undefined;
+            let materialOpts = {};
+
+            if (prim.material !== undefined && json.materials && json.materials[prim.material]) {
+              const matDef = json.materials[prim.material];
+              const pbr = matDef.pbrMetallicRoughness || {};
+              if (pbr.baseColorFactor) {
+                color = new THREE.Color(pbr.baseColorFactor[0], pbr.baseColorFactor[1], pbr.baseColorFactor[2]);
+                if (pbr.baseColorFactor[3] !== undefined && pbr.baseColorFactor[3] < 1) {
+                  materialOpts.transparent = true;
+                  materialOpts.opacity = pbr.baseColorFactor[3];
+                }
+              }
+              if (pbr.metallicFactor !== undefined) metalness = pbr.metallicFactor;
+              if (pbr.roughnessFactor !== undefined) roughness = pbr.roughnessFactor;
+
+              if (pbr.baseColorTexture && textureCache.has(pbr.baseColorTexture.index)) {
+                materialOpts.map = textureCache.get(pbr.baseColorTexture.index);
+                // texture already carries color info; keep tint white unless factor given
+                if (!pbr.baseColorFactor) color = 0xffffff;
+              }
+              if (pbr.metallicRoughnessTexture && textureCache.has(pbr.metallicRoughnessTexture.index)) {
+                materialOpts.metalnessMap = textureCache.get(pbr.metallicRoughnessTexture.index);
+                materialOpts.roughnessMap = textureCache.get(pbr.metallicRoughnessTexture.index);
+              }
+              if (matDef.normalTexture && textureCache.has(matDef.normalTexture.index)) {
+                materialOpts.normalMap = textureCache.get(matDef.normalTexture.index);
+              }
+              if (matDef.emissiveTexture && textureCache.has(matDef.emissiveTexture.index)) {
+                materialOpts.emissiveMap = textureCache.get(matDef.emissiveTexture.index);
+                materialOpts.emissive = new THREE.Color(1, 1, 1);
+              }
+              if (matDef.emissiveFactor) {
+                materialOpts.emissive = new THREE.Color(matDef.emissiveFactor[0], matDef.emissiveFactor[1], matDef.emissiveFactor[2]);
+              }
+              if (matDef.alphaMode === 'BLEND') {
+                materialOpts.transparent = true;
+              }
+              if (matDef.doubleSided) {
+                materialOpts.side = THREE.DoubleSide;
+              }
+            }
+
+            const material = new THREE.MeshStandardMaterial(Object.assign({
+              color: color,
+              metalness: metalness,
+              roughness: roughness,
+              vertexColors: vertexColors,
+              side: THREE.DoubleSide
+            }, materialOpts));
+
+            const mesh = new THREE.Mesh(geometry, material);
+            obj.add(mesh);
+          });
+        }
+
+        if (nodeDef.children) {
+          nodeDef.children.forEach((childIdx) => {
+            obj.add(buildNode(childIdx));
+          });
+        }
+        return obj;
+      }
+
+      function buildAndEmit() {
+        try {
+          sceneDef.nodes.forEach((nodeIndex) => {
+            root.add(buildNode(nodeIndex));
+          });
+          onLoad({ scene: root });
+        } catch (err) {
+          onError(err);
+        }
+      }
+
+      // Kick off texture loading now that buildAndEmit/buildNode are defined.
+      if (textureIndices.size > 0 && json.textures && json.images) {
+        pendingTextures = textureIndices.size;
+        textureIndices.forEach((texIdx) => {
+          const texDef = json.textures[texIdx];
+          if (!texDef || texDef.source === undefined) {
+            pendingTextures--;
+            return;
+          }
+          loadTextureFromImageDef(json, binaryChunk, texDef.source, textureLoader, (tex) => {
+            if (tex) {
+              tex.flipY = false;
+              if (THREE.SRGBColorSpace) tex.colorSpace = THREE.SRGBColorSpace;
+              else tex.encoding = THREE.sRGBEncoding;
+              textureCache.set(texIdx, tex);
+            }
+            pendingTextures--;
+            finalizeIfReady();
+          });
+        });
+        finalizeIfReady(); // in case all sources were invalid and pendingTextures hit 0 synchronously
+      } else {
+        finalizeIfReady();
+      }
+    } catch (err) {
+      onError(err);
+    }
+  }
+
+  initScene();
+  applyLightMode();
+})();
+</script>
+</body>
+</html>
