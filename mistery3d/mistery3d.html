@@ -1,0 +1,1238 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>mystery3d</title>
+<style>
+  html, body {
+    margin: 0; padding: 0; overflow: hidden;
+    background: #0a0c10;
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    height: 100%;
+  }
+  #canvas-wrap { position: fixed; inset: 0; }
+
+  #hud {
+    position: fixed; top: 16px; left: 16px;
+    color: #cbd3de;
+    font-size: 12px;
+    letter-spacing: 0.04em;
+    pointer-events: none;
+    text-transform: uppercase;
+    opacity: 0.85;
+    display: none;
+  }
+  #hud .title { font-size: 13px; color: #e9edf3; margin-bottom: 6px; font-weight: 600; }
+  #hud .row { margin-top: 2px; color: #7c8698; }
+  #hud kbd {
+    display: inline-block;
+    border: 1px solid #3a4152;
+    border-bottom-width: 2px;
+    border-radius: 4px;
+    padding: 1px 6px;
+    margin: 0 1px;
+    color: #cbd3de;
+    background: #171a21;
+    font-size: 11px;
+  }
+  #backBtn {
+    position: fixed; top: 16px; right: 16px;
+    display: none;
+    background: #171a21;
+    border: 1px solid #2a3040;
+    color: #cbd3de;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 8px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  #backBtn:hover { border-color: #5b8cff; color: #fff; }
+
+  #facingBtn {
+    position: fixed; top: 60px; right: 16px;
+    display: none;
+    background: #171a21;
+    border: 1px solid #2a3040;
+    color: #cbd3de;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    padding: 8px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  #facingBtn:hover { border-color: #5b8cff; color: #fff; }
+
+  #weaponBar {
+    position: fixed; bottom: 20px; left: 50%;
+    transform: translateX(-50%);
+    display: none;
+    gap: 8px;
+  }
+  .weapon-btn {
+    background: #171a21;
+    border: 1px solid #2a3040;
+    color: #cbd3de;
+    font-size: 13px;
+    letter-spacing: 0.04em;
+    padding: 10px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .weapon-btn:hover { border-color: #3a4258; }
+  .weapon-btn.active {
+    background: #1a2540;
+    border-color: #5b8cff;
+    color: #fff;
+  }
+  .weapon-btn .key-hint {
+    background: #0a0c10;
+    border: 1px solid #2a3040;
+    border-radius: 4px;
+    padding: 1px 6px;
+    font-size: 11px;
+    color: #7c8698;
+  }
+
+  #loading {
+    position: fixed; inset: 0;
+    display: none;
+    align-items: center; justify-content: center;
+    flex-direction: column;
+    background: #0a0c10;
+    color: #7c8698;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    z-index: 30;
+  }
+  #loading .bar { width: 180px; height: 2px; background: #1c212b; margin-top: 14px; overflow: hidden; border-radius: 2px; }
+  #loading .fill { height: 100%; width: 0%; background: #5b8cff; transition: width 0.2s ease; }
+
+  #error {
+    position: fixed; inset: 0;
+    display: none;
+    align-items: center; justify-content: center;
+    background: #0a0c10;
+    color: #d97757;
+    font-size: 13px;
+    text-align: center;
+    padding: 20px;
+    z-index: 40;
+    white-space: pre-line;
+  }
+
+  #menu {
+    position: fixed; inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 48px;
+    z-index: 20;
+    background:
+      radial-gradient(circle at 30% 20%, rgba(91,140,255,0.10), transparent 45%),
+      radial-gradient(circle at 75% 75%, rgba(217,119,87,0.06), transparent 40%),
+      #0a0c10;
+    padding: 20px;
+    box-sizing: border-box;
+  }
+  #menu-panel {
+    width: 360px;
+    max-width: 88vw;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    flex-shrink: 0;
+  }
+  #menu-panel .eyebrow {
+    color: #5b8cff;
+    font-size: 11px;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+  #menu-panel h1 {
+    color: #f0f3f8;
+    font-size: 30px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    margin: 0 0 6px 0;
+  }
+  #menu-panel .sub {
+    color: #5b6478;
+    font-size: 12.5px;
+    margin-bottom: 34px;
+    letter-spacing: 0.02em;
+  }
+
+  .menu-btn {
+    width: 100%;
+    padding: 14px 20px;
+    margin-bottom: 10px;
+    border-radius: 8px;
+    font-size: 13px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    cursor: pointer;
+    text-align: left;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    transition: border-color 0.15s ease, background 0.15s ease;
+    box-sizing: border-box;
+  }
+  .menu-btn .arrow { opacity: 0.4; font-size: 14px; transition: transform 0.15s ease, opacity 0.15s ease; }
+  .menu-btn:hover .arrow { opacity: 1; transform: translateX(3px); }
+
+  #playBtn {
+    background: #5b8cff;
+    color: #0a0c10;
+    border: 1px solid #5b8cff;
+    font-weight: 700;
+  }
+  #playBtn:hover { background: #7ba0ff; }
+  #playBtn .arrow { color: #0a0c10; }
+
+  #settingsBtn {
+    background: #12151c;
+    color: #cbd3de;
+    border: 1px solid #232838;
+  }
+  #settingsBtn:hover { border-color: #3a4258; background: #161a24; }
+
+  #uploadRow {
+    width: 100%;
+    margin-top: 22px;
+    padding-top: 18px;
+    border-top: 1px solid #1c212b;
+  }
+  #uploadRow .label {
+    color: #4c5568;
+    font-size: 10.5px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+    text-align: left;
+  }
+  #uploadBtn {
+    width: 100%;
+    background: transparent;
+    color: #7c8698;
+    border: 1px dashed #2a3040;
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-size: 12px;
+    letter-spacing: 0.03em;
+    cursor: pointer;
+    box-sizing: border-box;
+    text-align: center;
+    transition: border-color 0.15s ease, color 0.15s ease;
+  }
+  #uploadBtn:hover { border-color: #5b8cff; color: #cbd3de; }
+  #uploadBtn.has-file { border-style: solid; border-color: #3a6b4a; color: #8fd6a8; }
+  #fileInput { display: none; }
+
+  #modelStatus {
+    margin-top: 10px;
+    font-size: 11px;
+    color: #4c5568;
+    text-align: left;
+    width: 100%;
+  }
+  #modelStatus.active { color: #8fd6a8; }
+
+  #facingRow .label {
+    color: #4c5568;
+    font-size: 10.5px;
+    letter-spacing: 0.06em;
+    text-transform: none;
+    margin-bottom: 8px;
+    text-align: left;
+  }
+  #facingOptions {
+    display: flex;
+    gap: 6px;
+  }
+  .facing-btn {
+    flex: 1;
+    background: #12151c;
+    color: #7c8698;
+    border: 1px solid #232838;
+    padding: 8px 4px;
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+  }
+  .facing-btn:hover { border-color: #3a4258; color: #cbd3de; }
+  .facing-btn.active {
+    background: #1a2540;
+    border-color: #5b8cff;
+    color: #cbd3de;
+  }
+
+  #previewAnimOptions {
+    display: flex;
+    gap: 6px;
+  }
+  .anim-btn {
+    flex: 1;
+    background: #12151c;
+    color: #7c8698;
+    border: 1px solid #232838;
+    padding: 8px 4px;
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+  }
+  .anim-btn:hover { border-color: #3a4258; color: #cbd3de; }
+  .anim-btn.active {
+    background: #1a2540;
+    border-color: #5b8cff;
+    color: #cbd3de;
+  }
+
+  #customizePanel {
+    width: 300px;
+    max-width: 88vw;
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+  }
+  #customizePanel .panel-title {
+    color: #5b6478;
+    font-size: 10.5px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+    text-align: left;
+  }
+  #previewWrap {
+    width: 100%;
+    height: 220px;
+    background: #0d0f14;
+    border: 1px solid #1c212b;
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 18px;
+    position: relative;
+  }
+  #previewWrap canvas { display: block; width: 100%; height: 100%; }
+  #previewHint {
+    position: absolute; bottom: 8px; left: 0; right: 0;
+    text-align: center;
+    color: #3d4454;
+    font-size: 10px;
+    letter-spacing: 0.05em;
+    pointer-events: none;
+  }
+  .customize-row {
+    margin-bottom: 18px;
+  }
+  .customize-row .label {
+    color: #4c5568;
+    font-size: 10.5px;
+    letter-spacing: 0.06em;
+    margin-bottom: 8px;
+    text-align: left;
+    display: flex;
+    justify-content: space-between;
+  }
+  .customize-row .label .val {
+    color: #7c8698;
+  }
+  .customize-row input[type="range"] {
+    width: 100%;
+    accent-color: #5b8cff;
+  }
+
+  #settingsModal {
+    position: fixed; inset: 0;
+    display: none;
+    align-items: center; justify-content: center;
+    background: rgba(6,7,10,0.75);
+    z-index: 25;
+  }
+  #settingsModal .box {
+    width: 320px;
+    max-width: 85vw;
+    background: #12151c;
+    border: 1px solid #232838;
+    border-radius: 10px;
+    padding: 28px 26px;
+    text-align: center;
+  }
+  #settingsModal h2 {
+    color: #e9edf3;
+    font-size: 15px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    margin: 0 0 10px 0;
+  }
+  #settingsModal p {
+    color: #5b6478;
+    font-size: 12.5px;
+    line-height: 1.6;
+    margin: 0 0 22px 0;
+  }
+  #settingsModal .close-btn {
+    background: transparent;
+    border: 1px solid #2a3040;
+    color: #cbd3de;
+    padding: 9px 20px;
+    border-radius: 6px;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    cursor: pointer;
+  }
+  #settingsModal .close-btn:hover { border-color: #5b8cff; }
+</style>
+</head>
+<body>
+
+<div id="canvas-wrap"></div>
+
+<!-- ===== Menu Screen ===== -->
+<div id="menu">
+  <div id="menu-panel">
+    <div class="eyebrow">3D Character Demo</div>
+    <h1>mystery3d</h1>
+    <div class="sub">自分の3Dモデルを持ち込んで動かせる場所</div>
+
+    <div id="playBtn" class="menu-btn">
+      <span>Play</span><span class="arrow">&rarr;</span>
+    </div>
+    <div id="settingsBtn" class="menu-btn">
+      <span>Settings</span><span class="arrow">&rarr;</span>
+    </div>
+
+    <div id="uploadRow">
+      <div class="label">Character Model</div>
+      <button id="uploadBtn">.glb / .gltf / .fbx をアップロード</button>
+      <input type="file" id="fileInput" accept=".glb,.gltf,.fbx">
+      <div id="modelStatus">未アップロード — デフォルトモデルを使用します</div>
+    </div>
+  </div>
+
+  <div id="customizePanel">
+    <div class="panel-title">Preview &amp; Customize</div>
+    <div id="previewWrap">
+      <div id="previewHint">ドラッグで回転</div>
+    </div>
+
+    <div class="customize-row" id="previewAnimRow">
+      <div class="label">アニメーション確認</div>
+      <div id="previewAnimOptions">
+        <button class="anim-btn active" data-anim="idle">静止</button>
+        <button class="anim-btn" data-anim="walk">歩く</button>
+        <button class="anim-btn" data-anim="run">走る</button>
+      </div>
+    </div>
+
+    <div id="facingRow" class="customize-row">
+      <div class="label">正面の向き(進行方向とズレる場合に調整)</div>
+      <div id="facingOptions">
+        <button class="facing-btn active" data-deg="0">0&deg;</button>
+        <button class="facing-btn" data-deg="90">90&deg;</button>
+        <button class="facing-btn" data-deg="180">180&deg;</button>
+        <button class="facing-btn" data-deg="270">270&deg;</button>
+      </div>
+    </div>
+
+    <div class="customize-row">
+      <div class="label"><span>視点の高さ(目線位置)</span><span class="val" id="eyeHeightVal">1.62m</span></div>
+      <input type="range" id="eyeHeightSlider" min="1.2" max="2.0" step="0.01" value="1.62">
+    </div>
+
+    <div class="customize-row">
+      <div class="label"><span>モデルの縮尺</span><span class="val" id="modelScaleVal">100%</span></div>
+      <input type="range" id="modelScaleSlider" min="50" max="150" step="1" value="100">
+    </div>
+  </div>
+</div>
+
+<!-- ===== Settings Modal (placeholder) ===== -->
+<div id="settingsModal">
+  <div class="box">
+    <h2>Settings</h2>
+    <p>設定項目は準備中です。<br>ここに音量やグラフィック設定などが入る予定。</p>
+    <button class="close-btn" id="closeSettings">閉じる</button>
+  </div>
+</div>
+
+<!-- ===== In-game HUD ===== -->
+<div id="hud">
+  <div class="title">mystery3d</div>
+  <div class="row"><kbd>&uarr;</kbd><kbd>&darr;</kbd><kbd>&larr;</kbd><kbd>&rarr;</kbd> 移動</div>
+  <div class="row"><kbd>Shift</kbd> 走る</div>
+  <div class="row"><kbd>1</kbd> 刀 / <kbd>2</kbd> 銃</div>
+  <div class="row">クリックして視点操作を開始 / マウス移動 視点</div>
+  <div class="row"><kbd>Esc</kbd> 視点操作を解除</div>
+</div>
+<div id="backBtn">&larr; Menu</div>
+<div id="facingBtn" title="キャラの正面向きがズレている場合に押してください">&#8635; 向き調整</div>
+
+<div id="weaponBar">
+  <button class="weapon-btn" data-weapon="sword">刀<span class="key-hint">1</span></button>
+  <button class="weapon-btn" data-weapon="gun">銃<span class="key-hint">2</span></button>
+</div>
+
+<div id="loading">
+  <div>Loading model</div>
+  <div class="bar"><div class="fill" id="loadfill"></div></div>
+</div>
+<div id="error"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/fflate@0.7.4/umd/index.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/FBXLoader.js"></script>
+<script src="animation.js"></script>
+<script>
+function loadScriptFallback(src, cb) {
+  const s = document.createElement('script');
+  s.src = src;
+  s.onload = cb;
+  s.onerror = function() { console.error('Failed to load fallback script:', src); cb(); };
+  document.head.appendChild(s);
+}
+
+function startApp() {
+(function() {
+  const loadingEl = document.getElementById('loading');
+  const loadfill = document.getElementById('loadfill');
+  const errorEl = document.getElementById('error');
+  const menuEl = document.getElementById('menu');
+  const hudEl = document.getElementById('hud');
+  const backBtn = document.getElementById('backBtn');
+  const facingBtn = document.getElementById('facingBtn');
+  const settingsModal = document.getElementById('settingsModal');
+
+  function showError(msg) {
+    loadingEl.style.display = 'none';
+    errorEl.style.display = 'flex';
+    errorEl.textContent = msg;
+    console.error(msg);
+  }
+
+  function base64ToArrayBuffer(base64) {
+    const binaryString = atob(base64);
+    const len = binaryString.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) bytes[i] = binaryString.charCodeAt(i);
+    return bytes.buffer;
+  }
+
+  let uploadedFile = null;
+  let selectedFacingDeg = 0;
+  let previewAnimMode = 'idle';
+
+  document.querySelectorAll('.facing-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.facing-btn').forEach((b) => b.classList.remove('active'));
+      btn.classList.add('active');
+      selectedFacingDeg = parseInt(btn.getAttribute('data-deg'), 10) || 0;
+    });
+  });
+
+  document.querySelectorAll('.anim-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.anim-btn').forEach((b) => b.classList.remove('active'));
+      btn.classList.add('active');
+      previewAnimMode = btn.getAttribute('data-anim') || 'idle';
+    });
+  });
+  const fileInput = document.getElementById('fileInput');
+  const uploadBtn = document.getElementById('uploadBtn');
+  const modelStatus = document.getElementById('modelStatus');
+
+  uploadBtn.addEventListener('click', () => fileInput.click());
+
+  const customizePanel = document.getElementById('customizePanel');
+  const previewWrap = document.getElementById('previewWrap');
+  const eyeHeightSlider = document.getElementById('eyeHeightSlider');
+  const eyeHeightVal = document.getElementById('eyeHeightVal');
+  const modelScaleSlider = document.getElementById('modelScaleSlider');
+  const modelScaleVal = document.getElementById('modelScaleVal');
+
+  let eyeHeightOffset = parseFloat(eyeHeightSlider.value);
+  let modelScalePct = parseFloat(modelScaleSlider.value);
+
+  eyeHeightSlider.addEventListener('input', () => {
+    eyeHeightOffset = parseFloat(eyeHeightSlider.value);
+    eyeHeightVal.textContent = eyeHeightOffset.toFixed(2) + 'm';
+  });
+  modelScaleSlider.addEventListener('input', () => {
+    modelScalePct = parseFloat(modelScaleSlider.value);
+    modelScaleVal.textContent = modelScalePct + '%';
+    if (previewCharacter) applyPreviewScale();
+  });
+
+  let previewRenderer = null, previewScene = null, previewCamera = null;
+  let previewCharacter = null;
+  let previewBones = {};
+  let previewAnimator = null;
+  let previewOrbitYaw = 0.6, previewOrbitPitch = 0.15;
+  let previewDragging = false, previewLastX = 0, previewLastY = 0;
+  let previewBaseScale = 1;
+  let eyeMarker = null;
+
+  function ensurePreviewScene() {
+    if (previewRenderer) return;
+    previewScene = new THREE.Scene();
+    previewScene.background = new THREE.Color(0x0d0f14);
+
+    const w = previewWrap.clientWidth, h = previewWrap.clientHeight;
+    previewCamera = new THREE.PerspectiveCamera(40, w / h, 0.05, 50);
+
+    previewRenderer = new THREE.WebGLRenderer({ antialias: true });
+    previewRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    previewRenderer.setSize(w, h);
+    previewRenderer.outputEncoding = THREE.sRGBEncoding;
+    previewWrap.insertBefore(previewRenderer.domElement, previewWrap.firstChild);
+
+    const hemi2 = new THREE.HemisphereLight(0x8fa6ff, 0x0a0a0a, 0.8);
+    previewScene.add(hemi2);
+    const dl = new THREE.DirectionalLight(0xffffff, 1.1);
+    dl.position.set(2, 4, 3);
+    previewScene.add(dl);
+
+    const eyeMarkerMat = new THREE.MeshBasicMaterial({ color: 0xff3b3b });
+    eyeMarker = new THREE.Mesh(new THREE.SphereGeometry(0.035, 12, 12), eyeMarkerMat);
+    eyeMarker.renderOrder = 999;
+    previewScene.add(eyeMarker);
+
+    const eyeMarkerGlowMat = new THREE.MeshBasicMaterial({ color: 0xff3b3b, transparent: true, opacity: 0.25 });
+    const eyeMarkerGlow = new THREE.Mesh(new THREE.SphereGeometry(0.07, 12, 12), eyeMarkerGlowMat);
+    eyeMarker.add(eyeMarkerGlow);
+
+    previewWrap.addEventListener('pointerdown', (e) => {
+      previewDragging = true; previewLastX = e.clientX; previewLastY = e.clientY;
+    });
+    window.addEventListener('pointerup', () => previewDragging = false);
+    window.addEventListener('pointermove', (e) => {
+      if (!previewDragging) return;
+      const dx = e.clientX - previewLastX, dy = e.clientY - previewLastY;
+      previewLastX = e.clientX; previewLastY = e.clientY;
+      previewOrbitYaw += dx * 0.008;
+      previewOrbitPitch = Math.max(-0.4, Math.min(0.8, previewOrbitPitch + dy * 0.006));
+    });
+
+    let lastPreviewTime = performance.now();
+    (function previewLoop() {
+      requestAnimationFrame(previewLoop);
+      if (!previewCharacter) return;
+      const now = performance.now();
+      const dt = Math.min((now - lastPreviewTime) / 1000, 0.05);
+      lastPreviewTime = now;
+
+      previewCharacter.rotation.y = previewOrbitYaw;
+
+      if (previewAnimator && Object.keys(previewBones).length > 0) {
+        previewAnimator.update(dt, {
+          moving: previewAnimMode !== 'idle',
+          running: previewAnimMode === 'run',
+        });
+      }
+
+      const dist = 2.6;
+      previewCamera.position.set(
+        0,
+        1.0 + dist * Math.sin(previewOrbitPitch),
+        dist * Math.cos(previewOrbitPitch)
+      );
+      previewCamera.lookAt(0, 0.9, 0);
+
+      if (eyeMarker) {
+        const facing = new THREE.Vector3(Math.sin(previewOrbitYaw), 0, Math.cos(previewOrbitYaw));
+        eyeMarker.position.set(facing.x * 0.12, eyeHeightOffset, facing.z * 0.12);
+      }
+
+      previewRenderer.render(previewScene, previewCamera);
+    })();
+  }
+
+  function applyPreviewScale() {
+    if (!previewCharacter) return;
+    previewCharacter.scale.setScalar(previewBaseScale * (modelScalePct / 100));
+  }
+
+  function bindPreviewAnimator() {
+    if (!previewCharacter) return;
+    previewBones = {};
+    previewCharacter.traverse((o) => {
+      if (o.isBone) previewBones[o.name] = o;
+    });
+    if (Object.keys(previewBones).length === 0) {
+      previewAnimator = null;
+      return;
+    }
+    if (!previewAnimator) previewAnimator = new CharacterAnimator(THREE);
+    previewAnimator.bindToCharacter(previewCharacter, previewBones);
+  }
+
+  function loadIntoPreview(arrayBuffer, ext) {
+    ensurePreviewScene();
+    if (previewCharacter) {
+      previewScene.remove(previewCharacter);
+      previewCharacter = null;
+    }
+
+    function onModel(obj) {
+      const box = new THREE.Box3().setFromObject(obj);
+      const size = new THREE.Vector3();
+      box.getSize(size);
+      const height = size.y || 1.7;
+      previewBaseScale = 1.75 / height;
+      obj.scale.setScalar(previewBaseScale * (modelScalePct / 100));
+      const box2 = new THREE.Box3().setFromObject(obj);
+      obj.position.y -= box2.min.y;
+      previewCharacter = obj;
+      previewScene.add(previewCharacter);
+      bindPreviewAnimator();
+    }
+
+    if (ext === 'fbx') {
+      const previewFbxLoader = new THREE.FBXLoader();
+      const obj = previewFbxLoader.parse(arrayBuffer, '');
+      onModel(obj);
+    } else {
+      const previewGltfLoader = new THREE.GLTFLoader();
+      previewGltfLoader.parse(arrayBuffer, '', (gltf) => onModel(gltf.scene));
+    }
+  }
+
+  function loadPlaceholderIntoPreview() {
+    ensurePreviewScene();
+    if (previewCharacter) {
+      previewScene.remove(previewCharacter);
+      previewCharacter = null;
+    }
+    const placeholder = createPlaceholderCharacter();
+    const box = new THREE.Box3().setFromObject(placeholder);
+    const size = new THREE.Vector3();
+    box.getSize(size);
+    const height = size.y || 1.7;
+    previewBaseScale = 1.75 / height;
+    placeholder.scale.setScalar(previewBaseScale * (modelScalePct / 100));
+    const box2 = new THREE.Box3().setFromObject(placeholder);
+    placeholder.position.y -= box2.min.y;
+    previewCharacter = placeholder;
+    previewScene.add(previewCharacter);
+    bindPreviewAnimator();
+  }
+
+  fileInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const ext = file.name.split('.').pop().toLowerCase();
+    const reader = new FileReader();
+    reader.onload = function(ev) {
+      uploadedFile = { arrayBuffer: ev.target.result, ext: ext, name: file.name };
+      uploadBtn.textContent = file.name;
+      uploadBtn.classList.add('has-file');
+      modelStatus.textContent = 'アップロード済み: ' + file.name;
+      modelStatus.classList.add('active');
+      loadIntoPreview(uploadedFile.arrayBuffer, ext);
+    };
+    reader.onerror = function() {
+      modelStatus.textContent = 'ファイルの読み込みに失敗しました';
+      modelStatus.classList.remove('active');
+    };
+    reader.readAsArrayBuffer(file);
+  });
+
+  document.getElementById('settingsBtn').addEventListener('click', () => {
+    settingsModal.style.display = 'flex';
+  });
+  document.getElementById('closeSettings').addEventListener('click', () => {
+    settingsModal.style.display = 'none';
+  });
+  settingsModal.addEventListener('click', (e) => {
+    if (e.target === settingsModal) settingsModal.style.display = 'none';
+  });
+
+  document.getElementById('playBtn').addEventListener('click', () => {
+    menuEl.style.display = 'none';
+    loadingEl.style.display = 'flex';
+    loadingEl.style.opacity = '1';
+    hudEl.style.display = 'block';
+    backBtn.style.display = 'block';
+    facingBtn.style.display = 'block';
+    document.getElementById('weaponBar').style.display = 'flex';
+    startGame();
+  });
+
+  backBtn.addEventListener('click', () => {
+    location.reload();
+  });
+
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x0a0c10);
+  scene.fog = new THREE.Fog(0x0a0c10, 6, 30);
+
+  const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.05, 100);
+
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.outputEncoding = THREE.sRGBEncoding;
+  document.getElementById('canvas-wrap').appendChild(renderer.domElement);
+
+  const hemi = new THREE.HemisphereLight(0x8fa6ff, 0x0a0a0a, 0.6);
+  scene.add(hemi);
+
+  const keyLight = new THREE.DirectionalLight(0xffffff, 1.4);
+  keyLight.position.set(3, 6, 4);
+  keyLight.castShadow = true;
+  keyLight.shadow.mapSize.set(2048, 2048);
+  keyLight.shadow.camera.left = -4;
+  keyLight.shadow.camera.right = 4;
+  keyLight.shadow.camera.top = 4;
+  keyLight.shadow.camera.bottom = -4;
+  keyLight.shadow.camera.near = 0.5;
+  keyLight.shadow.camera.far = 20;
+  scene.add(keyLight);
+
+  const rim = new THREE.DirectionalLight(0x5b8cff, 0.5);
+  rim.position.set(-4, 3, -4);
+  scene.add(rim);
+
+  const groundGeo = new THREE.CircleGeometry(30, 64);
+  const groundMat = new THREE.MeshStandardMaterial({ color: 0x12151c, roughness: 0.95, metalness: 0.0 });
+  const ground = new THREE.Mesh(groundGeo, groundMat);
+  ground.rotation.x = -Math.PI / 2;
+  ground.receiveShadow = true;
+  scene.add(ground);
+
+  const grid = new THREE.GridHelper(30, 30, 0x2a3040, 0x161a22);
+  grid.position.y = 0.001;
+  scene.add(grid);
+
+  const weapons = {
+    sword: null,
+    gun: null,
+  };
+  let currentWeapon = 'sword';
+
+  function setupWeapons() {
+    weapons.sword = createSwordModel();
+    weapons.sword.position.set(0.22, -0.22, -0.4);
+    weapons.sword.rotation.set(0.15, 0.3, -0.35);
+    camera.add(weapons.sword);
+
+    weapons.gun = createGunModel();
+    weapons.gun.position.set(0.2, -0.18, -0.35);
+    weapons.gun.rotation.set(0, 0.05, 0);
+    camera.add(weapons.gun);
+
+    updateWeaponVisibility();
+  }
+
+  function updateWeaponVisibility() {
+    weapons.sword.visible = (currentWeapon === 'sword');
+    weapons.gun.visible = (currentWeapon === 'gun');
+    document.querySelectorAll('.weapon-btn').forEach((btn) => {
+      btn.classList.toggle('active', btn.getAttribute('data-weapon') === currentWeapon);
+    });
+  }
+
+  function switchWeapon(name) {
+    if (name !== 'sword' && name !== 'gun') return;
+    currentWeapon = name;
+    updateWeaponVisibility();
+  }
+
+  scene.add(camera);
+
+  document.querySelectorAll('.weapon-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      switchWeapon(btn.getAttribute('data-weapon'));
+    });
+  });
+
+  let camYaw = Math.PI;
+  let camPitch = 0;
+  const pitchLimit = Math.PI / 2 - 0.05;
+
+  document.getElementById('canvas-wrap').addEventListener('click', () => {
+    if (document.pointerLockElement !== renderer.domElement) {
+      renderer.domElement.requestPointerLock();
+    }
+  });
+
+  document.addEventListener('mousemove', (e) => {
+    if (document.pointerLockElement !== renderer.domElement) return;
+    camYaw -= e.movementX * 0.0022;
+    camPitch = Math.max(-pitchLimit, Math.min(pitchLimit, camPitch - e.movementY * 0.0022));
+  });
+
+  const keys = {};
+  window.addEventListener('keydown', (e) => {
+    keys[e.key.toLowerCase()] = true;
+    if (e.key === '1') switchWeapon('sword');
+    if (e.key === '2') switchWeapon('gun');
+  });
+  window.addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false; });
+
+  let character = null;
+  let bones = {};
+  let animLoopStarted = false;
+
+  facingBtn.addEventListener('click', () => {
+    if (!character || !character.userData.modelRoot) return;
+    const modelRoot = character.userData.modelRoot;
+    modelRoot.rotation.y += Math.PI / 2;
+  });
+
+  const animator = new CharacterAnimator(THREE);
+
+  function placeCharacter(obj, facingOffsetY) {
+    if (character) {
+      scene.remove(character);
+      character = null;
+      bones = {};
+    }
+
+    const outer = new THREE.Group();
+    const modelRoot = obj;
+    modelRoot.rotation.y = (typeof facingOffsetY === 'number') ? facingOffsetY : 0;
+    outer.add(modelRoot);
+    outer.userData.modelRoot = modelRoot;
+
+    character = outer;
+
+    const box = new THREE.Box3().setFromObject(character);
+    const size = new THREE.Vector3();
+    box.getSize(size);
+    const height = size.y || 1.7;
+    const targetHeight = 1.75 * (modelScalePct / 100);
+    const scale = height > 0 ? (targetHeight / height) : 1;
+    character.scale.setScalar(scale);
+
+    const box2 = new THREE.Box3().setFromObject(character);
+    character.position.y -= box2.min.y;
+    character.position.x = 0;
+    character.position.z = 0;
+
+    character.traverse((obj2) => {
+      if (obj2.isMesh) {
+        obj2.castShadow = true;
+        obj2.receiveShadow = true;
+      }
+      if (obj2.isBone) bones[obj2.name] = obj2;
+    });
+
+    for (const name in bones) {
+      bones[name].userData.bindQuat = bones[name].quaternion.clone();
+    }
+    animator.bindToCharacter(character, bones);
+
+    scene.add(character);
+
+    if (bones['CC_Base_Head']) {
+      bones['CC_Base_Head'].traverse((obj2) => {
+        if (obj2.isMesh) obj2.visible = false;
+      });
+    }
+  }
+
+  function finishLoad() {
+    loadfill.style.width = '100%';
+    setTimeout(() => {
+      loadingEl.style.opacity = '0';
+      setTimeout(() => { loadingEl.style.display = 'none'; loadingEl.style.opacity = '1'; }, 400);
+    }, 150);
+    if (!animLoopStarted) {
+      animLoopStarted = true;
+      setupWeapons();
+      animate();
+    }
+  }
+
+  function createSwordModel() {
+    const group = new THREE.Group();
+    const bladeMat = new THREE.MeshStandardMaterial({ color: 0xd8dde6, roughness: 0.25, metalness: 0.85 });
+    const hiltMat = new THREE.MeshStandardMaterial({ color: 0x3a2a1a, roughness: 0.7, metalness: 0.1 });
+    const guardMat = new THREE.MeshStandardMaterial({ color: 0xb8862a, roughness: 0.4, metalness: 0.8 });
+
+    const blade = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.62, 0.006), bladeMat);
+    blade.position.y = 0.36;
+    blade.castShadow = true;
+    group.add(blade);
+
+    const tip = new THREE.Mesh(new THREE.ConeGeometry(0.018, 0.05, 4), bladeMat);
+    tip.position.y = 0.68;
+    tip.rotation.y = Math.PI / 4;
+    group.add(tip);
+
+    const guard = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.02, 0.03), guardMat);
+    guard.position.y = 0.05;
+    group.add(guard);
+
+    const hilt = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.16, 8), hiltMat);
+    hilt.position.y = -0.03;
+    group.add(hilt);
+
+    const pommel = new THREE.Mesh(new THREE.SphereGeometry(0.02, 8, 8), guardMat);
+    pommel.position.y = -0.11;
+    group.add(pommel);
+
+    return group;
+  }
+
+  function createGunModel() {
+    const group = new THREE.Group();
+    const bodyMat = new THREE.MeshStandardMaterial({ color: 0x22262e, roughness: 0.4, metalness: 0.7 });
+    const gripMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.8, metalness: 0.1 });
+    const accentMat = new THREE.MeshStandardMaterial({ color: 0x555c68, roughness: 0.3, metalness: 0.8 });
+
+    const barrel = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.05, 0.42), bodyMat);
+    barrel.position.set(0, 0.03, -0.12);
+    barrel.castShadow = true;
+    group.add(barrel);
+
+    const muzzle = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, 0.05, 10), accentMat);
+    muzzle.rotation.x = Math.PI / 2;
+    muzzle.position.set(0, 0.03, -0.34);
+    group.add(muzzle);
+
+    const grip = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.16, 0.06), gripMat);
+    grip.position.set(0, -0.08, 0.03);
+    grip.rotation.x = 0.25;
+    group.add(grip);
+
+    const trigger = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.09, 0.05), bodyMat);
+    trigger.position.set(0, -0.02, -0.02);
+    group.add(trigger);
+
+    const sight = new THREE.Mesh(new THREE.BoxGeometry(0.01, 0.02, 0.03), accentMat);
+    sight.position.set(0, 0.065, -0.2);
+    group.add(sight);
+
+    return group;
+  }
+
+  function createPlaceholderCharacter() {
+    const group = new THREE.Group();
+    const mat = new THREE.MeshStandardMaterial({ color: 0x5b8cff, roughness: 0.55, metalness: 0.1 });
+    const jointMat = new THREE.MeshStandardMaterial({ color: 0x3a4a7a, roughness: 0.6 });
+
+    function limbMesh(length, radius) {
+      const geo = new THREE.CylinderGeometry(radius, radius, Math.max(length - radius, 0.02), 10);
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.position.y = -length / 2;
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      return mesh;
+    }
+
+    const hip = new THREE.Bone(); hip.name = 'CC_Base_Hip'; hip.position.set(0, 0.95, 0);
+    group.add(hip);
+
+    const spine01 = new THREE.Bone(); spine01.name = 'CC_Base_Spine01'; spine01.position.set(0, 0.14, 0);
+    hip.add(spine01);
+    const spine02 = new THREE.Bone(); spine02.name = 'CC_Base_Spine02'; spine02.position.set(0, 0.16, 0);
+    spine01.add(spine02);
+
+    const torsoMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.14, 0.32, 10), mat);
+    torsoMesh.position.y = 0.16;
+    torsoMesh.castShadow = true; torsoMesh.receiveShadow = true;
+    spine02.add(torsoMesh);
+
+    const head = new THREE.Bone(); head.name = 'CC_Base_Head'; head.position.set(0, 0.28, 0);
+    spine02.add(head);
+    const headMesh = new THREE.Mesh(new THREE.SphereGeometry(0.13, 16, 16), jointMat);
+    headMesh.position.y = 0.13;
+    headMesh.castShadow = true;
+    head.add(headMesh);
+
+    function buildArm(sign, upperName, foreName) {
+      const clavicleOffset = new THREE.Object3D();
+      clavicleOffset.position.set(sign * 0.18, 0.22, 0);
+      spine02.add(clavicleOffset);
+
+      const upper = new THREE.Bone(); upper.name = upperName;
+      clavicleOffset.add(upper);
+      const upperMesh = limbMesh(0.26, 0.055);
+      upper.add(upperMesh);
+
+      const fore = new THREE.Bone(); fore.name = foreName; fore.position.set(0, -0.26, 0);
+      upper.add(fore);
+      const foreMesh = limbMesh(0.24, 0.045);
+      fore.add(foreMesh);
+
+      const handMesh = new THREE.Mesh(new THREE.SphereGeometry(0.045, 8, 8), jointMat);
+      handMesh.position.y = -0.24;
+      fore.add(handMesh);
+
+      return { upper, fore };
+    }
+    buildArm(1, 'CC_Base_L_Upperarm', 'CC_Base_L_Forearm');
+    buildArm(-1, 'CC_Base_R_Upperarm', 'CC_Base_R_Forearm');
+
+    function buildLeg(sign, thighName, calfName, footName) {
+      const thigh = new THREE.Bone(); thigh.name = thighName;
+      thigh.position.set(sign * 0.09, -0.02, 0);
+      hip.add(thigh);
+      const thighMesh = limbMesh(0.38, 0.075);
+      thigh.add(thighMesh);
+
+      const calf = new THREE.Bone(); calf.name = calfName; calf.position.set(0, -0.38, 0);
+      thigh.add(calf);
+      const calfMesh = limbMesh(0.36, 0.06);
+      calf.add(calfMesh);
+
+      const foot = new THREE.Bone(); foot.name = footName; foot.position.set(0, -0.36, 0);
+      calf.add(foot);
+      const footMesh = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.05, 0.18), jointMat);
+      footMesh.position.set(0, -0.02, 0.05);
+      footMesh.castShadow = true;
+      foot.add(footMesh);
+
+      return { thigh, calf, foot };
+    }
+    buildLeg(1, 'CC_Base_L_Thigh', 'CC_Base_L_Calf', 'CC_Base_L_Foot');
+    buildLeg(-1, 'CC_Base_R_Thigh', 'CC_Base_R_Calf', 'CC_Base_R_Foot');
+
+    return group;
+  }
+
+  const gltfLoader = new THREE.GLTFLoader();
+  const fbxLoader = new THREE.FBXLoader();
+
+  function startGame() {
+    loadfill.style.width = '10%';
+
+    if (uploadedFile) {
+      loadfill.style.width = '30%';
+      try {
+        if (uploadedFile.ext === 'fbx') {
+          const obj = fbxLoader.parse(uploadedFile.arrayBuffer, '');
+          loadfill.style.width = '80%';
+          placeCharacter(obj, selectedFacingDeg * Math.PI / 180);
+          finishLoad();
+        } else {
+          gltfLoader.parse(uploadedFile.arrayBuffer, '', (gltf) => {
+            loadfill.style.width = '80%';
+            placeCharacter(gltf.scene, selectedFacingDeg * Math.PI / 180);
+            finishLoad();
+          }, (err) => {
+            showError('アップロードされたモデルの解析に失敗しました。\n' + (err && err.message ? err.message : '') + '\n\nデフォルトモデルで続行するにはメニューに戻ってください。');
+          });
+        }
+      } catch (err) {
+        showError('アップロードされたモデルの解析に失敗しました。\n' + (err && err.message ? err.message : ''));
+      }
+    } else {
+      loadfill.style.width = '60%';
+      const placeholder = createPlaceholderCharacter();
+      placeCharacter(placeholder);
+      loadfill.style.width = '90%';
+      finishLoad();
+    }
+  }
+
+  const clock = new THREE.Clock();
+
+  function animate() {
+    requestAnimationFrame(animate);
+    const dt = Math.min(clock.getDelta(), 0.05);
+
+    let mx = 0, mz = 0;
+    if (keys['arrowup'] || keys['w']) mz -= 1;
+    if (keys['arrowdown'] || keys['s']) mz += 1;
+    if (keys['arrowleft'] || keys['a']) mx -= 1;
+    if (keys['arrowright'] || keys['d']) mx += 1;
+    const running = keys['shift'];
+    const moving = (mx !== 0 || mz !== 0);
+    const baseSpeed = running ? 3.2 : 1.7;
+
+    if (character) {
+      const forward = new THREE.Vector3(-Math.sin(camYaw), 0, -Math.cos(camYaw));
+      const right = new THREE.Vector3(Math.sin(camYaw + Math.PI/2), 0, Math.cos(camYaw + Math.PI/2));
+      const moveDir = new THREE.Vector3();
+      moveDir.addScaledVector(forward, -mz);
+      moveDir.addScaledVector(right, mx);
+
+      if (moving && moveDir.lengthSq() > 0.0001) {
+        moveDir.normalize();
+        character.position.addScaledVector(moveDir, baseSpeed * dt);
+      }
+
+      character.rotation.y = camYaw;
+
+      animator.update(dt, { moving, running });
+
+      camera.position.set(character.position.x, character.position.y + eyeHeightOffset + animator.getBobOffset(), character.position.z);
+      camera.rotation.set(0, 0, 0);
+      camera.rotateY(camYaw);
+      camera.rotateX(camPitch);
+    }
+
+    renderer.render(scene, camera);
+  }
+
+  camera.position.set(0, 1.6, 3.2);
+  camera.lookAt(0, 1, 0);
+  renderer.render(scene, camera);
+
+  window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.render(scene, camera);
+
+    if (previewRenderer && previewCamera) {
+      const w = previewWrap.clientWidth, h = previewWrap.clientHeight;
+      if (w > 0 && h > 0) {
+        previewCamera.aspect = w / h;
+        previewCamera.updateProjectionMatrix();
+        previewRenderer.setSize(w, h);
+      }
+    }
+  });
+
+  loadPlaceholderIntoPreview();
+
+})();
+}
+
+(function bootstrap() {
+  function ready() {
+    return (typeof THREE !== 'undefined') && (typeof THREE.GLTFLoader !== 'undefined') && (typeof THREE.FBXLoader !== 'undefined');
+  }
+  if (typeof CharacterAnimator === 'undefined') {
+    document.getElementById('menu').style.display = 'none';
+    document.getElementById('error').style.display = 'flex';
+    document.getElementById('error').textContent = 'animation.js が見つかりません。index.html と同じフォルダに置いてください。';
+    return;
+  }
+  if (ready()) { startApp(); return; }
+  loadScriptFallback('https://unpkg.com/three@0.128.0/build/three.min.js', function() {
+    loadScriptFallback('https://unpkg.com/three@0.128.0/examples/js/loaders/GLTFLoader.js', function() {
+      loadScriptFallback('https://unpkg.com/three@0.128.0/examples/js/loaders/FBXLoader.js', function() {
+        if (ready()) {
+          startApp();
+        } else {
+          document.getElementById('menu').style.display = 'none';
+          document.getElementById('error').style.display = 'flex';
+          document.getElementById('error').textContent = 'Three.jsライブラリの読み込みに失敗しました。ネットワーク接続を確認してください。';
+        }
+      });
+    });
+  });
+})();
+</script>
+</body>
+</html>
