@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ctrl/Sim — World Control Console Simulator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="brand">
+      <span class="mark" id="brand-name">Ctrl/Sim</span>
+      <span class="sub" id="brand-sub">未リリース — 準備中</span>
+    </div>
+    <div style="display:flex; align-items:center;">
+      <div class="hstats">
+        <div class="hstat"><span class="val gold" id="stat-cash">¥0</span><span class="lab">現金</span></div>
+        <div class="hstat"><span class="val green" id="stat-subs">0</span><span class="lab">加入者</span></div>
+        <div class="hstat"><span class="val" id="stat-online">0</span><span class="lab">同時接続</span></div>
+        <div class="hstat"><span class="val" id="stat-day">Day 1</span><span class="lab">経過</span></div>
+      </div>
+      <div class="speed-controls">
+        <button class="speed-btn" id="btn-pause" title="一時停止">❚❚</button>
+        <button class="speed-btn active" data-speed="1" title="通常速度">1×</button>
+        <button class="speed-btn" data-speed="3" title="速い">3×</button>
+        <button class="speed-btn" data-speed="8" title="超速い">8×</button>
+      </div>
+    </div>
+  </header>
+
+  <div id="map-wrap">
+    <canvas id="map-canvas"></canvas>
+    <div class="log-panel">
+      <div class="log-title">運営ログ</div>
+      <div id="log-list"></div>
+    </div>
+    <div class="map-hint" id="map-hint">クリックして<b>町</b>を建設。完成まで時間がかかる。</div>
+    <div class="toast-wrap" id="toast-wrap"></div>
+  </div>
+
+  <div id="side">
+    <div class="tabs">
+      <div class="tab active" data-tab="build">建設</div>
+      <div class="tab" data-tab="design">設計</div>
+      <div class="tab" data-tab="report">報告</div>
+    </div>
+
+    <div class="tab-content" id="tab-build">
+      <button id="btn-release" class="release-btn">🚀 リリースする</button>
+
+      <div class="section-label">配置ツール</div>
+      <div class="tool-grid">
+        <button class="tool-btn active" data-tool="town">
+          <span class="icon">🏘</span><span class="name">町</span><span class="cost">¥500</span>
+        </button>
+        <button class="tool-btn" data-tool="road">
+          <span class="icon">〰</span><span class="name">道</span><span class="cost">¥40</span>
+        </button>
+        <button class="tool-btn" data-tool="spawn">
+          <span class="icon">✦</span><span class="name">リスポーン地点</span><span class="cost">¥300</span>
+        </button>
+        <button class="tool-btn" data-tool="rename">
+          <span class="icon">✎</span><span class="name">町名変更</span><span class="cost">&nbsp;</span>
+        </button>
+        <button class="tool-btn" data-tool="delete">
+          <span class="icon">✕</span><span class="name">削除</span><span class="cost">&nbsp;</span>
+        </button>
+      </div>
+
+      <div class="section-label">町一覧（<span id="town-count">0</span>）</div>
+      <div id="town-list"><div class="empty-note">マップをクリックして最初の町を建設しよう。</div></div>
+    </div>
+
+    <div class="tab-content" id="tab-design" style="display:none;">
+      <div class="section-label">世界の設計</div>
+
+      <div class="slider-row">
+        <div class="slabel"><span>モンスター密度</span><span class="sval" id="v-monster">50%</span></div>
+        <input type="range" id="s-monster" min="0" max="100" value="50">
+      </div>
+      <div class="slider-row">
+        <div class="slabel"><span>経験値倍率</span><span class="sval" id="v-xp">1.0×</span></div>
+        <input type="range" id="s-xp" min="10" max="300" value="100">
+      </div>
+      <div class="slider-row">
+        <div class="slabel"><span>サーバー難易度</span><span class="sval" id="v-diff">普通</span></div>
+        <input type="range" id="s-diff" min="0" max="2" value="1">
+      </div>
+      <div class="slider-row">
+        <div class="slabel"><span>月額料金</span><span class="sval" id="v-price">¥15</span></div>
+        <input type="range" id="s-price" min="5" max="40" value="15">
+      </div>
+
+      <div class="section-label">プレイヤークラス</div>
+      <div id="class-list"></div>
+    </div>
+
+    <div class="tab-content" id="tab-report" style="display:none;">
+      <div class="section-label">サーバー状況</div>
+      <div class="stat-row"><span class="k">週間収益</span><span class="v gold" id="r-revenue">¥0</span></div>
+      <div class="stat-row"><span class="k">週間コスト</span><span class="v red" id="r-cost">¥0</span></div>
+      <div class="stat-row"><span class="k">満足度（平均）</span><span class="v" id="r-satisfaction">—</span></div>
+      <div class="stat-row"><span class="k">過密エリア</span><span class="v red" id="r-crowd">0</span></div>
+      <div class="stat-row"><span class="k">総配置数</span><span class="v" id="r-placed">0</span></div>
+
+      <div class="section-label">満足度</div>
+      <div class="bar-bg"><div class="bar-fill" id="bar-satisfaction" style="width:50%; background:var(--green);"></div></div>
+
+      <div class="section-label">サーバー負荷</div>
+      <div class="bar-bg"><div class="bar-fill" id="bar-load" style="width:10%; background:var(--blue);"></div></div>
+    </div>
+  </div>
+</div>
+
+<script src="game.js"></script>
+</body>
+</html>
