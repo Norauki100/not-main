@@ -79,7 +79,7 @@
   .hstat .val.red { color: var(--red); }
   .hstat .lab { color: var(--text-dim); font-size: 10px; letter-spacing: 0.4px; }
 
-  .speed-controls { display: flex; gap: 4px; margin-left: 24px; }
+  .speed-controls { display: flex; gap: 2px; margin-left: 24px; }
   .speed-btn {
     width: 28px; height: 28px;
     border: 1px solid var(--line-bright);

@@ -216,14 +216,53 @@
     const gx = snap(w.x), gy = snap(w.y);
     const key = gx + ',' + gy;
     if (lastRoadCell === key) return;
-    lastRoadCell = key;
 
+    // if the pointer moved fast, interpolate the intermediate grid cells
+    // so a quick drag still produces one continuous line, not gaps
+    let path = [{x: gx, y: gy}];
+    if (lastRoadCell) {
+      const [lx, ly] = lastRoadCell.split(',').map(Number);
+      path = interpolateGridPath(lx, ly, gx, gy);
+    }
+
+    for (const cell of path) {
+      placeRoadCell(cell.x, cell.y, lastRoadCell);
+      lastRoadCell = cell.x + ',' + cell.y;
+    }
+    renderSidebar();
+  }
+
+  function interpolateGridPath(x0, y0, x1, y1){
+    // step along the grid from (x0,y0) to (x1,y1) one 8-directional cell at a time
+    // (Bresenham-style), excluding the start cell itself
+    const path = [];
+    let cx = x0, cy = y0;
+    const gx0 = x0/GRID, gy0 = y0/GRID, gx1 = x1/GRID, gy1 = y1/GRID;
+    let ix = gx0, iy = gy0;
+    const dx = Math.abs(gx1-gx0), dy = Math.abs(gy1-gy0);
+    const sx = gx0 < gx1 ? 1 : -1, sy = gy0 < gy1 ? 1 : -1;
+    let err = dx - dy;
+    let guard = 0;
+    while ((Math.round(ix) !== gx1 || Math.round(iy) !== gy1) && guard < 500) {
+      guard++;
+      const e2 = 2*err;
+      if (e2 > -dy) { err -= dy; ix += sx; }
+      if (e2 < dx) { err += dx; iy += sy; }
+      path.push({ x: Math.round(ix)*GRID, y: Math.round(iy)*GRID });
+    }
+    return path;
+  }
+
+  function placeRoadCell(gx, gy, prevKey){
     if (!isLand(gx, gy)) return;
-    if (roadOccupied(gx, gy)) return;
+    const key = gx + ',' + gy;
+    if (roadOccupied(gx, gy)) {
+      // already a road here — still allow the path to continue connecting through it
+      return;
+    }
     if (state.cash < 40) { pushToast('資金が不足しています。', 'warn'); return; }
     state.cash -= 40;
-    state.roads.push({ x: gx, y: gy, buildLeft: BUILD_TIME.road, buildTotal: BUILD_TIME.road });
-    renderSidebar();
+    state.roads.push({ x: gx, y: gy, prevKey: prevKey || null, buildLeft: BUILD_TIME.road, buildTotal: BUILD_TIME.road });
   }
 
   function handleMapClick(sx, sy){
@@ -483,13 +522,12 @@
     drawIsland(rect);
     drawGrid(rect);
 
-    // roads — draw as connected lines between adjacent road cells (8-directional),
-    // so a dragged path reads as a road rather than a row of dots
+    // roads — draw only the actual dragged path (each cell links to the one placed
+    // right before it), so the road reads as one continuous line, not a mesh
     const builtRoadMap = new Map(); // "gx,gy" -> road object, built only
     for (const r of state.roads) {
       if (isBuilt(r)) builtRoadMap.set(r.x + ',' + r.y, r);
     }
-    const drawnPairs = new Set();
     ctx.lineCap = 'round';
     for (const r of state.roads) {
       if (!isBuilt(r)) {
@@ -497,27 +535,18 @@
         drawConstructionMarker(s.x, s.y, 6*state.camera.zoom, r.buildLeft / r.buildTotal);
         continue;
       }
-      const neighbors = [
-        [GRID,0],[-GRID,0],[0,GRID],[0,-GRID],
-        [GRID,GRID],[GRID,-GRID],[-GRID,GRID],[-GRID,-GRID],
-      ];
-      for (const [dx,dy] of neighbors) {
-        const nx = r.x+dx, ny = r.y+dy;
-        const key = nx+','+ny;
-        if (!builtRoadMap.has(key)) continue;
-        const pairKey = [r.x+','+r.y, key].sort().join('|');
-        if (drawnPairs.has(pairKey)) continue;
-        drawnPairs.add(pairKey);
+      if (!r.prevKey) continue;
+      const prev = builtRoadMap.get(r.prevKey);
+      if (!prev) continue; // previous cell was deleted — leave this end open
 
-        const s1 = worldToScreen(r.x, r.y);
-        const s2 = worldToScreen(nx, ny);
-        ctx.strokeStyle = 'rgba(57,255,136,0.55)';
-        ctx.lineWidth = Math.max(2, 4 * state.camera.zoom);
-        ctx.beginPath();
-        ctx.moveTo(s1.x, s1.y);
-        ctx.lineTo(s2.x, s2.y);
-        ctx.stroke();
-      }
+      const s1 = worldToScreen(prev.x, prev.y);
+      const s2 = worldToScreen(r.x, r.y);
+      ctx.strokeStyle = 'rgba(57,255,136,0.55)';
+      ctx.lineWidth = Math.max(2, 4 * state.camera.zoom);
+      ctx.beginPath();
+      ctx.moveTo(s1.x, s1.y);
+      ctx.lineTo(s2.x, s2.y);
+      ctx.stroke();
     }
     // small glowing nodes at each built road cell so isolated/end points are still visible
     for (const [key, r] of builtRoadMap) {
