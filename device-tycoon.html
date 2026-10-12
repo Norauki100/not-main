@@ -1,0 +1,874 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>デバイスタイクーン</title>
+<style>
+:root{--bg:#0a0f1f;--panel:#131b36;--panel2:#1a2550;--ink:#e8ecff;--sub:#8b97c4;--line:#2a3566;--cy:#3de0ff;--gold:#ffcc4d;--green:#46e0a0;--red:#ff5d73;--pur:#8b6bff;--deep:#0d1430}
+*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(1100px 560px at 75% -10%,#1d2d6e 0,transparent 62%),var(--bg);background-attachment:fixed;color:var(--ink);font-family:"Hiragino Sans","Yu Gothic UI","Meiryo",system-ui,sans-serif;line-height:1.6;font-size:15px;min-height:100vh}
+button{font:inherit;color:inherit;cursor:pointer}
+.bar{position:sticky;top:0;z-index:5;background:rgba(10,15,31,.93);backdrop-filter:blur(6px);border-bottom:1px solid var(--line);display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;padding:10px 20px}
+.co{margin-right:10px}
+.co b{display:block;font-size:17px;letter-spacing:.03em;line-height:1.2}
+.co small{color:var(--sub);font-size:11.5px}
+.chip{background:var(--deep);border:1px solid var(--line);border-radius:8px;padding:3px 12px;min-width:92px}
+.chip.wide{min-width:150px}
+.chip small{display:block;font-size:11px;color:var(--sub);line-height:1.3}
+.chip b{font-size:16px;font-variant-numeric:tabular-nums;line-height:1.3}
+.bar .grow{flex:1}
+.tc{display:flex;gap:8px;align-items:center}
+.spd{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.spd button{background:var(--deep);border:0;padding:8px 13px;font-weight:800;color:var(--sub)}
+.spd button.on{background:rgba(61,224,255,.18);color:var(--cy)}
+.go{background:linear-gradient(135deg,var(--cy),var(--pur));border:0;color:#04101f;padding:9px 18px;border-radius:8px;font-weight:800;box-shadow:0 0 14px rgba(61,224,255,.28)}
+.go:hover{filter:brightness(1.12);box-shadow:0 0 20px rgba(61,224,255,.5)}
+.go.alt{background:var(--panel2);color:var(--ink);border:1px solid var(--line);box-shadow:none}
+.go.stop{background:linear-gradient(135deg,var(--gold),#ff9a4d)}
+.go.big{padding:13px 30px;font-size:17px}
+.go:disabled{opacity:.4;cursor:not-allowed}
+.nav{display:flex;gap:4px;padding:8px 20px 0;overflow-x:auto;border-bottom:1px solid var(--line)}
+.navb{border:0;background:none;padding:10px 18px;font-weight:700;color:var(--sub);border-bottom:3px solid transparent;white-space:nowrap}
+.navb:hover{color:var(--ink)}
+.navb.on{color:var(--cy);border-bottom-color:var(--cy);text-shadow:0 0 12px rgba(61,224,255,.5)}
+.navb em{font-style:normal;background:var(--pur);color:#fff;border-radius:10px;padding:0 7px;font-size:11.5px;margin-left:6px}
+main{max-width:1200px;margin:0 auto;padding:18px}
+.page{display:none;gap:18px}
+.page.on{display:grid}
+.two{grid-template-columns:1.25fr 1fr}
+.one{grid-template-columns:minmax(0,860px)}
+@media(max-width:900px){.two{grid-template-columns:1fr}main{padding:12px}}
+.col{display:flex;flex-direction:column;gap:18px;min-width:0}
+section{background:linear-gradient(180deg,var(--panel2),var(--panel));border:1px solid var(--line);border-radius:12px;padding:16px 18px;min-width:0;box-shadow:0 10px 28px rgba(0,0,0,.35)}
+h2{font-size:15px;margin:0 0 12px;display:flex;align-items:center;gap:8px}
+h2::before{content:"";width:4px;height:16px;border-radius:2px;background:linear-gradient(var(--cy),var(--pur))}
+.tabs{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
+.tab{border:1px solid var(--line);background:var(--deep);padding:6px 14px;border-radius:8px}
+.tab.on{background:rgba(61,224,255,.14);border-color:var(--cy);color:var(--cy)}
+.tab small{display:block;font-size:11px;color:var(--sub);line-height:1.2}
+.row{margin-bottom:12px}
+.row .lbl{font-size:13px;font-weight:700;margin-bottom:4px}
+.row .lbl span{font-weight:400;color:var(--sub);margin-left:6px}
+.opts{display:grid;grid-template-columns:repeat(auto-fill,minmax(128px,1fr));gap:6px}
+.opt{border:1px solid var(--line);background:var(--deep);padding:6px 8px;border-radius:8px;text-align:left;font-size:12.5px;line-height:1.35}
+.opt:hover:not(:disabled){border-color:var(--sub)}
+.opt i{display:block;font-style:normal;color:var(--sub);font-size:11.5px;font-variant-numeric:tabular-nums}
+.opt.on{border-color:var(--cy);background:rgba(61,224,255,.13);box-shadow:0 0 12px rgba(61,224,255,.2)}
+.opt.lock{opacity:.4;cursor:not-allowed}
+.sum{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;background:var(--deep);border:1px solid var(--line);border-radius:10px;padding:10px;margin:6px 0 6px}
+.sum div small{display:block;color:var(--sub);font-size:11.5px}
+.sum div b{font-variant-numeric:tabular-nums}
+.lockt{color:#6c78a5;font-weight:400;font-size:13px}
+.pos{color:var(--green)}.neg{color:var(--red)}
+input[type=range]{width:100%;accent-color:var(--cy)}
+input[type=text],input[type=number]{width:100%;padding:9px 11px;border:1px solid var(--line);background:var(--deep);color:var(--ink);border-radius:8px;font:inherit}
+.fl{display:flex;gap:10px;align-items:end}
+.fl>*{flex:1}
+.fl .go{flex:0 0 auto}
+table{width:100%;border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums}
+th,td{text-align:right;padding:6px;border-bottom:1px solid var(--line)}
+th:first-child,td:first-child{text-align:left}
+th{font-size:11.5px;color:var(--sub);font-weight:600}
+.tbl{overflow-x:auto}
+.empty{color:var(--sub);font-size:13px;margin:0}
+.res{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid var(--line);font-size:13px}
+.res:last-child{border-bottom:0}
+.res small{color:var(--sub);display:block;line-height:1.45}
+.res button{border:1px solid var(--cy);color:var(--cy);background:transparent;padding:5px 14px;border-radius:8px;font-size:12.5px;white-space:nowrap}
+.res button:hover:not(:disabled){background:rgba(61,224,255,.14)}
+.res button:disabled{border-color:var(--line);color:#6c78a5;cursor:not-allowed}
+.prog{height:7px;background:var(--deep);border-radius:4px;margin-top:5px;width:190px;max-width:100%;overflow:hidden}
+.prog div{height:100%;background:linear-gradient(90deg,var(--cy),var(--pur))}
+.dev{background:var(--deep);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:10px}
+.dev .dt{display:flex;justify-content:space-between;gap:8px;font-size:13.5px}
+.dev .dt span{color:var(--sub);font-size:12.5px}
+.dstats{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:8px 0 2px}
+.dstats div{background:rgba(255,255,255,.04);border-radius:8px;padding:4px 8px}
+.dstats small{display:block;color:var(--sub);font-size:11px;line-height:1.3}
+.dstats b{font-size:15px;font-variant-numeric:tabular-nums}
+.dstats .bugs b{color:var(--red)}
+.dstats .score b{color:var(--cy)}
+.dev .prog{width:100%}
+.dev .ft{display:flex;justify-content:space-between;align-items:center;margin-top:8px;font-size:12.5px;color:var(--sub)}
+.dev .ft button{border:1px solid var(--gold);color:var(--gold);background:transparent;padding:4px 12px;border-radius:8px;font-size:12.5px}
+.dev .ft button:hover:not(:disabled){background:rgba(255,204,77,.14)}
+.dev .ft button:disabled{border-color:var(--line);color:#6c78a5;cursor:not-allowed}
+.log{max-height:420px;overflow:auto;font-size:13px}
+.log p{margin:0;padding:5px 0;border-bottom:1px solid var(--line)}
+.log p b{color:var(--sub);font-weight:600;margin-right:8px;font-variant-numeric:tabular-nums}
+.note{font-size:12.5px;color:var(--sub);margin:0 0 8px}
+.office{background:var(--deep);border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:12px}
+.office b{font-size:17px}
+.office div{display:flex;flex-wrap:wrap;gap:4px 22px;margin-top:4px;font-size:13px;color:var(--sub)}
+.hero{overflow:hidden;padding:0}
+.svgwrap{background:linear-gradient(#0d1a46,#16245a);border-bottom:1px solid var(--line)}
+.svgwrap svg{display:block;width:100%;height:auto;max-height:260px}
+.heroinfo{padding:16px 18px}
+.rank{display:inline-block;font-size:12px;font-weight:800;color:#2b1d00;background:var(--gold);padding:1px 10px;border-radius:10px}
+.heroinfo h1{margin:6px 0 0;font-size:24px;letter-spacing:.03em}
+.heroinfo p{margin:0 0 12px;color:var(--sub);font-size:13px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px}
+.kpis div{background:var(--deep);border:1px solid var(--line);border-radius:10px;padding:6px 12px}
+.kpis small{display:block;color:var(--sub);font-size:11.5px}
+.kpis b{font-size:16px;font-variant-numeric:tabular-nums}
+.goal{display:flex;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid var(--line);font-size:13.5px}
+.goal:last-child{border-bottom:0}
+.goal i{font-style:normal;width:22px;height:22px;border-radius:50%;border:2px solid var(--line);display:grid;place-items:center;font-size:12px;flex:0 0 auto}
+.goal.done{color:var(--sub)}
+.goal.done i{background:var(--green);border-color:var(--green);color:#04201a;font-weight:800}
+.quick{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px}
+.quick button{background:var(--deep);border:1px solid var(--line);border-radius:10px;padding:12px 8px;font-weight:700}
+.quick button:hover{border-color:var(--cy);color:var(--cy)}
+#modal{position:fixed;inset:0;background:rgba(4,7,18,.72);display:none;place-items:center;z-index:25;padding:14px}
+#modal.on{display:grid}
+.mbox{width:min(520px,100%);max-height:88vh;overflow:auto;background:linear-gradient(180deg,var(--panel2),var(--panel));border:1px solid var(--cy);border-radius:14px;padding:18px 20px;box-shadow:0 0 40px rgba(61,224,255,.25)}
+.mbox h3{margin:0 0 4px;font-size:18px}
+.mbox .sub{color:var(--sub);font-size:13px;margin:0 0 10px}
+.mbox .kv{display:flex;justify-content:space-between;padding:7px 0;border-top:1px solid var(--line);font-size:14px}
+.mbox .go{margin-top:14px;width:100%}
+#toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--panel2);border:1px solid var(--cy);color:var(--ink);padding:9px 18px;border-radius:10px;font-size:13.5px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:40;max-width:92vw}
+#toast.show{opacity:1}
+.over{background:var(--red);color:#fff;padding:12px 16px;text-align:center;font-weight:700}
+.over button{margin-left:12px;background:#fff;color:var(--red);border:0;padding:6px 14px;border-radius:8px;font-weight:700}
+#title{position:fixed;inset:0;z-index:30;display:none;place-items:center;background:radial-gradient(900px 500px at 50% 20%,#24378a 0,transparent 65%),linear-gradient(#070b1a,#0b1230);overflow:auto}
+#title.on{display:grid}
+.tbox{text-align:center;padding:30px 18px;width:min(460px,100%)}
+.logo{font-size:clamp(44px,11vw,76px);font-weight:900;line-height:1;letter-spacing:.06em;background:linear-gradient(135deg,var(--cy),var(--pur));-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 0 22px rgba(61,224,255,.45))}
+.jp{color:var(--sub);margin:10px 0 28px;letter-spacing:.3em;font-size:13px}
+.tmenu{display:flex;flex-direction:column;gap:12px}
+.tmenu .go{width:100%}
+.tmenu label{text-align:left;font-weight:700;font-size:13px}
+.tmenu .sv{color:var(--sub);font-size:12px;margin-top:-6px}
+.pr{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+.pr input{max-width:220px;font-variant-numeric:tabular-nums}
+.pr span{color:var(--sub);font-size:13px}
+.rep{background:var(--deep);border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:14px}
+.rep .dt{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:14px;margin-bottom:8px}
+.rep .dt span{color:var(--sub);font-size:12.5px}
+.rb{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--sub);margin:2px 0}
+.rb u{text-decoration:none;width:34px;color:var(--gold)}
+.rb i{flex:1;height:8px;background:rgba(255,255,255,.07);border-radius:4px;overflow:hidden}
+.rb i b{display:block;height:100%;background:var(--gold)}
+.rb em{font-style:normal;width:36px;text-align:right;font-variant-numeric:tabular-nums}
+.cm{padding:7px 0;border-top:1px solid var(--line);font-size:13px}
+.cm .st{color:var(--gold);letter-spacing:1px}
+.cm small{color:var(--sub);margin-left:6px}
+.sub2{margin:12px 0 6px;font-size:12.5px;color:var(--sub);font-weight:700}
+button:focus-visible,input:focus-visible{outline:2px solid var(--cy);outline-offset:2px}
+</style>
+</head>
+<body>
+<div id="title"><div class="tbox"><div class="logo">DEVICE<br>TYCOON</div><div class="jp">デバイスタイクーン</div><div class="tmenu" id="tmenu"></div></div></div>
+<div class="bar" id="bar"></div>
+<div id="overBox"></div>
+<nav class="nav" id="nav"></nav>
+<main>
+  <div class="page two" id="pg-home">
+    <div class="col">
+      <section class="hero" id="hero"></section>
+      <section id="homeNews"></section>
+    </div>
+    <div class="col">
+      <section id="quick"></section>
+      <section id="goals"></section>
+    </div>
+  </div>
+  <div class="page two" id="pg-dev">
+    <section id="design"></section>
+    <section id="salesBox"><h2>開発中・販売中</h2><div id="salesHead"></div><div id="devList"></div><div id="salesTbl"></div></section>
+  </div>
+  <div class="page one" id="pg-res"><section id="research"><h2>研究</h2><div id="resHead"></div><div id="resActive"></div><div id="resList"></div></section></div>
+  <div class="page one" id="pg-office"><section id="office"></section></div>
+  <div class="page one" id="pg-rep"><section id="repBox"></section></div>
+  <div class="page two" id="pg-market">
+    <section id="market"></section>
+    <section id="logBox"></section>
+  </div>
+</main>
+<div id="modal"><div class="mbox" id="mbox"></div></div>
+<div id="toast"></div>
+
+<script>
+// ===== データ =====
+const TYPES={
+  phone:{name:'スマホ',base:8000,market:200,w:[.22,.22,.17,.17,.08,.08,.06],dev:2,unlock:0,pre:'P'},
+  tablet:{name:'タブレット',base:12000,market:120,w:[.30,.22,.20,.04,.08,.08,.08],dev:2,unlock:800000,pre:'T'},
+  laptop:{name:'ノートPC',base:20000,market:80,w:[.17,.33,.15,.04,.12,.05,.14],dev:3,unlock:2500000,pre:'L'}
+};
+const CATS=[
+  {id:'screen',name:'画面',tiers:[['液晶 HD',3000,10],['液晶 フルHD',6000,22],['有機EL',11000,38],['有機EL 120Hz',17000,52],['マイクロLED',26000,70]]},
+  {id:'cpu',name:'CPU',tiers:[['4コア',3000,10],['6コア',6000,22],['8コア',10000,38],['8コア 3nm',16000,54],['AI専用チップ',25000,72]]},
+  {id:'battery',name:'バッテリー',tiers:[['2000mAh',1500,8],['3000mAh',3000,18],['4000mAh',5000,30],['5000mAh 急速充電',8000,44],['全固体電池',15000,62]]},
+  {id:'camera',name:'カメラ',tiers:[['単眼',1500,8],['デュアル',4000,20],['トリプル',8000,36],['1インチセンサー',14000,52],['潜望鏡ズーム',20000,66]]},
+  {id:'material',name:'素材',tiers:[['プラスチック',500,5],['アルミ',2500,15],['ガラス',4500,28],['チタン',9000,45],['セラミック',14000,58]]},
+  {id:'comm',name:'通信',tiers:[['3G',1000,8],['4G',2000,18],['5G',4000,32],['5G + Wi-Fi 6E',7000,48],['Wi-Fi 7 + 衛星通信',11000,64]]},
+  {id:'storage',name:'ストレージ',tiers:[['32GB',1000,8],['64GB',2000,18],['128GB',3500,30],['256GB',6000,45],['1TB',10000,60]]}
+];
+const RC=[0,300000,1200000,4000000,12000000];
+const CAP=[40,80,160,320,640,1280];
+const TECH=[
+  {id:'analytics',tab:'tech',name:'市場分析',desc:'設計画面に「予想販売数」と「予想レビュー」が表示される',lv:[[500000,2]]},
+  {id:'qa',tab:'tech',name:'品質管理',desc:'レビュー点が1段階ごとに +0.4',lv:[[800000,2],[3000000,3],[10000000,4]]},
+  {id:'patent',tab:'tech',name:'特許戦略',desc:'開発費が1段階ごとに 10% 下がる',lv:[[1500000,2],[6000000,3],[20000000,4]]},
+  {id:'line',tab:'make',name:'生産ライン拡張',desc:'同時に生産できる量が増える(40 → 80 → 160 → 320 → 640 → 1280台/月)',lv:[[600000,2],[2000000,3],[7000000,4],[22000000,5],[70000000,6]]},
+  {id:'prod',tab:'make',name:'生産技術',desc:'原価が1段階ごとに 4% 下がる',lv:[[1000000,2],[4000000,3],[14000000,4]]},
+  {id:'ads',tab:'biz',name:'広告戦略',desc:'売れ行きが1段階ごとに 8% 増え、ファンも増えやすくなる',lv:[[1200000,2],[5000000,3],[18000000,4]]},
+  {id:'global',tab:'biz',name:'海外展開',desc:'市場規模が 1.25倍 / 1.5倍 / 2倍 になる',lv:[[3000000,3],[12000000,4],[40000000,5]]},
+  {id:'support',tab:'biz',name:'サポート事業',desc:'ファン1人あたり毎月 40円 / 90円 / 160円 の収入',lv:[[2000000,3],[8000000,4],[25000000,5]]}
+];
+const OFFICES=[
+  {name:'自宅ガレージ',rank:'ガレージ起業家',cost:0,rent:0,dev:1,res:1,staff:2},
+  {name:'小さな貸しオフィス',rank:'スタートアップ',cost:1500000,rent:100000,dev:2,res:1,staff:8},
+  {name:'中規模オフィス',rank:'成長企業',cost:6000000,rent:300000,dev:3,res:2,staff:30},
+  {name:'自社ビル',rank:'大手メーカー',cost:25000000,rent:800000,dev:4,res:2,staff:120},
+  {name:'本社キャンパス',rank:'業界の巨人',cost:100000000,rent:2000000,dev:6,res:3,staff:500}
+];
+const FAC=[
+  {id:'lab',name:'研究所',desc:'研究にかかる期間が1段階ごとに 20% 短くなる',cost:[2000000,8000000,30000000],up:80000},
+  {id:'factory',name:'工場ライン',desc:'製品の原価が1段階ごとに 6% 下がる',cost:[1500000,6000000,25000000],up:100000},
+  {id:'pr',name:'広報部',desc:'ファンの増え方が1段階ごとに 30% 増える',cost:[1000000,5000000,20000000],up:60000}
+];
+const GOALS=[
+  {id:'first',name:'最初の製品を発売する',ok:()=>S.released>=1},
+  {id:'u1k',name:'累計販売 1,000台',ok:()=>S.totalUnits>=1000},
+  {id:'m10m',name:'資金 1,000万円',ok:()=>S.money>=1e7},
+  {id:'g5',name:'5Gの部品を解禁する',ok:()=>S.unl.comm>=2},
+  {id:'tablet',name:'タブレット市場に参入する',ok:()=>!!S.owned.tablet},
+  {id:'off2',name:'中規模オフィスに移転する',ok:()=>S.office>=2},
+  {id:'laptop',name:'ノートPC市場に参入する',ok:()=>!!S.owned.laptop},
+  {id:'u100k',name:'累計販売 10万台',ok:()=>S.totalUnits>=1e5},
+  {id:'hq',name:'本社キャンパスに移転する',ok:()=>S.office>=4},
+  {id:'m10',name:'資金 10億円',ok:()=>S.money>=1e9}
+];
+const RIVALS=['ネクスタ社','アルク電機','ミライテック','ソラリス','オリオン工業'];
+const KEY='device-tycoon-save-v4';
+const DAY_MS=2000; // 1倍速で2秒=1日
+
+// ===== 状態 =====
+let S,playing=false,timer=null,inGame=false;
+const newMon=()=>({rev:0,cogs:0,fixed:0,units:0,demand:0,lost:0,sup:0});
+function fresh(name){
+  return{name:name||'ノーネーム社',money:3000000,day:0,speed:1,fans:0,owned:{phone:true},
+    unl:{screen:0,cpu:0,battery:0,camera:0,material:0,comm:0,storage:0},
+    tech:{},office:0,fac:{lab:0,factory:0,pr:0},
+    research:[],dev:[],sales:[],trend:null,
+    rival:{q:14,name:RIVALS[0]},log:[],last:null,mon:newMon(),goals:{},retired:[],
+    ui:{tab:'home',rtab:'parts'},
+    sel:{type:'phone',parts:{screen:0,cpu:0,battery:0,camera:0,material:0,comm:0,storage:0},price:0,touched:false},
+    n:1,over:false,top:false,released:0,totalUnits:0};
+}
+function peek(){try{const r=localStorage.getItem(KEY);return r?JSON.parse(r):null}catch(e){return null}}
+function merge(d){
+  const f=fresh();
+  d.unl=Object.assign({},f.unl,d.unl);
+  d.fac=Object.assign({},f.fac,d.fac);
+  d.mon=Object.assign({},f.mon,d.mon);
+  d.sel.parts=Object.assign({},f.sel.parts,d.sel.parts);
+  (d.sales||[]).forEach(p=>{p.stars=p.stars||[0,0,0,0,0];p.rvs=p.rvs||[];p.rvN=p.rvN||0;p.rvCarry=p.rvCarry||0});
+  d.retired=d.retired||[];
+  return Object.assign(f,d);
+}
+function save(){if(!inGame)return;try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
+
+// ===== 計算 =====
+const clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function yen(n){return '¥'+Math.round(n).toLocaleString('ja-JP')}
+function fmt(n){const a=Math.abs(n),s=n<0?'-':'';
+  if(a>=1e8)return s+(a/1e8).toFixed(2)+'億円';
+  if(a>=1e4)return s+Math.round(a/1e4).toLocaleString('ja-JP')+'万円';
+  return s+Math.round(a)+'円'}
+function dayLabel(d){return (Math.floor(d/360)+1)+'年目'+(Math.floor((d%360)/30)+1)+'月'+(d%30+1)+'日'}
+const techLv=id=>S.tech[id]||0;
+const cap=()=>CAP[techLv('line')];
+function unitCost(type,parts){return TYPES[type].base+CATS.reduce((a,c)=>a+c.tiers[parts[c.id]||0][1],0)}
+function costMult(){return (1-.06*S.fac.factory)*(1-.04*techLv('prod'))}
+function quality(type,parts){return CATS.reduce((a,c,i)=>a+TYPES[type].w[i]*c.tiers[parts[c.id]||0][2],0)}
+function refPrice(q){return 15000+q*2200}
+function devCost(type,q){return Math.round((300000+q*20000)*TYPES[type].dev/2*(1-.1*techLv('patent'))/1000)*1000}
+function devTarget(q){return Math.round(60+q*5)}
+function bugCost(q){return Math.round((10000+q*500)/1000)*1000}
+function review(q,price){return clamp(1.5+q/11-Math.max(0,price/refPrice(q)-1)*3+.4*techLv('qa'),1,10)}
+function office(){return OFFICES[S.office]}
+function fixedCost(){
+  let f=Math.round(150000*(1+Math.floor(S.day/30)/24))+office().rent;
+  FAC.forEach(x=>{f+=x.up*S.fac[x.id]});
+  return f;
+}
+function resMonths(base){return Math.max(1,Math.ceil(base*(1-.2*S.fac.lab)))}
+// 月あたりの需要
+function demand(p,rnd){
+  const T=TYPES[p.type];
+  const pf=clamp(Math.pow(refPrice(p.q)/p.price,2),0,3);
+  let tm=1;
+  if(S.trend){const tier=p.parts[S.trend.cat]||0;tm=tier>=3?1.35:tier<=1?.8:1}
+  const rf=clamp(.55+(p.q/S.rival.q)*.45,.5,1.4);
+  const decay=Math.exp(-p.age/150);
+  const gm=[1,1.25,1.5,2][techLv('global')];
+  const ad=1+.08*techLv('ads');
+  const bf=Math.max(.5,1-(p.bugs||0)*.012);
+  const wom=(p.rvN||0)>=10?clamp(1+(userAvg(p)-3)*.1,.8,1.2):1;
+  return T.market*gm*ad*(.6+S.fans/500)*Math.pow(p.q/40,1.5)*pf*tm*rf*decay*bf*wom*rnd;
+}
+function userAvg(p){
+  if(!p.rvN)return 0;
+  let t=0;p.stars.forEach((c,i)=>{t+=c*(i+1)});return t/p.rvN;
+}
+const POS={screen:'画面がとてもきれい',cpu:'動作がサクサクで快適',battery:'電池が長持ちする',camera:'写真がきれいに撮れる',material:'質感が高級',comm:'通信が速くて安定している',storage:'容量に余裕があって安心'};
+const NEG={screen:'画面が粗くて見づらい',cpu:'動作がもたつく',battery:'電池がすぐなくなる',camera:'カメラが物足りない',material:'作りが安っぽい',comm:'通信が遅い',storage:'容量がすぐいっぱいになる'};
+const NICK=['たろう','ゆき','けん','みさき','Haru','Sora','mika','りく','あおい','Ken','さくら','tomo'];
+function genReview(p){
+  const ratio=refPrice(p.q)/p.price;
+  const exp=clamp(1+p.review/10*4+clamp((ratio-1)*1.2,-1.2,1)*.8-Math.min(1.2,p.bugs*.06)*.5,1,5);
+  const stars=clamp(Math.round(exp+(Math.random()-.5)*2.2),1,5);
+  const pos=[],neg=[];
+  CATS.forEach(c=>{const t=p.parts[c.id]||0;if(t>=3)pos.push(POS[c.id]);if(t<=1)neg.push(NEG[c.id])});
+  if(p.bugs>=8)neg.push('バグが多くてよく固まる');else if(p.bugs<=2)pos.push('不具合がほとんどなく安定している');
+  if(ratio<.87)neg.push('値段が高すぎる');else if(ratio>1.25)pos.push('この価格ならコスパが良い');
+  if(p.q<S.rival.q*.8)neg.push(S.rival.name+'の新型の方が良さそう');
+  const pick=a=>a[Math.floor(Math.random()*a.length)];
+  let text;
+  if(stars>=4)text=pos.length?pick(pos):'満足して使っている';
+  else if(stars<=2)text=neg.length?pick(neg):'期待外れだった';
+  else if(pos.length&&neg.length)text=pick(pos)+'。でも'+pick(neg);
+  else text=pos.length?pick(pos):neg.length?pick(neg):'値段相応だと思う';
+  p.stars[stars-1]++;p.rvN++;
+  p.rvs.unshift({s:stars,t:text,n:pick(NICK)+Math.floor(Math.random()*90+10),d:S.day});
+  if(p.rvs.length>12)p.rvs.length=12;
+}
+function addLog(t){S.log.unshift({d:S.day,t});if(S.log.length>80)S.log.length=80}
+function toast(t){const e=document.getElementById('toast');e.textContent=t;e.classList.add('show');clearTimeout(toast.h);toast.h=setTimeout(()=>e.classList.remove('show'),2600)}
+function defaultPrice(){const s=S.sel;return Math.round(refPrice(quality(s.type,s.parts))*.95/1000)*1000}
+function checkGoals(){GOALS.forEach(g=>{if(!S.goals[g.id]&&g.ok()){S.goals[g.id]=1;addLog('🏆 目標達成: '+g.name);toast('🏆 目標達成: '+g.name)}})}
+
+// ===== 1日進める =====
+function tickDay(){
+  const ev={msgs:[],released:[],research:false};
+  const say=m=>{ev.msgs.push(m);addLog(m)};
+  S.day++;
+  // 開発:スコアが貯まり、バグも出る
+  S.dev=S.dev.filter(d=>{
+    d.left--;
+    d.score+=d.target/d.total*(.6+Math.random()*.8)*(1+.08*S.office);
+    let b=.2+d.q/150;
+    while(b>0){if(Math.random()<Math.min(1,b))d.bugs++;b-=1}
+    if(d.left>0)return true;
+    const r=d.score/d.target;
+    const qe=d.q*clamp(.8+.2*r,.85,1.1);
+    const rv=clamp(review(qe,d.price)-d.bugs*.08,1,10);
+    const p={id:d.id,name:d.name,type:d.type,parts:d.parts,q:qe,q0:d.q,price:d.price,cost:d.cost,age:0,total:0,mUnits:0,last:0,carry:0,
+      review:rv,bugs:d.bugs,score:Math.round(d.score),target:d.target,stars:[0,0,0,0,0],rvs:[],rvN:0,rvCarry:0};
+    S.sales.push(p);S.released++;ev.released.push(p);
+    say('「'+d.name+'」を発売。レビュー '+rv.toFixed(1)+' / 10(バグ '+d.bugs+'件)');
+    return false;
+  });
+  // 販売(月の需要を30で割って毎日売る)
+  const ds=S.sales.map(p=>Math.max(0,demand(p,.7+Math.random()*.6))/30);
+  const D=ds.reduce((a,b)=>a+b,0),C=cap()/30,f=D>C?C/D:1;
+  let rev=0,cogs=0,units=0;
+  const fanMul=(1+.3*S.fac.pr)*(1+.08*techLv('ads'));
+  S.sales.forEach((p,i)=>{
+    const raw=ds[i]*f+p.carry,u=Math.floor(raw);
+    p.carry=raw-u;p.mUnits+=u;p.total+=u;
+    rev+=u*p.price;cogs+=u*p.cost*costMult();units+=u;
+    S.fans+=Math.max(0,u*.03*(p.review-4.5))*fanMul;
+    p.rvCarry+=u/15;
+    for(let k=0;k<3&&p.rvCarry>=1;k++){genReview(p);p.rvCarry-=1}
+    if(p.rvCarry>3)p.rvCarry=3;
+    p.age++;
+  });
+  const sup=[0,40,90,160][techLv('support')]*S.fans/30;
+  const fixed=fixedCost()/30;
+  S.money+=rev+sup-cogs-fixed;S.totalUnits+=units;
+  const m=S.mon;
+  m.rev+=rev+sup;m.sup+=sup;m.cogs+=cogs;m.fixed+=fixed;m.units+=units;m.demand+=D;m.lost+=D*(1-f);
+  // 研究
+  S.research=S.research.filter(r=>{
+    r.left--;
+    if(r.left>0)return true;
+    if(r.kind==='part'){S.unl[r.cat]=r.tier}else{S.tech[r.id]=r.lv}
+    say('研究完了: '+r.name);ev.research=true;
+    return false;
+  });
+  // 月末
+  if(S.day%30===0)monthEnd(say);
+  if(S.money<0&&!S.over){S.over=true;say('資金が尽きました')}
+  return ev;
+}
+function monthEnd(say){
+  const m=S.mon,net=m.rev-m.cogs-m.fixed;
+  S.last={rev:m.rev,cogs:m.cogs,fixed:m.fixed,net,units:m.units,sup:m.sup,demand:Math.round(m.demand),lost:Math.round(m.lost),cap:cap()};
+  addLog('今月の収支 '+fmt(net)+'(売上 '+fmt(m.rev)+' / 原価 '+fmt(m.cogs)+' / 固定費 '+fmt(m.fixed)+')');
+  if(S.last.lost>=10)say('今月は生産が追いつかず '+S.last.lost.toLocaleString()+'台 売り逃した(生産能力 '+cap()+'台/月)');
+  S.sales=S.sales.filter(p=>{
+    p.last=p.mUnits;
+    const dead=p.age>=120&&p.mUnits<3;
+    p.mUnits=0;
+    if(dead){
+      say('「'+p.name+'」の販売を終了(累計 '+Math.round(p.total).toLocaleString()+'台)');
+      S.retired.unshift({name:p.name,type:p.type,total:Math.round(p.total),review:p.review,avg:userAvg(p),n:p.rvN});
+      if(S.retired.length>10)S.retired.length=10;
+    }
+    return !dead;
+  });
+  if(S.trend){
+    S.trend.left--;
+    if(S.trend.left<=0){say('「'+CATS.find(c=>c.id===S.trend.cat).name+'」のブームが落ち着いてきた');S.trend=null}
+  }else if(Math.random()<.18){
+    const c=CATS[Math.floor(Math.random()*CATS.length)];
+    S.trend={cat:c.id,left:2+Math.floor(Math.random()*7)};
+    say('世間で「'+c.name+'」が話題になっている');
+  }
+  S.rival.q+=.4+Math.random()*.2;
+  if((S.day/30)%6===0){
+    S.rival.name=RIVALS[Math.floor(Math.random()*RIVALS.length)];
+    say(S.rival.name+'が新型フラッグシップを発表(品質 '+S.rival.q.toFixed(0)+')');
+  }
+  if(!S.top&&S.money>=1e9)S.top=true;
+  S.mon=newMon();
+  save();
+}
+
+// ===== 時間の操作 =====
+function schedule(){
+  clearInterval(timer);timer=null;
+  if(playing)timer=setInterval(stepDay,DAY_MS/S.speed);
+}
+function setPlaying(v){
+  if(v&&S.over)return;
+  const was=playing;
+  playing=!!v;schedule();updateBar();
+  if(was&&!playing)save();
+}
+function stepDay(){
+  if(!playing||S.over)return;
+  const ev=tickDay();
+  checkGoals();
+  if(ev.research)renderDesign();
+  renderLive();
+  if(ev.released.length){setPlaying(false);showRelease(ev.released[0])}
+  else if(S.over){setPlaying(false)}
+  else if(ev.msgs.length)toast(ev.msgs[ev.msgs.length-1]);
+}
+function showRelease(p){
+  document.getElementById('mbox').innerHTML=
+   '<h3>🎉 「'+esc(p.name)+'」発売</h3><p class="sub">'+TYPES[p.type].name+' ・ '+dayLabel(S.day)+'(時間は止まっています)</p>'+
+   '<div class="kv"><span>開発スコア</span><b>'+p.score+' / 目標 '+p.target+'</b></div>'+
+   '<div class="kv"><span>バグ</span><b class="'+(p.bugs>10?'neg':'')+'">'+p.bugs+'件</b></div>'+
+   '<div class="kv"><span>品質(設計時 → 完成時)</span><b>'+p.q0.toFixed(1)+' → '+p.q.toFixed(1)+'</b></div>'+
+   '<div class="kv"><span>レビュー</span><b>'+p.review.toFixed(1)+' / 10</b></div>'+
+   '<div class="kv"><span>販売価格</span><b>'+yen(p.price)+'</b></div>'+
+   '<button class="go" data-act="close">閉じる</button>';
+  document.getElementById('modal').classList.add('on');
+}
+
+// ===== 本社の絵 =====
+function hqSvg(lv){
+  const sets=[
+    [{x:140,w:80,f:1}],
+    [{x:130,w:100,f:2}],
+    [{x:100,w:80,f:4},{x:190,w:70,f:3}],
+    [{x:60,w:70,f:5},{x:140,w:90,f:9},{x:240,w:64,f:4}],
+    [{x:16,w:70,f:5},{x:96,w:70,f:8},{x:176,w:84,f:12},{x:270,w:70,f:6}]
+  ];
+  const fh=11,gy=160;
+  let s='<svg viewBox="0 0 360 190" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="本社"><defs><linearGradient id="sk" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0d1a46"/><stop offset="1" stop-color="#2a3f94"/></linearGradient></defs><rect width="360" height="190" fill="url(#sk)"/>';
+  for(let i=0;i<22;i++)s+='<circle cx="'+((i*53)%360)+'" cy="'+((i*37)%90+6)+'" r="'+(i%3?0.8:1.3)+'" fill="#fff" opacity="'+(i%2?.5:.85)+'"/>';
+  s+='<rect y="'+gy+'" width="360" height="30" fill="#0a1233"/>';
+  sets[lv].forEach((b,bi)=>{
+    const h=b.f*fh+(lv===0?6:0),y=gy-h;
+    s+='<rect x="'+b.x+'" y="'+y+'" width="'+b.w+'" height="'+h+'" fill="#1d2a62" stroke="#3a4c9a"/>';
+    if(lv===0){
+      s+='<polygon points="'+(b.x-6)+','+y+' '+(b.x+b.w/2)+','+(y-16)+' '+(b.x+b.w+6)+','+y+'" fill="#2a3a80"/>';
+      s+='<rect x="'+(b.x+12)+'" y="'+(y+6)+'" width="'+(b.w-24)+'" height="'+(h-6)+'" fill="#3d4f9c"/>';
+      s+='<rect x="'+(b.x+b.w-26)+'" y="'+(y+10)+'" width="10" height="8" fill="#ffd97a"/>';
+    }else{
+      const cols=Math.floor((b.w-8)/13);
+      for(let r=0;r<b.f;r++)for(let c=0;c<cols;c++){
+        const lit=((r*7+c*3+bi*5)%3)!==0;
+        s+='<rect x="'+(b.x+6+c*13)+'" y="'+(y+3+r*fh)+'" width="7" height="5" fill="'+(lit?'#ffd97a':'#2c3a78')+'"/>';
+      }
+    }
+  });
+  if(lv>=3)s+='<rect x="178" y="'+(gy-12*fh-14)+'" width="2" height="14" fill="#3de0ff"/><circle cx="179" cy="'+(gy-12*fh-14)+'" r="2.4" fill="#3de0ff"/>';
+  return s+'</svg>';
+}
+
+// ===== 描画 =====
+const cache={};
+function setIf(id,html){
+  const el=document.getElementById(id);
+  if(el&&cache[id]!==html){cache[id]=html;el.innerHTML=html}
+}
+function chip(id,label,wide){return '<div class="chip'+(wide?' wide':'')+'"><small>'+label+'</small><b id="'+id+'"></b></div>'}
+function renderBar(){
+  document.getElementById('bar').innerHTML=
+   '<div class="co"><b id="b-name"></b><small id="b-rank"></small></div>'+
+   chip('b-money','💰 資金')+chip('b-date','📅 日付',true)+chip('b-users','🙋 ユーザー')+chip('b-fans','👥 ファン')+chip('b-cap','🏭 生産能力')+
+   '<span class="grow"></span>'+
+   '<div class="tc"><button class="go" id="b-play" data-act="play"></button>'+
+   '<div class="spd">'+[1,2,4].map(v=>'<button id="b-sp'+v+'" data-act="speed" data-v="'+v+'">×'+v+'</button>').join('')+'</div></div>'+
+   '<button class="go alt" data-act="title">タイトルへ</button>';
+  updateBar();
+}
+function updateBar(){
+  const t=(id,v)=>{const e=document.getElementById(id);if(e&&e.textContent!==v)e.textContent=v};
+  t('b-name',S.name);t('b-rank',office().rank);
+  t('b-money',fmt(S.money));t('b-date',dayLabel(S.day));
+  t('b-users',S.totalUnits.toLocaleString()+'人');t('b-fans',Math.round(S.fans).toLocaleString()+'人');t('b-cap',cap()+'台/月');
+  const m=document.getElementById('b-money');if(m)m.className=S.money<0?'neg':'';
+  const p=document.getElementById('b-play');
+  if(p){p.textContent=playing?'⏸ 停止':'▶ 再生';p.classList.toggle('stop',playing)}
+  [1,2,4].forEach(v=>{const e=document.getElementById('b-sp'+v);if(e)e.classList.toggle('on',S.speed===v)});
+  setIf('overBox',S.over?'<div class="over">倒産しました。累計販売 '+S.totalUnits.toLocaleString()+'台、発売 '+S.released+'製品。<button data-act="restart">同じ会社名で最初からやり直す</button></div>':'');
+}
+function renderNav(){
+  const tabs=[['home','🏠 本社'],['dev','🛠 開発'],['res','🔬 研究'],['office','🏢 オフィス'],['rep','📣 評判'],['market','📰 市場']];
+  setIf('nav',tabs.map(t=>
+    '<button class="navb '+(S.ui.tab===t[0]?'on':'')+'" data-act="tab" data-k="'+t[0]+'">'+t[1]+(t[0]==='res'&&S.research.length?'<em>'+S.research.length+'</em>':'')+'</button>').join(''));
+  tabs.forEach(t=>document.getElementById('pg-'+t[0]).classList.toggle('on',S.ui.tab===t[0]));
+}
+
+function renderHome(){
+  const o=office();
+  setIf('hero',
+   '<div class="svgwrap">'+hqSvg(S.office)+'</div><div class="heroinfo"><span class="rank">'+o.rank+'</span><h1>'+esc(S.name)+'</h1>'+
+   '<p>'+o.name+' ・ 社員 '+o.staff+'人 ・ '+dayLabel(S.day)+'</p><div class="kpis">'+
+   '<div><small>資金</small><b>'+fmt(S.money)+'</b></div>'+
+   '<div><small>ユーザー数</small><b>'+S.totalUnits.toLocaleString()+'人</b></div>'+
+   '<div><small>ファン</small><b>'+Math.round(S.fans).toLocaleString()+'人</b></div>'+
+   '<div><small>発売した製品</small><b>'+S.released+'</b></div>'+
+   '<div><small>生産能力</small><b>'+cap()+'台/月</b></div>'+
+   '<div><small>毎月の固定費</small><b>'+fmt(fixedCost())+'</b></div></div></div>');
+  let n='<h2>最新ニュース</h2><div class="log" style="max-height:200px">';
+  if(!S.log.length)n+='<p class="empty">「▶ 再生」を押すと日が進みます。</p>';
+  S.log.slice(0,6).forEach(l=>{n+='<p><b>'+dayLabel(l.d)+'</b>'+esc(l.t)+'</p>'});
+  setIf('homeNews',n+'</div>');
+  setIf('quick','<h2>メニュー</h2><div class="quick">'+
+   '<button data-act="tab" data-k="dev">🛠 製品を作る</button><button data-act="tab" data-k="res">🔬 研究する</button>'+
+   '<button data-act="tab" data-k="office">🏢 オフィス</button><button data-act="tab" data-k="market">📰 市場を見る</button></div>');
+  const done=GOALS.filter(g=>S.goals[g.id]).length;
+  let g='<h2>目標 '+done+' / '+GOALS.length+'</h2>';
+  GOALS.forEach(x=>{g+='<div class="goal '+(S.goals[x.id]?'done':'')+'"><i>'+(S.goals[x.id]?'✓':'')+'</i>'+x.name+'</div>'});
+  setIf('goals',g);
+}
+
+function renderDesign(){
+  const s=S.sel,T=TYPES[s.type];
+  let h='<h2>製品を設計する</h2><div class="tabs">';
+  Object.keys(TYPES).forEach(k=>{
+    const t=TYPES[k];
+    h+='<button class="tab '+(k===s.type?'on':'')+'" data-act="type" data-k="'+k+'">'+t.name+(S.owned[k]?'':'<small>参入 '+fmt(t.unlock)+'</small>')+'</button>';
+  });
+  h+='</div>';
+  if(!S.owned[s.type]){
+    h+='<p class="empty">この市場にはまだ参入していません。</p>';
+    document.getElementById('design').innerHTML=h;return;
+  }
+  CATS.forEach((c,i)=>{
+    h+='<div class="row"><div class="lbl">'+c.name+'<span>重要度 '+Math.round(T.w[i]*100)+'%</span></div><div class="opts">';
+    c.tiers.forEach((t,ti)=>{
+      const locked=ti>S.unl[c.id];
+      h+='<button class="opt '+(s.parts[c.id]===ti?'on':'')+(locked?' lock':'')+'" data-act="part" data-c="'+c.id+'" data-t="'+ti+'"'+(locked?' disabled':'')+'>'+
+         (locked?'🔒 ':'')+t[0]+'<i>原価 '+yen(t[1])+' / 性能 '+t[2]+'</i></button>';
+    });
+    h+='</div></div>';
+  });
+  const q=quality(s.type,s.parts),uc=unitCost(s.type,s.parts);
+  const lo=Math.ceil(uc*costMult()*1.05/1000)*1000,hi=Math.round(refPrice(q)*2/1000)*1000;
+  if(!s.touched||!s.price)s.price=defaultPrice();
+  h+='<div class="sum" id="sum"></div><p class="note" id="sumNote"></p>';
+  h+='<div class="row"><div class="lbl">販売価格(好きな金額を入力できます) <span id="pv"></span></div>'+
+     '<div class="pr"><input type="number" id="priceNum" min="1" step="1" value="'+s.price+'"><span>円</span></div>'+
+     '<input type="range" id="price" min="'+lo+'" max="'+hi+'" step="1000" value="'+clamp(s.price,lo,hi)+'"></div>';
+  h+='<div class="fl"><div><div class="lbl" style="font-size:13px;font-weight:700;margin-bottom:4px">製品名</div><input type="text" id="pname" maxlength="20" value="'+esc(T.pre+S.n)+'"></div>'+
+     '<button class="go" data-act="dev">開発を始める</button></div>';
+  document.getElementById('design').innerHTML=h;
+  document.getElementById('price').addEventListener('input',e=>{
+    S.sel.price=+e.target.value;S.sel.touched=true;
+    document.getElementById('priceNum').value=S.sel.price;updateSum();
+  });
+  updateSum();
+}
+function updateSum(){
+  const el=document.getElementById('sum');if(!el)return;
+  const s=S.sel,q=quality(s.type,s.parts),uc=unitCost(s.type,s.parts)*costMult();
+  const an=techLv('analytics')>0;
+  const margin=s.price-uc;
+  let fc='<span class="lockt">🔒 未解禁</span>',rv=fc,note='予想は、研究タブの技術「市場分析」を完了すると使えるようになります。';
+  if(an){
+    const u=Math.round(demand({type:s.type,parts:s.parts,q,price:s.price,age:0,bugs:0},1));
+    fc='約'+u.toLocaleString()+'台';
+    rv=review(q,s.price).toFixed(1)+' / 10';
+    note=u>cap()?'予想が生産能力('+cap()+'台/月)を超えています。研究タブの「生産ライン拡張」で増やせます。':'';
+  }
+  document.getElementById('pv').textContent=yen(s.price)+'(目安 '+yen(refPrice(q))+')';
+  document.getElementById('sumNote').textContent=note;
+  el.innerHTML=
+   '<div><small>品質</small><b>'+q.toFixed(1)+'</b></div>'+
+   '<div><small>1台の原価</small><b>'+yen(uc)+'</b></div>'+
+   '<div><small>1台の利益</small><b class="'+(margin>=0?'pos':'neg')+'">'+yen(margin)+'</b></div>'+
+   '<div><small>予想レビュー</small><b>'+rv+'</b></div>'+
+   '<div><small>初月の予想販売</small><b>'+fc+'</b></div>'+
+   '<div><small>開発費・期間</small><b>'+fmt(devCost(s.type,q))+' / '+TYPES[s.type].dev+'ヶ月</b></div>';
+}
+
+function renderSales(){
+  setIf('salesHead','<p class="note">同時に開発できる数: '+S.dev.length+' / '+office().dev+'(オフィスで増えます)<br>毎月の生産能力: '+cap()+'台(研究「生産ライン拡張」で増えます)。需要がこれを超えた分は売れません。</p>');
+  setIf('devList',S.dev.map(d=>
+    '<div class="dev" data-id="'+d.id+'"><div class="dt"><b>'+esc(d.name)+'</b><span>'+TYPES[d.type].name+'</span></div>'+
+    '<div class="dstats"><div class="score"><small>開発スコア</small><b data-f="score"></b></div><div class="bugs"><small>バグ</small><b data-f="bug"></b></div><div><small>残り</small><b data-f="days"></b></div></div>'+
+    '<div class="prog"><div data-f="bar"></div></div>'+
+    '<div class="ft"><span>デバッグ費用 <b data-f="dcost"></b></span><button data-act="debug" data-id="'+d.id+'">デバッグ(5件)</button></div></div>').join(''));
+  updateDevLive();
+  let t='';
+  if(S.sales.length){
+    t='<p class="note" style="margin-top:6px">販売中</p><div class="tbl"><table><tr><th>製品</th><th>品質</th><th>専門</th><th>ユーザー評価</th><th>バグ</th><th>価格</th><th>今月</th><th>ユーザー数</th></tr>';
+    S.sales.forEach(p=>{
+      t+='<tr><td>'+esc(p.name)+'</td><td>'+p.q.toFixed(0)+'</td><td>'+p.review.toFixed(1)+'</td><td>'+(p.rvN?'★'+userAvg(p).toFixed(1):'-')+'</td><td>'+p.bugs+'</td><td>'+yen(p.price)+'</td><td>'+p.mUnits.toLocaleString()+'台</td><td>'+Math.round(p.total).toLocaleString()+'人</td></tr>';
+    });
+    t+='</table></div>';
+  }
+  if(!S.dev.length&&!S.sales.length)t='<p class="empty">まだ製品がありません。左で最初の1台を設計しましょう。</p>';
+  setIf('salesTbl',t);
+}
+function updateDevLive(){
+  document.querySelectorAll('#devList .dev').forEach(el=>{
+    const d=S.dev.find(x=>String(x.id)===el.dataset.id);if(!d)return;
+    const f=k=>el.querySelector('[data-f="'+k+'"]');
+    f('score').textContent=Math.round(d.score)+' / '+d.target;
+    f('bug').textContent=d.bugs+'件';
+    f('days').textContent=d.left+'日';
+    f('bar').style.width=((d.total-d.left)/d.total*100)+'%';
+    const n=Math.min(5,d.bugs);
+    f('dcost').textContent=yen(bugCost(d.q))+'/件';
+    el.querySelector('button').disabled=n<=0||S.over;
+  });
+}
+
+function renderMarket(){
+  const t=S.trend?CATS.find(c=>c.id===S.trend.cat).name:'特になし';
+  let h='<h2>市場</h2>'+
+   '<div class="res"><span>いま話題のもの</span><b>'+t+'</b></div>'+
+   '<p class="note" style="margin-top:6px">ブームはいつ来るか分かりません。話題の部品が3段階目以上だと売れ行きが増え、1段階目以下だと減ります。</p>'+
+   '<div class="res"><span>ライバル '+esc(S.rival.name)+'</span><b>品質 '+S.rival.q.toFixed(0)+'</b></div>'+
+   '<p class="note" style="margin-top:6px">ライバルの品質は毎月上がります。自社製品の品質が低いと売れ行きが落ちます。</p>'+
+   '<div class="res"><span>毎月の生産能力</span><b>'+cap()+'台</b></div>'+
+   '<div class="res"><span>毎月の固定費</span><b>'+fmt(fixedCost())+'</b></div>';
+  if(S.last){
+    h+='<div class="res"><span>先月の収支</span><b class="'+(S.last.net>=0?'pos':'neg')+'">'+fmt(S.last.net)+'</b></div>'+
+       '<div class="res"><span>先月の需要 / 販売</span><b>'+S.last.demand.toLocaleString()+'台 / '+Math.round(S.last.units).toLocaleString()+'台</b></div>';
+    if(S.last.sup>0)h+='<div class="res"><span>うちサポート事業の収入</span><b>'+fmt(S.last.sup)+'</b></div>';
+  }
+  setIf('market',h);
+}
+
+function renderResearch(){
+  const slots=office().res,full=S.research.length>=slots;
+  setIf('resHead','<div class="tabs">'+
+    [['parts','部品'],['tech','技術'],['make','生産'],['biz','事業']].map(t=>'<button class="tab '+(S.ui.rtab===t[0]?'on':'')+'" data-act="rtab" data-k="'+t[0]+'">'+t[1]+'</button>').join('')+'</div>'+
+    '<p class="note">同時に研究できる数: '+S.research.length+' / '+slots+'(オフィスを大きくすると増えます)</p>');
+  setIf('resActive',S.research.map(r=>
+    '<div class="res"><span>研究中: '+esc(r.name)+'<div class="prog"><div style="width:'+((r.total-r.left)/r.total*100)+'%"></div></div></span><span>あと'+r.left+'日</span></div>').join(''));
+  const busy=key=>S.research.some(r=>r.key===key);
+  let h='';
+  if(S.ui.rtab==='parts'){
+    CATS.forEach(c=>{
+      const nt=S.unl[c.id]+1;
+      if(nt>4){h+='<div class="res"><span>'+c.name+'</span><span>すべて解禁済み</span></div>';return}
+      const key='part:'+c.id;
+      h+='<div class="res"><span>'+c.name+'「'+c.tiers[nt][0]+'」<small>解禁済み '+nt+' / 5 ・ '+fmt(RC[nt])+' ・ '+resMonths(nt)+'ヶ月</small></span>'+
+         '<button data-act="res" data-kind="part" data-id="'+c.id+'"'+(full||busy(key)||S.money<RC[nt]?' disabled':'')+'>'+(busy(key)?'研究中':'研究する')+'</button></div>';
+    });
+  }else{
+    TECH.filter(x=>x.tab===S.ui.rtab).forEach(x=>{
+      const lv=techLv(x.id),key='tech:'+x.id;
+      if(lv>=x.lv.length){h+='<div class="res"><span>'+x.name+'<small>'+x.desc+'</small></span><span>完了</span></div>';return}
+      const nx=x.lv[lv];
+      h+='<div class="res"><span>'+x.name+(x.lv.length>1?' Lv'+(lv+1):'')+'<small>'+x.desc+'<br>'+fmt(nx[0])+' ・ '+resMonths(nx[1])+'ヶ月</small></span>'+
+         '<button data-act="res" data-kind="tech" data-id="'+x.id+'"'+(full||busy(key)||S.money<nx[0]?' disabled':'')+'>'+(busy(key)?'研究中':'研究する')+'</button></div>';
+    });
+  }
+  setIf('resList',h);
+}
+
+function renderOffice(){
+  const o=office(),nx=OFFICES[S.office+1];
+  let h='<h2>オフィス</h2><div class="office"><b>'+o.name+'</b><div>'+
+    '<span>社員 '+o.staff+'人</span><span>同時開発 '+o.dev+'本</span><span>同時研究 '+o.res+'件</span><span>家賃 '+fmt(o.rent)+'/月</span></div></div>';
+  if(nx){
+    h+='<div class="res"><span>引っ越し先: '+nx.name+'<small>社員 '+nx.staff+'人 ・ 同時開発 '+nx.dev+'本 ・ 同時研究 '+nx.res+'件 ・ 家賃 '+fmt(nx.rent)+'/月</small></span>'+
+       '<button data-act="office"'+(S.money<nx.cost?' disabled':'')+'>'+fmt(nx.cost)+'で移転</button></div>';
+  }else h+='<p class="empty">これ以上大きなオフィスはありません。</p>';
+  h+='<h2 style="margin-top:18px">設備</h2>';
+  FAC.forEach(f=>{
+    const lv=S.fac[f.id];
+    if(lv>=f.cost.length){h+='<div class="res"><span>'+f.name+' Lv'+lv+'<small>'+f.desc+'</small></span><span>最大</span></div>';return}
+    h+='<div class="res"><span>'+f.name+' Lv'+lv+'<small>'+f.desc+'<br>増設 '+fmt(f.cost[lv])+' ・ 維持費 +'+fmt(f.up)+'/月</small></span>'+
+       '<button data-act="fac" data-id="'+f.id+'"'+(S.money<f.cost[lv]?' disabled':'')+'>増設する</button></div>';
+  });
+  setIf('office',h);
+}
+
+function starStr(n){return '★'.repeat(n)+'☆'.repeat(5-n)}
+function renderRep(){
+  let h='<h2>評判</h2><p class="note">発売した製品の評価やユーザーの声は、研究に関係なく誰でも見られます。ユーザー評価が10件以上たまると、口コミで売れ行きが最大20%増減します。</p>';
+  if(!S.sales.length)h+='<p class="empty">販売中の製品がありません。</p>';
+  S.sales.forEach(p=>{
+    const avg=userAvg(p);
+    h+='<div class="rep"><div class="dt"><b>'+esc(p.name)+'</b><span>'+TYPES[p.type].name+' ・ 品質 '+p.q.toFixed(0)+' ・ '+yen(p.price)+'</span></div>'+
+      '<div class="kpis"><div><small>専門レビュー(発売時)</small><b>'+p.review.toFixed(1)+' / 10</b></div>'+
+      '<div><small>ユーザー評価</small><b>'+(p.rvN?'★ '+avg.toFixed(1)+'('+p.rvN+'件)':'まだありません')+'</b></div>'+
+      '<div><small>ユーザー数</small><b>'+Math.round(p.total).toLocaleString()+'人</b></div>'+
+      '<div><small>バグ</small><b>'+p.bugs+'件</b></div></div>';
+    if(p.rvN){
+      h+='<div class="sub2">評価の内訳</div>';
+      for(let i=5;i>=1;i--){const c=p.stars[i-1];h+='<div class="rb"><u>★'+i+'</u><i><b style="width:'+(c/p.rvN*100)+'%"></b></i><em>'+c+'</em></div>'}
+      h+='<div class="sub2">最近のユーザーの声</div>';
+      p.rvs.slice(0,5).forEach(r=>{h+='<div class="cm"><span class="st">'+starStr(r.s)+'</span> '+esc(r.t)+'<small>'+esc(r.n)+'</small></div>'});
+    }
+    h+='</div>';
+  });
+  if(S.retired.length){
+    h+='<div class="sub2">販売を終了した製品</div>';
+    S.retired.forEach(r=>{h+='<div class="res"><span>'+esc(r.name)+'<small>'+TYPES[r.type].name+' ・ 専門 '+r.review.toFixed(1)+' ・ ユーザー評価 '+(r.n?'★'+r.avg.toFixed(1)+'('+r.n+'件)':'-')+'</small></span><b>'+r.total.toLocaleString()+'人</b></div>'});
+  }
+  setIf('repBox',h);
+}
+function renderLog(){
+  let h='<h2>ニュース</h2><div class="log">';
+  if(!S.log.length)h+='<p class="empty">ここに出来事が出ます。</p>';
+  S.log.forEach(l=>{h+='<p><b>'+dayLabel(l.d)+'</b>'+esc(l.t)+'</p>'});
+  setIf('logBox',h+'</div>');
+}
+
+function renderLive(){updateBar();renderNav();renderHome();renderSales();renderMarket();renderResearch();renderOffice();renderRep();renderLog();updateSum()}
+function renderAll(){checkGoals();renderLive();renderDesign()}
+
+// ===== タイトル画面 =====
+function showTitle(mode){
+  setPlaying(false);
+  const d=peek(),m=document.getElementById('tmenu');
+  if(mode==='name'){
+    m.innerHTML='<label for="cname">会社名を決めてください</label><input type="text" id="cname" maxlength="16" placeholder="例: ミライデバイス">'+
+      '<button class="go big" data-act="start">ゲームスタート</button><button class="go alt" data-act="title">もどる</button>';
+    setTimeout(()=>{const i=document.getElementById('cname');if(i)i.focus()},30);
+  }else{
+    m.innerHTML=(d&&d.name?'<button class="go big" data-act="cont">つづきから</button><div class="sv">'+esc(d.name)+' ・ '+dayLabel(d.day||0)+'</div>':'')+
+      '<button class="go '+(d&&d.name?'alt':'big')+'" data-act="new">はじめから</button>';
+  }
+  document.getElementById('title').classList.add('on');
+}
+function hideTitle(){document.getElementById('title').classList.remove('on')}
+function startNew(){
+  const i=document.getElementById('cname');
+  const name=(i&&i.value.trim())||'ノーネーム社';
+  S=fresh(name);inGame=true;addLog('「'+name+'」を設立。最初の製品を作ろう');save();hideTitle();renderAll();
+}
+
+// ===== 操作 =====
+document.addEventListener('keydown',e=>{
+  if(e.key==='Enter'&&e.target.id==='cname'){startNew();return}
+  if(e.code==='Space'&&!/INPUT|TEXTAREA|BUTTON/.test(e.target.tagName)){
+    if(document.getElementById('title').classList.contains('on')||document.getElementById('modal').classList.contains('on'))return;
+    e.preventDefault();setPlaying(!playing);
+  }
+});
+document.addEventListener('input',e=>{
+  if(e.target.id!=='priceNum')return;
+  const v=Math.round(+e.target.value);
+  if(!(v>=1))return;
+  S.sel.price=Math.min(v,1e9);S.sel.touched=true;
+  const sl=document.getElementById('price');
+  if(sl)sl.value=clamp(S.sel.price,+sl.min,+sl.max);
+  updateSum();
+});
+document.addEventListener('visibilitychange',()=>{if(document.hidden&&playing)setPlaying(false)});
+window.addEventListener('beforeunload',()=>{save()});
+document.addEventListener('click',e=>{
+  const b=e.target.closest('[data-act]');if(!b||b.disabled)return;
+  const a=b.dataset.act;
+  if(a==='close'){document.getElementById('modal').classList.remove('on');return}
+  if(a==='title'){save();showTitle('menu');return}
+  if(a==='new'){
+    if(peek()&&!confirm('いまのセーブデータは消えます。はじめからにしますか?'))return;
+    showTitle('name');return;
+  }
+  if(a==='start'){startNew();return}
+  if(a==='cont'){const d=peek();if(d){S=merge(d);inGame=true;hideTitle();renderAll()}return}
+  if(a==='play'){setPlaying(!playing);return}
+  if(a==='speed'){S.speed=+b.dataset.v;schedule();updateBar();save();return}
+  if(a==='tab'){S.ui.tab=b.dataset.k;save();renderNav();return}
+  if(a==='rtab'){S.ui.rtab=b.dataset.k;save();renderResearch();return}
+  if(a==='restart'){const n=S.name;S=fresh(n);addLog('「'+n+'」を再スタート');save();renderAll();return}
+  if(S.over)return;
+  if(a==='type'){
+    const k=b.dataset.k,t=TYPES[k];
+    if(!S.owned[k]){
+      if(S.money<t.unlock){toast('資金が足りません(必要 '+fmt(t.unlock)+')');return}
+      if(!confirm(t.name+'市場に参入します。'+fmt(t.unlock)+'かかります。よろしいですか?'))return;
+      S.money-=t.unlock;S.owned[k]=true;addLog(t.name+'市場に参入');
+    }
+    S.sel.type=k;S.sel.touched=false;save();renderAll();return;
+  }
+  if(a==='part'){S.sel.parts[b.dataset.c]=+b.dataset.t;S.sel.touched=false;renderDesign();return}
+  if(a==='dev'){
+    if(S.dev.length>=office().dev){toast('同時開発の上限です。オフィスを大きくすると増やせます');return}
+    const s=S.sel,q=quality(s.type,s.parts),cost=devCost(s.type,q);
+    if(!(s.price>=1)){toast('販売価格を1円以上で入力してください');return}
+    if(S.money<cost){toast('開発費が足りません(必要 '+fmt(cost)+')');return}
+    const name=(document.getElementById('pname').value.trim()||TYPES[s.type].pre+S.n).slice(0,20);
+    const days=TYPES[s.type].dev*30;
+    S.money-=cost;
+    S.dev.push({id:S.n,name,type:s.type,parts:Object.assign({},s.parts),q,price:s.price,cost:unitCost(s.type,s.parts),
+      total:days,left:days,score:0,bugs:0,target:devTarget(q)});
+    addLog('「'+name+'」の開発を開始(開発費 '+fmt(cost)+')');
+    S.n++;S.sel.touched=false;save();renderAll();toast('開発を始めました。▶ 再生で日が進みます');return;
+  }
+  if(a==='debug'){
+    const d=S.dev.find(x=>String(x.id)===b.dataset.id);if(!d)return;
+    const n=Math.min(5,d.bugs);if(n<=0)return;
+    const cost=n*bugCost(d.q);
+    if(S.money<cost){toast('デバッグ費用が足りません(必要 '+fmt(cost)+')');return}
+    S.money-=cost;d.bugs-=n;
+    addLog('「'+d.name+'」のバグを'+n+'件修正(費用 '+fmt(cost)+')');
+    renderLive();return;
+  }
+  if(a==='res'){
+    if(S.research.length>=office().res)return;
+    const id=b.dataset.id;let item;
+    if(b.dataset.kind==='part'){
+      const c=CATS.find(x=>x.id===id),nt=S.unl[id]+1,m=resMonths(nt)*30;
+      if(S.money<RC[nt])return;
+      S.money-=RC[nt];
+      item={kind:'part',key:'part:'+id,cat:id,tier:nt,name:c.name+'「'+c.tiers[nt][0]+'」',total:m,left:m};
+    }else{
+      const x=TECH.find(t=>t.id===id),lv=techLv(id)+1,nx=x.lv[lv-1],m=resMonths(nx[1])*30;
+      if(S.money<nx[0])return;
+      S.money-=nx[0];
+      item={kind:'tech',key:'tech:'+id,id,lv,name:x.name+(x.lv.length>1?' Lv'+lv:''),total:m,left:m};
+    }
+    S.research.push(item);addLog('研究開始: '+item.name);
+    save();renderAll();return;
+  }
+  if(a==='office'){
+    const nx=OFFICES[S.office+1];if(!nx||S.money<nx.cost)return;
+    S.money-=nx.cost;S.office++;addLog(nx.name+'へ移転');
+    save();renderAll();toast(nx.name+'に移転しました');return;
+  }
+  if(a==='fac'){
+    const f=FAC.find(x=>x.id===b.dataset.id),lv=S.fac[f.id];
+    if(lv>=f.cost.length||S.money<f.cost[lv])return;
+    S.money-=f.cost[lv];S.fac[f.id]++;addLog(f.name+'を増設(Lv'+S.fac[f.id]+')');
+    save();renderAll();
+  }
+});
+
+S=fresh();
+renderBar();
+renderAll();
+showTitle('menu');
+</script>
+</body>
+</html>
