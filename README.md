@@ -20,7 +20,9 @@ Claude有能すぎて普通に作ってくれた
 
 ・train-stop.html
 
-電車運転するゲームを作らせたらめちゃむずかしいのできてしまった
+あさひ → みどり台 → さくら坂 の3駅を走ります。
+
+難易度をちょっと下げたのでたぶん初見でも運転しやすいかもしれない。
 
 ・かんたんmodインストーラー
 
@@ -48,7 +50,15 @@ Claude有能すぎて普通に作ってくれた
 
 リンク
 
-https://norauki100.github.io/not-main/ (htmlのパス)
+device-tycoon.html：https://norauki100.github.io/not-main/device-tycoon.html
+
+glb-viewer.html：https://norauki100.github.io/not-main/glb-viewer.html
+
+kr-time.html：https://norauki100.github.io/not-main/kr-time.html
+
+links.html：https://norauki100.github.io/not-main/links.html
+
+train-stop.html：https://norauki100.github.io/not-main/train-stop.html
 
 
 

@@ -31,6 +31,8 @@ button:focus-visible{outline:3px solid var(--amber)}
 #ov h1{margin:0 0 8px;font-size:26px}#ov p{margin:4px 0}
 #ov .big{font-size:56px;font-weight:800;line-height:1}
 #ov .go{background:var(--amber);color:#2b1a00;margin-top:12px}
+#ov.dw{background:none;align-items:flex-start;padding-top:64px;pointer-events:none}#ov.dw .box{pointer-events:auto}
+button:disabled{opacity:.5;cursor:default}
 kbd{background:#34303d;border-radius:4px;padding:1px 6px}
 </style></head><body>
 <div id="top"><div class="card"><span id="dist">1200</span> m<span id="dl">停止位置まで</span></div><div class="card" id="gr">水平</div><div id="lim">60</div></div>
@@ -38,16 +40,19 @@ kbd{background:#34303d;border-radius:4px;padding:1px 6px}
 <div id="bot"><div id="row"><div id="spd">0</div><div>km/h</div><div id="notch">N</div></div><div id="bar"></div>
 <div id="pad"><button id="bUp">加速 ▼</button><button id="bDn">ブレーキ ▲</button></div></div>
 <div id="ov"><div class="box"><h1>停車チャレンジ</h1>
-<p>みどり台駅のホームにある黄色い停止位置標識の真横で、先頭を止めてください。</p>
+<p>あさひ → みどり台 → さくら坂 の3駅を走ります。各駅のホームにある黄色い停止位置標識の真横に、先頭を止めてください。停車後は発車時刻になると発車できます(Enterでも発車)。</p>
 <p><kbd>↓</kbd>/<kbd>S</kbd> 力行(加速)側へ1段　<kbd>↑</kbd>/<kbd>W</kbd> ブレーキ側へ1段　<kbd>Space</kbd> 非常ブレーキ　<kbd>R</kbd> やり直し</p>
 <p>制限速度を超えるとATSが非常ブレーキをかけ、減点されます。ブレーキは効くまで少し遅れます。上り坂と下り坂もあります。</p>
 <button class="go" id="start">出発する</button></div></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
 const $=id=>document.getElementById(id);
-const STOP=1200,PF0=1150,PF1=1290,LIM=[[0,60],[350,90],[900,65],[1060,40]];
-const limitAt=z=>{let l=60;for(const[a,b]of LIM)if(z>=a)l=b;return l};
-const GR=[[150,12],[400,0],[600,-15],[850,0]];const gradeAt=z=>{let g=0;for(const[a,v]of GR)if(z>=a)g=v/1000;return g};
+const STN=[{n:'あさひ',z:0,no:'04',en:'Asahi'},{n:'みどり台',z:1200,no:'05',en:'Midoridai'},{n:'さくら坂',z:2900,no:'06',en:'Sakurazaka'}];
+const ARR=[0,105,270],DEP=[0,135,0];   // 時刻表(7:30:00からの秒数)
+const LIM=[[0,60,'構内'],[250,85,'区間'],[700,70,'住宅街'],[950,55,'駅接近'],[1080,40,'駅進入'],[1200,45,'構内'],[1350,75,'区間'],[1550,100,'直線'],[2200,80,'住宅街'],[2450,60,'駅接近'],[2700,40,'駅進入']];
+const limitAt=z=>{let l=60;for(const e of LIM)if(z>=e[0])l=e[1];return l};
+const nextLim=z=>{for(const e of LIM)if(e[0]>z)return e;return null};
+const GR=[[150,12],[400,0],[600,-15],[850,0],[1500,10],[1900,0],[2050,-12],[2350,0],[2500,14],[2700,0]];const gradeAt=z=>{let g=0;for(const[a,v]of GR)if(z>=a)g=v/1000;return g};
 let renderer,scene,cam;
 try{
 renderer=new THREE.WebGLRenderer({antialias:true,canvas:document.createElement('canvas')});
@@ -61,7 +66,7 @@ const sun=new THREE.DirectionalLight(0xffc48a,.9);sun.position.set(-30,40,60);sc
 const disc=new THREE.Mesh(new THREE.CircleGeometry(38,32),new THREE.MeshBasicMaterial({color:0xfff1c9,fog:false}));disc.position.set(-130,60,-700);cam.add(disc);
 const M=(c)=>new THREE.MeshLambertMaterial({color:c});
 const box=(w,h,d,c,x,y,z)=>{const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),typeof c==='number'?M(c):c);m.position.set(x,y,z);scene.add(m);return m};
-const LEN=1500,MID=LEN/2-100;
+const LEN=3300,MID=LEN/2-100;
 const gr=new THREE.Mesh(new THREE.PlaneGeometry(500,LEN+600),M(0x4b5a3c));gr.rotation.x=-Math.PI/2;gr.position.set(0,0,MID);scene.add(gr);
 box(4.2,.3,LEN,0x6b6560,0,.15,MID);
 box(.12,.18,LEN,0xb8b8c0,-.72,.39,MID);box(.12,.18,LEN,0xb8b8c0,.72,.39,MID);
@@ -71,18 +76,18 @@ for(let i=0;i<nS;i++){dm.position.set(0,.33,-100+i*.8);dm.updateMatrix();sl.setM
 const nP=Math.floor(LEN/45),pole=new THREE.InstancedMesh(new THREE.BoxGeometry(.25,7,.25),M(0x55525c),nP),arm=new THREE.InstancedMesh(new THREE.BoxGeometry(4.2,.15,.15),M(0x55525c),nP);
 for(let i=0;i<nP;i++){const z=-80+i*45;dm.position.set(3.2,3.5,z);dm.updateMatrix();pole.setMatrixAt(i,dm.matrix);dm.position.set(1.1,6.2,z);dm.updateMatrix();arm.setMatrixAt(i,dm.matrix)}scene.add(pole,arm);
 box(.05,.05,LEN,0x222,0,5.9,MID);
-// platform
-box(4.2,1.1,PF1-PF0,0xa9a29a,-4.1,.55,(PF0+PF1)/2);
-box(.3,.02,PF1-PF0,0xe6c34a,-2.25,1.11,(PF0+PF1)/2);
-box(4.4,.15,PF1-PF0-30,0x6c6a78,-4.1,4.7,(PF0+PF1)/2);
-for(let i=0;i<7;i++)box(.2,3.6,.2,0x55525c,-5.9,2.9,PF0+15+i*20);
-box(.2,2.4,.2,new THREE.MeshBasicMaterial({color:0xffb454}),-2.5,2.3,STOP);
-box(.9,.5,.1,new THREE.MeshBasicMaterial({color:0xffb454}),-2.5,3.7,STOP);
 function tex(draw,w,h){const c=document.createElement('canvas');c.width=w;c.height=h;draw(c.getContext('2d'));return new THREE.CanvasTexture(c)}
-const face=(t,w,h,x,y,z)=>{const m=new THREE.Mesh(new THREE.PlaneGeometry(w,h),new THREE.MeshBasicMaterial({map:t}));m.rotation.y=Math.PI;m.position.set(x,y,z);scene.add(m)};
-for(const[z,k]of LIM){face(tex(g=>{g.fillStyle='#fff';g.beginPath();g.arc(64,64,62,0,7);g.fill();g.strokeStyle='#d62828';g.lineWidth=14;g.beginPath();g.arc(64,64,54,0,7);g.stroke();g.fillStyle='#111';g.font='bold 58px sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillText(k,64,68)},128,128),1.6,1.6,2.6,3.2,z+20);box(.12,3.2,.12,0x555,2.6,1.6,z+20.1)}
-face(tex(g=>{g.fillStyle='#1f6f4a';g.fillRect(0,0,512,96);g.fillStyle='#fff';g.font='bold 54px sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillText('みどり台',256,52)},512,96),5,.95,-4.1,3.7,PF0+4);
-for(const[z,v]of GR){const up=v>0,dn=v<0;face(tex(g=>{g.fillStyle='#fff';g.fillRect(0,0,256,128);g.strokeStyle='#222';g.lineWidth=8;g.strokeRect(4,4,248,120);g.fillStyle=up?'#c62828':dn?'#1565c0':'#222';g.font='bold 40px sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillText(up?'上り':dn?'下り':'水平',128,40);g.font='bold 46px sans-serif';g.fillText(Math.abs(v)+'‰',128,92)},256,128),2.2,1.1,2.2,2.6,z);box(.12,2.6,.12,0x555,2.2,1.3,z+.1)}
+const face=(t,w,h,x,y,z)=>{const m=new THREE.Mesh(new THREE.PlaneGeometry(w,h),new THREE.MeshBasicMaterial({map:t,transparent:true}));m.rotation.y=Math.PI;m.position.set(x,y,z);scene.add(m)};
+const limTex=k=>tex(g=>{g.fillStyle='#fff';g.beginPath();g.arc(64,64,62,0,7);g.fill();g.strokeStyle='#d62828';g.lineWidth=14;g.beginPath();g.arc(64,64,54,0,7);g.stroke();g.fillStyle='#111';g.font='bold 58px sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillText(k,64,68)},128,128);
+const advTex=(k,m)=>tex(g=>{g.fillStyle='#f2c230';g.fillRect(0,0,256,128);g.strokeStyle='#222';g.lineWidth=8;g.strokeRect(4,4,248,120);g.fillStyle='#111';g.textAlign='center';g.textBaseline='middle';g.font='bold 30px sans-serif';g.fillText('予告 '+k+' km/h',128,38);g.font='bold 34px sans-serif';g.fillText('▼ '+m+'m先',128,86)},256,128);
+LIM.forEach(([z,k],i)=>{face(limTex(k),1.6,1.6,2.6,3.2,z);box(.12,3.2,.12,0x555,2.6,1.6,z+.1);
+const pk=i?LIM[i-1][1]:0;if(i&&k<pk){const za=Math.max(z-300,LIM[i-1][0]+30);face(advTex(k,Math.round(z-za)),2,1,2.9,2.4,za);box(.1,2.4,.1,0x555,2.9,1.2,za+.1)}});
+for(const S of STN){const a=S.z-50,b=S.z+90,c=(a+b)/2;
+box(4.2,1.1,b-a,0xa9a29a,-4.1,.55,c);box(.3,.02,b-a,0xe6c34a,-2.25,1.11,c);box(4.4,.15,b-a-30,0x6c6a78,-4.1,4.7,c);
+for(let i=0;i<7;i++)box(.2,3.6,.2,0x55525c,-5.9,2.9,a+15+i*20);
+box(.2,2.4,.2,new THREE.MeshBasicMaterial({color:0xffb454}),-2.5,2.3,S.z);box(.9,.5,.1,new THREE.MeshBasicMaterial({color:0xffb454}),-2.5,3.7,S.z);
+face(tex(g=>{g.fillStyle='#1f6f4a';g.fillRect(0,0,512,96);g.fillStyle='#fff';g.font='bold 54px sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillText(S.n,256,52)},512,96),5,.95,-4.1,3.7,a+4)}
+for(const[z,v]of GR){const up=v>0,dn=v<0;face(tex(g=>{g.fillStyle='#fff';g.fillRect(0,0,256,128);g.strokeStyle='#222';g.lineWidth=8;g.strokeRect(4,4,248,120);g.fillStyle=up?'#c62828':dn?'#1565c0':'#222';g.font='bold 40px sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillText(up?'上り':dn?'下り':'水平',128,40);g.font='bold 46px sans-serif';g.fillText(Math.abs(v)+'‰',128,92)},256,128),2.2,1.1,2.2,2.6,z+15);box(.12,2.6,.12,0x555,2.2,1.3,z+15.1)}
 let seed=7;const rnd=()=>(seed=(seed*16807)%2147483647)/2147483647;
 const ASPH=0x3a3b42;
 for(const sx of[-1,1]){box(7,.06,LEN+400,ASPH,sx*14,.03,MID);box(2.2,.1,LEN+400,0x8f8a82,sx*18.6,.05,MID);box(.04,.04,LEN+400,0x6b7076,sx*8,1.05,MID)}
@@ -92,9 +97,9 @@ const nF=Math.floor((LEN+400)/6),fp=new THREE.InstancedMesh(new THREE.BoxGeometr
 for(let i=0;i<nF;i++)for(let k=0;k<2;k++){dm.position.set(k?8:-8,.55,-200+i*6);dm.updateMatrix();fp.setMatrixAt(i*2+k,dm.matrix)}scene.add(fp);
 const nL=Math.floor((LEN+400)/30),lp=new THREE.InstancedMesh(new THREE.BoxGeometry(.1,5,.1),M(0x555960),nL*2),lh=new THREE.InstancedMesh(new THREE.BoxGeometry(.6,.15,.3),new THREE.MeshBasicMaterial({color:0xffe9a8}),nL*2);
 for(let i=0;i<nL;i++)for(let k=0;k<2;k++){const x=k?11:-11,z=-190+i*30;dm.position.set(x,2.5,z);dm.updateMatrix();lp.setMatrixAt(i*2+k,dm.matrix);dm.position.set(x+(k?-.3:.3),5,z);dm.updateMatrix();lh.setMatrixAt(i*2+k,dm.matrix)}scene.add(lp,lh);
-for(let i=0;i<22;i++){const x=(rnd()<.5?-1:1)*(14+(rnd()<.5?-1.7:1.7)),z=rnd()*LEN,c=[0xb23a3a,0xe8e8ec,0x2f4f7a,0x23262b,0xc9b037][i%5];box(1.8,.8,4.2,c,x,.55,z);box(1.6,.6,2.2,0x1d2430,x,1.2,z-.2)}
-for(let i=0;i<70;i++){const side=rnd()<.5?-1:1,h=6+rnd()*28,w=8+rnd()*12;box(w,h,8+rnd()*10,[0x3a3548,0x4a4458,0x575066,0x453a4a][i%4],side*(26+rnd()*55),h/2,rnd()*LEN-50)}
-for(let i=0;i<60;i++){const side=rnd()<.5?-1:1,x=side*(22+rnd()*28),z=rnd()*LEN;if(z>PF0-10&&z<PF1+10&&x<0)continue;box(.4,2.4,.4,0x4a3426,x,1.2,z);box(3,4,3,0x35553a,x,4.2,z)}
+for(let i=0,N=Math.round(22*LEN/1500);i<N;i++){const x=(rnd()<.5?-1:1)*(14+(rnd()<.5?-1.7:1.7)),z=rnd()*LEN,c=[0xb23a3a,0xe8e8ec,0x2f4f7a,0x23262b,0xc9b037][i%5];box(1.8,.8,4.2,c,x,.55,z);box(1.6,.6,2.2,0x1d2430,x,1.2,z-.2)}
+for(let i=0,N=Math.round(70*LEN/1500);i<N;i++){const side=rnd()<.5?-1:1,h=6+rnd()*28,w=8+rnd()*12;box(w,h,8+rnd()*10,[0x3a3548,0x4a4458,0x575066,0x453a4a][i%4],side*(26+rnd()*55),h/2,rnd()*LEN-50)}
+for(let i=0,N=Math.round(60*LEN/1500);i<N;i++){const side=rnd()<.5?-1:1,x=side*(22+rnd()*28),z=rnd()*LEN;if(x<0&&STN.some(S=>z>S.z-60&&z<S.z+100))continue;box(.4,2.4,.4,0x4a3426,x,1.2,z);box(3,4,3,0x35553a,x,4.2,z)}
 // cab
 const cab=new THREE.Group();cam.add(cab);
 const CM=c=>new THREE.MeshLambertMaterial({color:c});
@@ -116,31 +121,39 @@ const st=new THREE.Mesh(new THREE.BoxGeometry(.06,.34,.06),CM(0x9aa0aa));st.posi
 const hd=new THREE.Mesh(new THREE.BoxGeometry(.13,.08,.12),CM(0x1d1e24));hd.position.y=.36;lv.add(hd);
 const clk=sec=>{const q=7*3600+30*60+Math.floor(sec);return Math.floor(q/3600)+':'+String(Math.floor(q%3600/60)).padStart(2,'0')+':'+String(q%60).padStart(2,'0')};
 function drawSide(){
-const T=s.t,rem=90-T,d=STOP-s.z,done=s.mode==='done',near=d<300&&d>-5;
-let g=left.g;g.fillStyle='#f4f1e8';g.fillRect(0,0,400,272);g.fillStyle=NAVY&&'#2c3340';g.fillRect(0,0,400,40);
+const T=s.t,tn=s.tn,arr=s.mode==='dwell'||s.mode==='done',d=STN[tn].z-s.z,near=d<300&&d>-5,S=STN[tn];
+let g=left.g;g.fillStyle='#f4f1e8';g.fillRect(0,0,400,272);g.fillStyle='#2c3340';g.fillRect(0,0,400,40);
 g.textBaseline='middle';g.textAlign='left';g.fillStyle='#fff';g.font='bold 22px sans-serif';g.fillText('時刻表',14,21);
-g.fillStyle='#111';g.font='bold 20px sans-serif';g.fillText('駅',14,64);g.textAlign='right';g.fillText('着',270,64);g.fillText('発',384,64);
-g.strokeStyle='#999';g.lineWidth=1;g.beginPath();g.moveTo(10,80);g.lineTo(390,80);g.moveTo(10,128);g.lineTo(390,128);g.stroke();
-g.font='24px sans-serif';g.textAlign='left';g.fillText('あさひ',14,104);g.fillText('みどり台',14,152);
-g.textAlign='right';g.font='22px sans-serif';g.fillText('‥',270,104);g.fillText(clk(0),384,104);g.fillText(clk(90),270,152);g.fillText('‥',384,152);
-g.textAlign='left';g.fillStyle='#555';g.font='20px sans-serif';g.fillText('現在時刻',14,196);
-g.fillStyle='#111';g.font='bold 34px sans-serif';g.fillText(clk(T),120,196);
-const late=rem<0;g.fillStyle=late?'#c62828':'#1b7f3b';g.font='bold 28px sans-serif';g.fillText(late?'遅れ '+Math.round(-rem)+' 秒':'定刻まであと '+Math.round(rem)+' 秒',14,242);
+g.fillStyle='#111';g.font='bold 18px sans-serif';g.fillText('駅',14,58);g.textAlign='right';g.fillText('着',270,58);g.fillText('発',384,58);
+STN.forEach((X,i)=>{const y=70+i*34;if(i===tn){g.fillStyle='#fff3c4';g.fillRect(6,y,388,34)}
+g.strokeStyle='#bbb';g.lineWidth=1;g.beginPath();g.moveTo(8,y);g.lineTo(392,y);g.stroke();
+g.fillStyle='#111';g.textAlign='left';g.font='22px sans-serif';g.fillText(X.n,14,y+18);
+g.textAlign='right';g.font='20px sans-serif';g.fillText(i?clk(ARR[i]):'‥',270,y+18);g.fillText(i<STN.length-1?clk(DEP[i]):'‥',384,y+18)});
+g.textAlign='left';g.fillStyle='#555';g.font='18px sans-serif';g.fillText('現在時刻',14,198);
+g.fillStyle='#111';g.font='bold 32px sans-serif';g.fillText(clk(T),110,198);
+let txt,col;
+if(s.mode==='dwell'){const w=DEP[tn]-T;txt=w>0?'発車まで あと '+Math.ceil(w)+' 秒':'発車時刻です';col='#1b7f3b'}
+else if(s.mode==='done'){txt='運転終了';col='#555'}
+else{const rem=ARR[tn]-T;if(rem<0){txt='遅れ '+Math.round(-rem)+' 秒';col='#c62828'}else{txt='定刻まであと '+Math.round(rem)+' 秒';col='#1b7f3b'}}
+g.fillStyle=col;g.font='bold 26px sans-serif';g.fillText(txt,14,242);
 g=right.g;g.fillStyle='#0b1a12';g.fillRect(0,0,400,272);g.fillStyle='#1f8a4c';g.fillRect(0,0,400,44);
-g.fillStyle='#fff';g.textAlign='left';g.font='bold 24px sans-serif';g.fillText('普通',14,23);g.textAlign='right';g.fillText('みどり台 行　2両',388,23);
-g.textAlign='left';g.fillStyle='#9fd8b4';g.font='24px sans-serif';g.fillText(done?'ただいま':near?'まもなく':'次は',20,90);
-g.fillStyle='#fff';g.font='bold 64px sans-serif';g.fillText('みどり台',20,148);
-g.fillStyle='#f2b01e';g.fillRect(20,178,120,50);g.fillStyle='#2b1a00';g.textAlign='center';g.font='bold 32px sans-serif';g.fillText(done?'到着':'停車',80,204);
-g.strokeStyle='#fff';g.lineWidth=3;g.strokeRect(300,170,76,56);g.fillStyle='#fff';g.font='bold 18px sans-serif';g.fillText('MD',338,188);g.font='bold 26px sans-serif';g.fillText('05',338,210);
-g.textAlign='left';g.fillStyle='#9fd8b4';g.font='20px sans-serif';g.fillText('Next stop: Midoridai',20,252);
+g.fillStyle='#fff';g.textAlign='left';g.font='bold 24px sans-serif';g.fillText('普通',14,23);g.textAlign='right';g.fillText('さくら坂 行　2両',388,23);
+g.textAlign='left';g.fillStyle='#9fd8b4';g.font='24px sans-serif';g.fillText(arr?'ただいま':near?'まもなく':'次は',20,90);
+g.fillStyle='#fff';g.font='bold 64px sans-serif';g.fillText(S.n,20,148);
+g.fillStyle='#f2b01e';g.fillRect(20,178,120,50);g.fillStyle='#2b1a00';g.textAlign='center';g.font='bold 32px sans-serif';g.fillText(arr?'到着':'停車',80,204);
+g.strokeStyle='#fff';g.lineWidth=3;g.strokeRect(300,170,76,56);g.fillStyle='#fff';g.font='bold 18px sans-serif';g.fillText('MD',338,188);g.font='bold 26px sans-serif';g.fillText(S.no,338,210);
+g.textAlign='left';g.fillStyle='#9fd8b4';g.font='20px sans-serif';g.fillText('Next stop: '+S.en,20,252);
 left.t.needsUpdate=true;right.t.needsUpdate=true}
 function drawMon(){
-const g=main.g,W=640,H=256,kmh=s.v*3.6,lim=limitAt(s.z),over=kmh-lim,d=STOP-s.z,gv=Math.round(gradeAt(s.z)*1000);
+const g=main.g,W=640,H=256,kmh=s.v*3.6,lim=limitAt(s.z),over=kmh-lim,d=STN[s.tn].z-s.z,gv=Math.round(gradeAt(s.z)*1000);
 g.fillStyle='#0a1520';g.fillRect(0,0,W,H);g.fillStyle='#16283a';g.fillRect(0,0,W,34);
 g.textBaseline='middle';g.textAlign='left';g.fillStyle='#9fc6e8';g.font='bold 20px sans-serif';g.fillText('運転状況',14,17);
 g.fillStyle='#fff';g.textAlign='right';g.font='bold 130px sans-serif';g.fillText(Math.round(kmh),300,128);
 g.textAlign='left';g.font='bold 24px sans-serif';g.fillStyle='#9fc6e8';g.fillText('km/h',310,150);
 g.font='bold 54px sans-serif';g.fillStyle='#ffb454';g.fillText(s.ats?'ATS':s.n>0?'P'+s.n:s.n===0?'N':s.n===-8?'EB':'B'+(-s.n),24,212);
+{const nx=nextLim(s.z),dn=nx?nx[0]-s.z:0;g.textAlign='left';
+if(nx&&dn<1500&&nx[0]<STN[s.tn].z){const dec=nx[1]<lim;g.fillStyle='#9fc6e8';g.font='18px sans-serif';g.fillText('次の制限 ('+nx[2]+')',130,190);g.fillStyle=dec?'#ff9e80':'#9fe0b0';g.font='bold 30px sans-serif';g.fillText(nx[1]+' km/h  '+Math.round(dn)+' m',130,214)}
+else{g.fillStyle='#9fc6e8';g.font='18px sans-serif';g.fillText('次の制限 なし',130,190)}}
 g.strokeStyle='#2b4259';g.lineWidth=2;g.beginPath();g.moveTo(352,50);g.lineTo(352,H-50);g.stroke();
 g.font='20px sans-serif';g.fillStyle='#9fc6e8';g.fillText(d>=0?'停止位置まで':'停止位置を過ぎた',372,64);
 g.font='bold 54px sans-serif';g.fillStyle='#fff';g.fillText((Math.abs(d)<50?Math.abs(d).toFixed(1):Math.round(Math.abs(d)))+' m',372,112);
@@ -151,20 +164,63 @@ if(s.mode==='run'&&(s.ats||over>1)){g.fillStyle=s.ats?'#d62828':'#e6a100';g.fill
 main.t.needsUpdate=true;drawSide();lv.rotation.x=s.n*.07}
 // audio
 let A=null;
-function audio(){if(A)return;try{A=new(window.AudioContext||window.webkitAudioContext)();const b=A.createBuffer(1,A.sampleRate*2,A.sampleRate),d=b.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;const s=A.createBufferSource();s.buffer=b;s.loop=true;A.f=A.createBiquadFilter();A.f.type='lowpass';A.f.frequency.value=250;A.g=A.createGain();A.g.gain.value=0;s.connect(A.f);A.f.connect(A.g);A.g.connect(A.destination);s.start()}catch(e){A=null}}
-const beep=()=>{if(!A)return;const o=A.createOscillator(),g=A.createGain();o.frequency.value=880;g.gain.value=.05;o.connect(g);g.connect(A.destination);o.start();o.stop(A.currentTime+.12)};
+const FM=(96/17)*4/(Math.PI*1.067)/3.6;   // モーター周波数(Hz) / 速度(km/h) ※OTOTETSU「名鉄1」: ギア96:17, 8極, 車輪径1067mm
+const INV=[[0,8,440,450],[8,10,450,900],[10,35,900,900]];
+function carrier(kmh){if(kmh>=35)return 5*FM*kmh;for(const[a,b,lo,hi]of INV)if(kmh<b)return lo+(hi-lo)*Math.max(0,(kmh-a)/(b-a));return 900}
+const AX=[2,4.1,15.5,17.6,22,24.1,35.5,37.6];   // 運転台から各車軸までの距離(m)
+function audio(){if(A)return;try{
+A=new(window.AudioContext||window.webkitAudioContext)();const sr=A.sampleRate;
+A.m=A.createGain();A.m.gain.value=.45;A.m.connect(A.destination);
+const nb=A.createBuffer(1,sr*2,sr),nd=nb.getChannelData(0);for(let i=0;i<nd.length;i++)nd[i]=Math.random()*2-1;A.nb=nb;
+const nz=(type,freq,q)=>{const so=A.createBufferSource();so.buffer=nb;so.loop=true;const f=A.createBiquadFilter();f.type=type;f.frequency.value=freq;if(q)f.Q.value=q;const g=A.createGain();g.gain.value=0;so.connect(f);f.connect(g);g.connect(A.m);so.start(0,Math.random()*1.5);return{f,g}};
+A.run=nz('lowpass',250);A.sq=nz('bandpass',3000,3);A.air=nz('highpass',2200);
+// モーター音: インバーターのPWM波形(正弦波と三角波の比較)を直接計算する
+const P=A.mp={fm:0,fc:440,np:5,sync:false,m:0,g:0,gs:0,fs:440,ph:0,pc:0};
+const sp=A.createScriptProcessor(2048,0,1);
+sp.onaudioprocess=e=>{const o=e.outputBuffer.getChannelData(0);
+for(let i=0;i<o.length;i++){P.gs+=(P.g-P.gs)*.0015;P.fs+=(P.fc-P.fs)*.004;
+P.ph+=P.fm/sr;if(P.ph>=1)P.ph-=1;
+let c;if(P.sync){c=(P.ph*P.np)%1}else{P.pc+=P.fs/sr;if(P.pc>=1)P.pc-=1;c=P.pc}
+const tri=4*Math.abs(c-.5)-1,ref=P.m*Math.sin(6.2831853*P.ph);
+o[i]=(ref>tri?1:-1)*P.gs}};
+const hp=A.createBiquadFilter();hp.type='highpass';hp.frequency.value=250;
+const lp=A.createBiquadFilter();lp.type='lowpass';lp.frequency.value=3200;
+const mg=A.createGain();mg.gain.value=.075;
+sp.connect(hp);hp.connect(lp);lp.connect(mg);mg.connect(A.m);
+A.pn=0;A.pm='ready';A.jit=1;A.jt=0;A.jk=null;
+}catch(e){A=null}}
+function beep(){if(!A)return;const o=A.createOscillator(),g=A.createGain();o.frequency.value=880;g.gain.value=.03;o.connect(g);g.connect(A.m);o.start();o.stop(A.currentTime+.12)}
+function air(gn,dur){const t=A.currentTime,g=A.air.g.gain;g.cancelScheduledValues(t);g.setValueAtTime(gn,t);g.exponentialRampToValueAtTime(.0005,t+dur)}
+function clack(v){const t=A.currentTime,b=A.createBufferSource();b.buffer=A.nb;const f=A.createBiquadFilter();f.type='bandpass';f.frequency.value=450+Math.random()*250;f.Q.value=.8;const g=A.createGain();g.gain.setValueAtTime(.4*v,t);g.gain.exponentialRampToValueAtTime(.001,t+.15);b.connect(f);f.connect(g);g.connect(A.m);b.start(t,Math.random()*1.5,.2);
+const o=A.createOscillator(),og=A.createGain();o.type='triangle';o.frequency.setValueAtTime(140,t);o.frequency.exponentialRampToValueAtTime(70,t+.2);og.gain.setValueAtTime(.6*v,t);og.gain.exponentialRampToValueAtTime(.001,t+.24);o.connect(og);og.connect(A.m);o.start(t);o.stop(t+.3)}
+function audioUpdate(){
+const kmh=s.v*3.6,run=s.mode==='run',t=A.currentTime,P=A.mp;
+A.run.g.gain.setTargetAtTime(Math.min(.16,s.v/30*.16),t,.1);A.run.f.frequency.setTargetAtTime(200+s.v*18,t,.1);
+// モーター(力行 + 電気ブレーキ)。EB・ATS中は空気ブレーキのみ
+const pw=run?s.pow/.9:0,regen=run&&!s.ats&&s.n>-8?Math.min(1,s.brk/.98)*Math.max(0,Math.min(1,(kmh-3)/8)):0;
+P.g=Math.min(1,Math.max(pw,regen));P.m=Math.max(0,Math.min(1,.12+kmh/38));P.fm=FM*kmh;
+if(kmh>=35){P.sync=true;P.np=5}else{P.sync=false;A.jt-=1;if(A.jt<=0){A.jit=1+(Math.random()-.5)*.012;A.jt=3}P.fc=carrier(kmh)*A.jit}
+// ブレーキのきしみ(低速)
+const sq=run&&s.brk>.25&&kmh>.5&&kmh<20?s.brk*(1-kmh/20):0;
+A.sq.g.gain.setTargetAtTime(Math.min(.1,.1*sq),t,.08);A.sq.f.frequency.setTargetAtTime(2600+kmh*40,t,.1);
+// ブレーキ弁の空気音
+if(s.n!==A.pn){if(s.n<A.pn&&s.n<0)air(.1,.9);else if(s.n>A.pn&&A.pn<0)air(.16,1.8);A.pn=s.n}
+if(A.pm==='run'&&(s.mode==='done'||s.mode==='dwell'))air(.22,2.4);A.pm=s.mode;
+// レールのジョイント音(25mごと、各車軸が通過するたびに)
+if(!run||s.v<.3||!A.jk){A.jk=AX.map(o=>Math.floor((s.z-o)/25))}
+else AX.forEach((o,i)=>{const k=Math.floor((s.z-o)/25);if(k!==A.jk[i]){A.jk[i]=k;clack(Math.min(1,.35+s.v/25)/(1+o/15))}})}
 // state
 let s;
-function reset(){s={z:0,v:0,n:0,pow:0,brk:0,t:0,ats:false,pen:0,moved:false,mode:'run',bt:0};$('ov').style.display='none';$('warn').style.display='none'}
-s={z:0,v:0,n:0,pow:0,brk:0,t:0,ats:false,pen:0,moved:false,mode:'ready',bt:0};
-const bar=$('bar');for(let k=0;k<14;k++){const i=document.createElement('i');i.className=k<8?'b':k===8?'n':'';bar.appendChild(i)}
-const setN=n=>{if(s.mode==='run')s.n=Math.max(-8,Math.min(5,n))};
+function reset(){s={z:0,v:0,n:0,pow:0,brk:0,t:0,ats:false,pen:0,pen0:0,moved:false,mode:'run',bt:0,tn:1,res:[]};$('ov').style.display='none';$('ov').className='';$('warn').style.display='none'}
+s={z:0,v:0,n:0,pow:0,brk:0,t:0,ats:false,pen:0,pen0:0,moved:false,mode:'ready',bt:0,tn:1,res:[]};
+const bar=$('bar');for(let k=0;k<13;k++){const i=document.createElement('i');i.className=k<8?'b':k===8?'n':'';bar.appendChild(i)}
+const setN=n=>{if(s.mode==='run')s.n=Math.max(-8,Math.min(4,n))};
 addEventListener('keydown',e=>{if(e.repeat)return;audio();const k=e.key;
 if(k==='ArrowUp'||k==='w'||k==='W'){hold(-1);e.preventDefault()}
 else if(k==='ArrowDown'||k==='s'||k==='S'){hold(1);e.preventDefault()}
 else if(k===' '){setN(-8);e.preventDefault()}
 else if(k==='r'||k==='R')reset();
-else if(k==='Enter'&&s.mode==='ready')reset()});
+else if(k==='Enter'){if(s.mode==='ready')reset();else depart()}});
 let ht=null,hi=null;
 function stopHold(){clearTimeout(ht);clearInterval(hi);ht=hi=null}
 function hold(d){stopHold();setN(s.n+d);ht=setTimeout(()=>{hi=setInterval(()=>setN(s.n+d),110)},350)}
@@ -172,14 +228,20 @@ addEventListener('keyup',e=>{if(['ArrowUp','ArrowDown','w','W','s','S'].includes
 addEventListener('blur',stopHold);
 for(const[id,d]of[['bUp',1],['bDn',-1]]){const b=$(id);b.addEventListener('pointerdown',e=>{e.preventDefault();audio();hold(d)});['pointerup','pointercancel','pointerleave'].forEach(t=>b.addEventListener(t,stopHold))}
 $('start').onclick=()=>{audio();reset()};
-function finish(over){
-const err=s.z-STOP,a=Math.abs(err);let g,b;
+function judge(over){const i=s.tn,S=STN[i],err=s.z-S.z,a=Math.abs(err);let g,b;
 if(over){g='D';b=0}else if(a<=.5){g='S';b=100}else if(a<=1){g='A';b=90}else if(a<=3){g='B';b=75}else if(a<=10){g='C';b=50}else{g='D';b=20}
-const late=Math.max(0,Math.round(s.t-90)),sc=Math.max(0,b-s.pen-late);
-const msg=over?'ホームの端を越えてオーバーランしました':a<.05?'ぴったり停止位置です':`停止位置から ${a.toFixed(2)} m ${err<0?'手前':'先'}で停止`;
-s.mode='done';
-$('ov').innerHTML=`<div class="box"><div class="big">${g}</div><h1>${over?'オーバーラン':'停車しました'}</h1><p>${msg}</p><p>所要 ${s.t.toFixed(1)} 秒${late?`(90秒超過 −${late})`:''}　ATS作動 ${s.pen/10} 回(−${s.pen})</p><p>スコア ${sc} 点</p><button class="go" id="again">もう一度走る</button></div>`;
+const dl=s.t-ARR[i],late=Math.max(0,Math.round(dl-5)),pen=s.pen-s.pen0,sc=Math.max(0,b-pen-late);
+const dt=dl<-.5?Math.round(-dl)+'秒早着':dl<=.5?'定刻':Math.round(dl)+'秒遅れ';
+return{n:S.n,g,sc,pen,late,dt,over,msg:over?'ホームの端を越えてオーバーランしました':a<.05?'ぴったり停止位置です':`停止位置から ${a.toFixed(2)} m ${err<0?'手前':'先'}で停止`}}
+function finish(over){const r=judge(over);s.res.push(r);s.v=0;
+if(over||s.tn===STN.length-1){s.mode='done';
+const tot=Math.round(s.res.reduce((x,y)=>x+y.sc,0)/(STN.length-1));
+$('ov').className='';$('ov').innerHTML=`<div class="box"><div class="big">${r.g}</div><h1>${over?'オーバーラン':'終点に到着しました'}</h1>${s.res.map(x=>`<p><b>${x.n}</b>　${x.g}　${x.msg}／${x.dt}／ATS ${x.pen/10}回　→ ${x.sc}点</p>`).join('')}<p>合計 ${tot} 点(${STN.length-1}駅の平均${over?'・未到達は0点':''})</p><button class="go" id="again">もう一度走る</button></div>`;
 $('ov').style.display='flex';$('again').onclick=reset;$('again').focus()}
+else{s.mode='dwell';
+$('ov').className='dw';$('ov').innerHTML=`<div class="box"><h1>${r.n} に停車 — ${r.g}</h1><p>${r.msg}</p><p>${r.dt}／ATS ${r.pen/10}回　→ ${r.sc}点</p><button class="go" id="dep">発車</button></div>`;
+$('ov').style.display='flex';$('dep').onclick=depart}}
+function depart(){if(s.mode!=='dwell'||s.t<DEP[s.tn])return;s.tn++;s.mode='run';s.moved=false;s.pen0=s.pen;$('ov').style.display='none';$('ov').className=''}
 function size(){renderer.setSize(innerWidth,innerHeight);cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();cab.position.z=-Math.max(0,Math.min(1,(1.5/cam.aspect-1)*.5))}
 addEventListener('resize',size);size();
 let last=performance.now();
@@ -188,7 +250,7 @@ if(s.mode==='run'){
 const kmh=s.v*3.6,lim=limitAt(s.z),over=kmh-lim;
 if(!s.ats&&over>5){s.ats=true;s.pen+=10}
 if(s.ats&&kmh<lim-3)s.ats=false;
-const tp=(s.ats||s.n<=0)?0:s.n*.18;
+const tp=(s.ats||s.n<=0)?0:s.n*.225;
 const tb=s.ats?1.2:s.n===-8?1.35:s.n<0?-s.n*.14:0;
 s.pow+=(tp-s.pow)*(1-Math.exp(-dt/.5));
 s.brk+=(tb-s.brk)*(1-Math.exp(-dt/(tb<=s.brk?.4:(s.ats||s.n===-8)?.3:.9)));
@@ -196,10 +258,10 @@ let a=s.pow-s.brk-9.8*gradeAt(s.z)-(.012+.00012*s.v*s.v);
 s.v+=a*dt;if(s.v<0)s.v=0;
 s.z+=s.v*dt;s.t+=dt;if(s.v>3)s.moved=true;
 if(over>1){s.bt-=dt;if(s.bt<=0){beep();s.bt=.6}}
-if(s.z>PF1)finish(true);
-else if(s.moved&&s.v<.03){s.v=0;finish(false)}
-}
-const d=STOP-s.z;
+if(s.z>STN[s.tn].z+90)finish(true);
+else if(s.moved&&s.v<.03){if(s.z>STN[s.tn].z-60){s.v=0;finish(false)}else s.moved=false}
+}else if(s.mode==='dwell'){s.t+=dt;const wt=DEP[s.tn]-s.t,db=$('dep');if(db){db.disabled=wt>0;db.textContent=wt>0?'発車まで あと '+Math.ceil(wt)+' 秒':'発車する (Enter)'}}
+const d=STN[s.tn].z-s.z;
 $('dist').textContent=Math.abs(d)<50?Math.abs(d).toFixed(1):Math.round(Math.abs(d));
 $('dl').textContent=d>=0?'停止位置まで':'停止位置を過ぎた';
 $('spd').textContent=Math.round(s.v*3.6);
@@ -209,7 +271,7 @@ $('notch').textContent=s.ats?'ATS':s.n>0?'P'+s.n:s.n===0?'N':s.n===-8?'EB':'B'+(
 [...bar.children].forEach((c,k)=>c.classList.toggle('on',k===s.n+8));
 const w=$('warn'),ov=s.v*3.6-limitAt(s.z);
 w.style.display=s.mode==='run'&&(s.ats||ov>1)?'block':'none';w.textContent=s.ats?'ATS 非常ブレーキ作動中':'制限速度超過';
-if(A){A.g.gain.value=Math.min(.35,s.v/30*.35);A.f.frequency.value=200+s.v*18}
+if(A)audioUpdate();
 const sw=s.v/25;
 cam.position.set(Math.sin(s.z*.11)*.015*sw,2.7+Math.sin(s.z*.9)*.01*sw,s.z);
 cam.lookAt(Math.sin(s.z*.05)*.2*sw,2.5,s.z+40);
