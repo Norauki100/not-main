@@ -8,6 +8,16 @@
 
 これは普通に俺がglbファイルをみることがあるから個人的に作らせた
 
+・Ctrl/Sim
+
+MMORPG初代のイメージで新しいタイクーンゲー作ってみたけどぶっちゃけつまらん
+
+・mistery3d
+
+自分で好きな3dモデルをアップロードしたらＰＶＰできますよみたいなゲームを作らせようとしたけど、
+
+なんかくそきもくなった。これは廃止予定です。
+
 ・kr-time
 
 Nimby Railsでなぜか時刻表をjson形式でエクスポートできたから、時刻表と乗換案内作れるかなと思ったら
@@ -60,11 +70,5 @@ links.html：https://norauki100.github.io/not-main/links.html
 
 train-stop.html：https://norauki100.github.io/not-main/train-stop.html
 
-
-
-例外
-
-https://norauki100.github.io/not-main/mistery3d/mistery3d.html
-
-https://norauki100.github.io/not-main/ctrl-sim/index.html
+Ctrl/Sim：https://norauki100.github.io/not-main/ctrl-sim/index.html
 
