@@ -3,21 +3,38 @@
 
 
 リンク
+
+
+
 スマホとか作るタイクーンゲー
 
 device-tycoon.html：https://norauki100.github.io/not-main/device-tycoon.html
+
+
+
 glbファイルを見るだけ
 
 glb-viewer.html：https://norauki100.github.io/not-main/glb-viewer.html
+
+
+
 電車運転するだけのゲーム
 train-stop.html：https://norauki100.github.io/not-main/train-stop.html
+
+
+
 MMORPG風のタイクーンゲー
 
 Ctrl/Sim：https://norauki100.github.io/not-main/ctrl-sim/index.html
 
+
+
 空想の鉄道の時刻表を検索するだけ（誰得）
 
 kr-time.html：https://norauki100.github.io/not-main/kr-time.html
+
+
+
 リンク集
 
 links.html：https://norauki100.github.io/not-main/links.html
@@ -77,10 +94,4 @@ Claude有能すぎて普通に作ってくれた
 そんなときはEasyModInstaller.exe(windows)を試してみよう！
 
 自分の好きなmodの組み合わせが登録できるぞ！
-
-
-
-
-
-
 
