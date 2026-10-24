@@ -960,13 +960,15 @@
   function lineDisplayName(line) {
     // Strip a redundant leading company prefix from the line name when we
     // already show it as a separate badge (e.g. "名城鉄道 東名古屋線" -> "東名古屋線").
-    if (line.co && line.n.startsWith(line.co)) {
-      return line.n.slice(line.co.length).trim();
+    let name = line.n;
+    if (line.co && name.startsWith(line.co)) {
+      name = name.slice(line.co.length).trim();
+    } else if (line.co === "城北小牧鉄道" && name.startsWith("城鉄")) {
+      name = name.slice(2).trim();
     }
-    if (line.co === "城北小牧鉄道" && line.n.startsWith("城鉄")) {
-      return line.n.slice(2).trim();
-    }
-    return line.n;
+    if (line.co === "名城鉄道") name = name.replace(/^本線(?=\s|$)/, "名城本線");     // 名城快速は名城本線と同じ路線
+    if (name.startsWith("北川本線")) name = name.replace(/\s*[（(][^）)]*[）)]/g, "").trim(); // (米原)(浜松)は出さない
+    return name;
   }
 
   // ---------- Train name / car-count parsing ----------
@@ -1182,11 +1184,16 @@
     let n = line.n;
     if (line.co && n.startsWith(line.co)) n = n.slice(line.co.length).trim();
     const parts = n.split(/\s+/);
-    const base = parts[0];
+    let base = parts[0];
+    let kind = parts.slice(1).join(" ");
+    // 名城快速は名城本線と同じ路線
+    if (line.co === "名城鉄道" && base === "本線") base = "名城本線";
+    // 北川本線の (米原)(浜松) などは系統を分けているだけなので出さない
+    if (base === "北川本線") kind = kind.replace(/[（(][^）)]*[）)]/g, "").replace(/\s+/g, " ").trim();
     return {
       key: (line.co || "") + "|" + base,
       label: (line.co ? line.co + " " : "") + base,
-      kind: parts.slice(1).join(" "),
+      kind,
     };
   }
 
@@ -1246,7 +1253,7 @@
           if (pos >= last) continue;   // 終着駅では発車しない
           destIdx = stops[enter + last];
         }
-        const key = dep + "|" + lineIdx + "|" + destIdx;
+        const key = dep + "|" + fam.kind + "|" + destIdx;
         if (F.seen.has(key)) continue; // 編成違いなどで同時刻・同行先が重なったものは1本にする
         F.seen.add(key);
         const label = dirLabel(stops, segEnd);
