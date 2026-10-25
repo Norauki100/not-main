@@ -319,3 +319,35 @@
     cursor: default;
   }
   .release-btn.released:hover { filter: none; }
+
+  /* ---------- Road draft bar (confirm / cancel) ---------- */
+  .draft-bar {
+    position: absolute;
+    right: 14px;
+    bottom: 14px;
+    display: none;
+    align-items: center;
+    gap: 8px;
+    background: rgba(10,14,20,0.94);
+    border: 1px solid var(--line-bright);
+    border-radius: 6px;
+    padding: 8px 10px;
+    z-index: 15;
+    font-size: 11px;
+  }
+  .draft-bar.show { display: flex; }
+  .draft-info { color: var(--text); margin-right: 4px; }
+  .draft-info.short { color: var(--red); }
+  .draft-btn {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    border-radius: 4px;
+    padding: 7px 14px;
+    cursor: pointer;
+    border: 1px solid var(--line-bright);
+    background: transparent;
+    color: var(--text);
+  }
+  .draft-btn.cancel:hover { border-color: var(--red); color: var(--red); }
+  .draft-btn.confirm { background: var(--green); border-color: var(--green); color: #05130a; font-weight: 700; }
+  .draft-btn.confirm:disabled { opacity: 0.35; cursor: not-allowed; }

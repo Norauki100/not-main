@@ -12,7 +12,8 @@
     gameVersion: '',
     gameYear: '',
     towns: [],        // {x,y,id,level,name,buildLeft,buildTotal}
-    roads: [],         // {x,y,buildLeft,buildTotal}
+    roads: [],         // road nodes: {x,y,buildLeft,buildTotal} — one per occupied cell
+    roadEdges: [],      // road links: {a: "gx,gy", b: "gx,gy", buildLeft, buildTotal} — a cell can have several
     spawns: [],        // {x,y,id,buildLeft,buildTotal}
     players: [],       // simulated AI subscribers
     subs: 0,
@@ -158,52 +159,105 @@
   }
   function snap(v){ return Math.round(v / GRID) * GRID; }
 
-  // ---------------- Pan / zoom / click / drag-draw ----------------
-  let isPointerDown = false, dragStart = null, dragMoved = false;
-  let isPanning = false;
-  let roadDragActive = false;
-  let lastRoadCell = null;
+  // ---------------- Pan / zoom / click / road drafting ----------------
+  // Road tool: dragging only builds a *draft*. Nothing is built or charged until 確定.
+  // Moving the view while the road tool is active: right-drag, middle-drag,
+  // Space+drag, or two fingers.
+  const ROAD_COST = 40;      // price per new road cell (unchanged)
+  const SNAP_PX = 18;        // a stroke's start/end stick to an existing road/town/spawn within this many screen px
+  const SIMPLIFY_PX = 12;    // hand wobble smaller than this (screen px) is straightened out
+
+  const pointers = new Map();           // pointerId -> {x,y}; only pointers currently pressed on the canvas
+  let inputMode = null;                 // 'stroke' | 'pan' | 'click' | null
+  let panRef = null;
+  let clickRef = null;
+  let strokeRaw = [];                   // world-space points of the stroke being drawn right now
+  let spaceHeld = false;
+  const draft = { cells: new Map(), edges: [] }; // cells: "gx,gy" -> {x,y} ; edges: {a,b}
+
+  const draftBarEl = document.getElementById('draft-bar');
+  const draftInfoEl = document.getElementById('draft-info');
+  const draftConfirmEl = document.getElementById('btn-draft-confirm');
+  let draftBarKey = '';
+
+  function pointersMid(){
+    let sx = 0, sy = 0;
+    for (const p of pointers.values()) { sx += p.x; sy += p.y; }
+    const n = Math.max(1, pointers.size);
+    return { x: sx / n, y: sy / n };
+  }
+  function beginPan(){
+    const m = pointersMid();
+    panRef = { mx: m.x, my: m.y, camX: state.camera.x, camY: state.camera.y };
+    inputMode = 'pan';
+    canvas.style.cursor = 'grabbing';
+  }
 
   canvas.addEventListener('pointerdown', (e) => {
-    isPointerDown = true; dragMoved = false;
-    dragStart = { x: e.clientX, y: e.clientY, camX: state.camera.x, camY: state.camera.y };
-    canvas.setPointerCapture(e.pointerId);
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    try { canvas.setPointerCapture(e.pointerId); } catch (_) {}
+
+    const wantsPan = e.button === 1 || e.button === 2 || spaceHeld || pointers.size >= 2;
+    if (wantsPan) {
+      strokeRaw = []; // abandon the stroke in progress; strokes already in the draft stay
+      beginPan();
+      return;
+    }
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
 
     if (state.tool === 'road') {
-      roadDragActive = true;
-      lastRoadCell = null;
-      tryPlaceRoadAt(e.clientX, e.clientY);
+      inputMode = 'stroke';
+      strokeRaw = [screenToWorld(e.clientX, e.clientY)];
+    } else {
+      inputMode = 'click';
+      clickRef = { x: e.clientX, y: e.clientY, camX: state.camera.x, camY: state.camera.y, moved: false };
     }
   });
 
   canvas.addEventListener('pointermove', (e) => {
-    if (!isPointerDown) return;
-    const dx = e.clientX - dragStart.x, dy = e.clientY - dragStart.y;
-    if (Math.abs(dx) > 4 || Math.abs(dy) > 4) dragMoved = true;
+    if (!pointers.has(e.pointerId)) return;
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
 
-    if (state.tool === 'road' && roadDragActive) {
-      tryPlaceRoadAt(e.clientX, e.clientY);
-      return;
-    }
-
-    if (dragMoved) {
-      isPanning = true;
-      state.camera.x = dragStart.camX + dx / state.camera.zoom;
-      state.camera.y = dragStart.camY + dy / state.camera.zoom;
+    if (inputMode === 'pan') {
+      const m = pointersMid();
+      state.camera.x = panRef.camX + (m.x - panRef.mx) / state.camera.zoom;
+      state.camera.y = panRef.camY + (m.y - panRef.my) / state.camera.zoom;
+    } else if (inputMode === 'stroke') {
+      const w = screenToWorld(e.clientX, e.clientY);
+      const last = strokeRaw[strokeRaw.length - 1];
+      if (!last || Math.hypot(w.x - last.x, w.y - last.y) * state.camera.zoom >= 2) strokeRaw.push(w);
+    } else if (inputMode === 'click') {
+      const dx = e.clientX - clickRef.x, dy = e.clientY - clickRef.y;
+      if (Math.abs(dx) > 4 || Math.abs(dy) > 4) clickRef.moved = true;
+      if (clickRef.moved) {
+        state.camera.x = clickRef.camX + dx / state.camera.zoom;
+        state.camera.y = clickRef.camY + dy / state.camera.zoom;
+      }
     }
   });
 
-  canvas.addEventListener('pointerup', (e) => {
-    isPointerDown = false;
-    if (state.tool === 'road') {
-      roadDragActive = false;
-      lastRoadCell = null;
-      isPanning = false;
+  function endPointer(e, cancelled){
+    if (!pointers.has(e.pointerId)) return;
+    pointers.delete(e.pointerId);
+
+    if (inputMode === 'pan') {
+      if (pointers.size > 0) beginPan(); // re-base so the view doesn't jump when one finger lifts
+      else { inputMode = null; canvas.style.cursor = spaceHeld ? 'grab' : ''; }
       return;
     }
-    if (!dragMoved) handleMapClick(e.clientX, e.clientY);
-    isPanning = false;
-  });
+    if (pointers.size > 0) return;
+
+    if (inputMode === 'stroke') {
+      if (!cancelled) finishStroke();
+      strokeRaw = [];
+    } else if (inputMode === 'click') {
+      if (!cancelled && !clickRef.moved) handleMapClick(e.clientX, e.clientY);
+    }
+    inputMode = null;
+  }
+  canvas.addEventListener('pointerup', (e) => endPointer(e, false));
+  canvas.addEventListener('pointercancel', (e) => endPointer(e, true));
+  canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 
   canvas.addEventListener('wheel', (e) => {
     e.preventDefault();
@@ -211,58 +265,200 @@
     state.camera.zoom = Math.min(3, Math.max(0.35, state.camera.zoom * factor));
   }, { passive: false });
 
-  function tryPlaceRoadAt(sx, sy){
-    const w = screenToWorld(sx, sy);
-    const gx = snap(w.x), gy = snap(w.y);
-    const key = gx + ',' + gy;
-    if (lastRoadCell === key) return;
-
-    // if the pointer moved fast, interpolate the intermediate grid cells
-    // so a quick drag still produces one continuous line, not gaps
-    let path = [{x: gx, y: gy}];
-    if (lastRoadCell) {
-      const [lx, ly] = lastRoadCell.split(',').map(Number);
-      path = interpolateGridPath(lx, ly, gx, gy);
-    }
-
-    for (const cell of path) {
-      placeRoadCell(cell.x, cell.y, lastRoadCell);
-      lastRoadCell = cell.x + ',' + cell.y;
-    }
-    renderSidebar();
-  }
-
-  function interpolateGridPath(x0, y0, x1, y1){
-    // step along the grid from (x0,y0) to (x1,y1) one 8-directional cell at a time
-    // (Bresenham-style), excluding the start cell itself
-    const path = [];
-    let cx = x0, cy = y0;
-    const gx0 = x0/GRID, gy0 = y0/GRID, gx1 = x1/GRID, gy1 = y1/GRID;
-    let ix = gx0, iy = gy0;
-    const dx = Math.abs(gx1-gx0), dy = Math.abs(gy1-gy0);
-    const sx = gx0 < gx1 ? 1 : -1, sy = gy0 < gy1 ? 1 : -1;
-    let err = dx - dy;
-    let guard = 0;
-    while ((Math.round(ix) !== gx1 || Math.round(iy) !== gy1) && guard < 500) {
-      guard++;
-      const e2 = 2*err;
-      if (e2 > -dy) { err -= dy; ix += sx; }
-      if (e2 < dx) { err += dx; iy += sy; }
-      path.push({ x: Math.round(ix)*GRID, y: Math.round(iy)*GRID });
-    }
-    return path;
-  }
-
-  function placeRoadCell(gx, gy, prevKey){
-    if (!isLand(gx, gy)) return;
-    const key = gx + ',' + gy;
-    if (roadOccupied(gx, gy)) {
-      // already a road here — still allow the path to continue connecting through it
+  // Space = hold to move the view with a normal left-drag (works in every tool)
+  window.addEventListener('keydown', (e) => {
+    const tag = (e.target && e.target.tagName) || '';
+    if (e.code === 'Space') {
+      if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
+      e.preventDefault();
+      spaceHeld = true;
+      if (pointers.size === 0) canvas.style.cursor = 'grab';
       return;
     }
-    if (state.cash < 40) { pushToast('資金が不足しています。', 'warn'); return; }
-    state.cash -= 40;
-    state.roads.push({ x: gx, y: gy, prevKey: prevKey || null, buildLeft: BUILD_TIME.road, buildTotal: BUILD_TIME.road });
+    if (e.key === 'Escape') {
+      if (cancelDraft()) pushToast('道の下書きをキャンセルしました');
+      return;
+    }
+    if (e.key === 'Enter') {
+      if (e.target && e.target.closest && e.target.closest('button, input, select, textarea')) return;
+      if (draft.cells.size > 0) { e.preventDefault(); commitDraft(); }
+    }
+  });
+  window.addEventListener('keyup', (e) => {
+    if (e.code !== 'Space') return;
+    e.preventDefault();
+    spaceHeld = false;
+    if (pointers.size === 0) canvas.style.cursor = '';
+  });
+  window.addEventListener('blur', () => { spaceHeld = false; });
+
+  // ---- road drafting ----
+
+  // Turn a raw hand-drawn stroke (world points) into a clean chain of grid cells:
+  // 1) straighten wobble (Douglas-Peucker), 2) snap the two ends onto nearby roads/towns/spawns so
+  // roads actually connect, 3) route each leg along a straight run + one 45° leg.
+  function buildStrokeRoute(raw){
+    if (raw.length < 2) return null;
+    const z = state.camera.zoom;
+    const simplified = simplifyPath(raw, SIMPLIFY_PX / z);
+    const verts = simplified.map(p => ({ x: snap(p.x), y: snap(p.y) }));
+    const s0 = findSnapTarget(raw[0].x, raw[0].y);
+    const s1 = findSnapTarget(raw[raw.length - 1].x, raw[raw.length - 1].y);
+    if (s0) verts[0] = s0;
+    if (s1) verts[verts.length - 1] = s1;
+    const chain = [verts[0]];
+    for (let i = 1; i < verts.length; i++) {
+      for (const c of routeOctilinear(chain[chain.length - 1], verts[i])) chain.push(c);
+    }
+    return chain.length >= 2 ? chain : null;
+  }
+
+  function simplifyPath(pts, eps){
+    if (pts.length < 3) return pts.slice();
+    const keep = new Array(pts.length).fill(false);
+    keep[0] = keep[pts.length - 1] = true;
+    const stack = [[0, pts.length - 1]];
+    while (stack.length) {
+      const [a, b] = stack.pop();
+      let maxD = 0, idx = -1;
+      for (let i = a + 1; i < b; i++) {
+        const d = distToSegment(pts[i], pts[a], pts[b]);
+        if (d > maxD) { maxD = d; idx = i; }
+      }
+      if (idx !== -1 && maxD > eps) { keep[idx] = true; stack.push([a, idx], [idx, b]); }
+    }
+    return pts.filter((_, i) => keep[i]);
+  }
+  function distToSegment(p, a, b){
+    const dx = b.x - a.x, dy = b.y - a.y;
+    const len2 = dx * dx + dy * dy;
+    let t = len2 ? ((p.x - a.x) * dx + (p.y - a.y) * dy) / len2 : 0;
+    t = Math.max(0, Math.min(1, t));
+    return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy));
+  }
+
+  // nearest existing road node / draft cell / town / spawn within SNAP_PX of a world point
+  function findSnapTarget(wx, wy){
+    let best = null, bestD = SNAP_PX / state.camera.zoom;
+    const consider = (x, y) => {
+      const d = Math.hypot(x - wx, y - wy);
+      if (d <= bestD) { bestD = d; best = { x, y }; }
+    };
+    for (const n of state.roads) consider(n.x, n.y);
+    for (const c of draft.cells.values()) consider(c.x, c.y);
+    for (const t of state.towns) consider(t.x, t.y);
+    for (const s of state.spawns) consider(s.x, s.y);
+    return best;
+  }
+
+  // cells from a (exclusive) to b (inclusive): a straight run along the longer axis, then a 45° run
+  function routeOctilinear(a, b){
+    const cells = [];
+    const dx = Math.round((b.x - a.x) / GRID), dy = Math.round((b.y - a.y) / GRID);
+    const adx = Math.abs(dx), ady = Math.abs(dy);
+    const sx = Math.sign(dx), sy = Math.sign(dy);
+    const diag = Math.min(adx, ady);
+    const straight = Math.max(adx, ady) - diag;
+    const legs = adx >= ady ? [[sx, 0, straight], [sx, sy, diag]] : [[0, sy, straight], [sx, sy, diag]];
+    let x = a.x, y = a.y;
+    for (const [ux, uy, n] of legs) {
+      for (let i = 0; i < n; i++) { x += ux * GRID; y += uy * GRID; cells.push({ x, y }); }
+    }
+    return cells;
+  }
+
+  function finishStroke(){
+    const chain = buildStrokeRoute(strokeRaw);
+    if (!chain) return;
+    const { skippedSea } = addRouteToDraft(chain);
+    if (skippedSea) pushToast('海の部分には道を引けません。', 'warn');
+    refreshDraftBar();
+  }
+
+  function addRouteToDraft(chain){
+    let skippedSea = false;
+    for (let i = 0; i < chain.length; i++) {
+      const c = chain[i];
+      if (!isLand(c.x, c.y)) { skippedSea = true; continue; }
+      draft.cells.set(c.x + ',' + c.y, { x: c.x, y: c.y });
+      if (i === 0) continue;
+      const p = chain[i - 1];
+      if (!isLand(p.x, p.y)) continue; // never connect across water
+      const a = p.x + ',' + p.y, b = c.x + ',' + c.y;
+      if (a === b) continue;
+      if (!draft.edges.some(e => (e.a === a && e.b === b) || (e.a === b && e.b === a))) draft.edges.push({ a, b });
+    }
+    return { skippedSea };
+  }
+
+  // draft cells that don't already have a road node (only these cost money)
+  function draftNewCellKeys(){
+    const have = new Set(state.roads.map(r => r.x + ',' + r.y));
+    return [...draft.cells.keys()].filter(k => !have.has(k));
+  }
+
+  function cancelDraft(){
+    const had = draft.cells.size > 0 || strokeRaw.length > 0;
+    draft.cells.clear();
+    draft.edges.length = 0;
+    strokeRaw = [];
+    refreshDraftBar();
+    return had;
+  }
+
+  function commitDraft(){
+    if (draft.cells.size === 0) return;
+    const keys = draftNewCellKeys();
+    const cost = keys.length * ROAD_COST;
+    if (state.cash < cost) {
+      pushToast(`資金が足りません（必要 ¥${cost.toLocaleString()}）`, 'warn');
+      return;
+    }
+    state.cash -= cost;
+    for (const k of keys) {
+      const c = draft.cells.get(k);
+      state.roads.push({ x: c.x, y: c.y, buildLeft: BUILD_TIME.road, buildTotal: BUILD_TIME.road });
+    }
+    for (const e of draft.edges) ensureRoadEdge(e.a, e.b);
+    draft.cells.clear();
+    draft.edges.length = 0;
+    refreshDraftBar();
+    renderHeader();
+    renderSidebar();
+    renderReport();
+    addLog(`道を${keys.length}マス敷設した（¥${cost.toLocaleString()}）。`, 'pos');
+    pushToast(`道を確定しました（¥${cost.toLocaleString()}）`, 'good');
+  }
+
+  function refreshDraftBar(){
+    const has = draft.cells.size > 0;
+    let key = 'off', text = '', short = false;
+    if (has) {
+      const n = draftNewCellKeys().length;
+      const cost = n * ROAD_COST;
+      short = state.cash < cost;
+      text = `新規 ${n}マス / ¥${cost.toLocaleString()}` + (short ? '（資金不足）' : '');
+      key = text;
+    }
+    if (key === draftBarKey) return;
+    draftBarKey = key;
+    draftBarEl.classList.toggle('show', has);
+    draftInfoEl.textContent = text;
+    draftInfoEl.classList.toggle('short', short);
+    draftConfirmEl.disabled = short;
+  }
+
+  document.getElementById('btn-draft-confirm').addEventListener('click', commitDraft);
+  document.getElementById('btn-draft-cancel').addEventListener('click', () => { cancelDraft(); });
+
+  // ensure an edge exists between two node keys ("gx,gy" strings). A node can have
+  // any number of edges, so intersections/branches work like a real road network.
+  function ensureRoadEdge(keyA, keyB){
+    if (keyA === keyB) return;
+    const exists = state.roadEdges.some(e =>
+      (e.a === keyA && e.b === keyB) || (e.a === keyB && e.b === keyA));
+    if (exists) return;
+    state.roadEdges.push({ a: keyA, b: keyB, buildLeft: BUILD_TIME.road, buildTotal: BUILD_TIME.road });
   }
 
   function handleMapClick(sx, sy){
@@ -331,8 +527,10 @@
   }
   function removeAt(gx, gy){
     const before = state.towns.length + state.roads.length + state.spawns.length;
+    const key = gx + ',' + gy;
     state.towns = state.towns.filter(t => !(t.x===gx && t.y===gy));
     state.roads = state.roads.filter(r => !(r.x===gx && r.y===gy));
+    state.roadEdges = state.roadEdges.filter(e => e.a !== key && e.b !== key);
     state.spawns = state.spawns.filter(s => !(s.x===gx && s.y===gy));
     if (state.towns.length + state.roads.length + state.spawns.length < before) {
       addLog('建造物を撤去した。', 'neg');
@@ -359,6 +557,11 @@
     for (const r of state.roads) {
       if (r.buildLeft > 0) {
         r.buildLeft = Math.max(0, r.buildLeft - dt * state.speed);
+      }
+    }
+    for (const e of state.roadEdges) {
+      if (e.buildLeft > 0) {
+        e.buildLeft = Math.max(0, e.buildLeft - dt * state.speed);
       }
     }
     for (const msg of justFinished) addLog(msg, 'pos');
@@ -522,40 +725,102 @@
     drawIsland(rect);
     drawGrid(rect);
 
-    // roads — draw only the actual dragged path (each cell links to the one placed
-    // right before it), so the road reads as one continuous line, not a mesh
-    const builtRoadMap = new Map(); // "gx,gy" -> road object, built only
+    // roads — nodes + edges, so any node can have multiple edges (real intersections/branches)
+    const roadNodeMap = new Map(); // "gx,gy" -> node object (built or not)
     for (const r of state.roads) {
-      if (isBuilt(r)) builtRoadMap.set(r.x + ',' + r.y, r);
+      roadNodeMap.set(r.x + ',' + r.y, r);
     }
     ctx.lineCap = 'round';
-    for (const r of state.roads) {
-      if (!isBuilt(r)) {
-        const s = worldToScreen(r.x, r.y);
-        drawConstructionMarker(s.x, s.y, 6*state.camera.zoom, r.buildLeft / r.buildTotal);
-        continue;
-      }
-      if (!r.prevKey) continue;
-      const prev = builtRoadMap.get(r.prevKey);
-      if (!prev) continue; // previous cell was deleted — leave this end open
+    for (const e of state.roadEdges) {
+      const nodeA = roadNodeMap.get(e.a);
+      const nodeB = roadNodeMap.get(e.b);
+      if (!nodeA || !nodeB) continue; // an endpoint was deleted
 
-      const s1 = worldToScreen(prev.x, prev.y);
-      const s2 = worldToScreen(r.x, r.y);
-      ctx.strokeStyle = 'rgba(57,255,136,0.55)';
-      ctx.lineWidth = Math.max(2, 4 * state.camera.zoom);
-      ctx.beginPath();
-      ctx.moveTo(s1.x, s1.y);
-      ctx.lineTo(s2.x, s2.y);
-      ctx.stroke();
+      const s1 = worldToScreen(nodeA.x, nodeA.y);
+      const s2 = worldToScreen(nodeB.x, nodeB.y);
+      const edgeReady = isBuilt(e) && isBuilt(nodeA) && isBuilt(nodeB);
+
+      if (edgeReady) {
+        ctx.strokeStyle = 'rgba(57,255,136,0.55)';
+        ctx.lineWidth = Math.max(2, 4 * state.camera.zoom);
+        ctx.beginPath();
+        ctx.moveTo(s1.x, s1.y);
+        ctx.lineTo(s2.x, s2.y);
+        ctx.stroke();
+      } else {
+        // under construction — faint guide line plus a progress marker at the midpoint
+        ctx.strokeStyle = 'rgba(255,209,102,0.25)';
+        ctx.lineWidth = Math.max(1, 2 * state.camera.zoom);
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath();
+        ctx.moveTo(s1.x, s1.y);
+        ctx.lineTo(s2.x, s2.y);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        const midX = (s1.x+s2.x)/2, midY = (s1.y+s2.y)/2;
+        drawConstructionMarker(midX, midY, 5*state.camera.zoom, e.buildLeft / e.buildTotal);
+      }
     }
-    // small glowing nodes at each built road cell so isolated/end points are still visible
-    for (const [key, r] of builtRoadMap) {
+    // node markers: glowing dot when built, ring progress when still under construction
+    for (const r of state.roads) {
       const s = worldToScreen(r.x, r.y);
-      ctx.fillStyle = 'rgba(57,255,136,0.7)';
-      ctx.beginPath();
-      ctx.arc(s.x, s.y, 2*state.camera.zoom, 0, Math.PI*2);
-      ctx.fill();
+      if (isBuilt(r)) {
+        ctx.fillStyle = 'rgba(57,255,136,0.7)';
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, 2*state.camera.zoom, 0, Math.PI*2);
+        ctx.fill();
+      } else {
+        drawConstructionMarker(s.x, s.y, 6*state.camera.zoom, r.buildLeft / r.buildTotal);
+      }
     }
+
+    // road draft preview (nothing is built or charged until 確定)
+    if (draft.cells.size > 0 || (inputMode === 'stroke' && strokeRaw.length > 1)) {
+      ctx.save();
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      const z = state.camera.zoom;
+      ctx.setLineDash([6, 5]);
+      ctx.strokeStyle = 'rgba(127,227,255,0.9)';
+      ctx.lineWidth = Math.max(2, 3 * z);
+      for (const e of draft.edges) {
+        const a = draft.cells.get(e.a), b = draft.cells.get(e.b);
+        if (!a || !b) continue;
+        const s1 = worldToScreen(a.x, a.y), s2 = worldToScreen(b.x, b.y);
+        ctx.beginPath(); ctx.moveTo(s1.x, s1.y); ctx.lineTo(s2.x, s2.y); ctx.stroke();
+      }
+      ctx.setLineDash([]);
+      ctx.fillStyle = 'rgba(127,227,255,0.95)';
+      for (const c of draft.cells.values()) {
+        const s = worldToScreen(c.x, c.y);
+        ctx.beginPath(); ctx.arc(s.x, s.y, 2 * z, 0, Math.PI * 2); ctx.fill();
+      }
+      if (inputMode === 'stroke' && strokeRaw.length > 1) {
+        // your raw trail (faint) and the cleaned-up route that will be added to the draft
+        ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        strokeRaw.forEach((p, i) => {
+          const s = worldToScreen(p.x, p.y);
+          if (i) ctx.lineTo(s.x, s.y); else ctx.moveTo(s.x, s.y);
+        });
+        ctx.stroke();
+        const chain = buildStrokeRoute(strokeRaw);
+        if (chain) {
+          ctx.setLineDash([6, 5]);
+          ctx.lineWidth = Math.max(2, 3 * z);
+          for (let i = 1; i < chain.length; i++) {
+            const a = chain[i - 1], b = chain[i];
+            const ok = isLand(a.x, a.y) && isLand(b.x, b.y);
+            ctx.strokeStyle = ok ? 'rgba(255,209,102,0.95)' : 'rgba(255,93,93,0.8)';
+            const s1 = worldToScreen(a.x, a.y), s2 = worldToScreen(b.x, b.y);
+            ctx.beginPath(); ctx.moveTo(s1.x, s1.y); ctx.lineTo(s2.x, s2.y); ctx.stroke();
+          }
+        }
+      }
+      ctx.restore();
+    }
+    refreshDraftBar();
 
     for (const sp of state.spawns) {
       const s = worldToScreen(sp.x, sp.y);
@@ -737,9 +1002,11 @@
       document.querySelectorAll('.tool-btn[data-tool]').forEach(b=>b.classList.remove('active'));
       btn.classList.add('active');
       state.tool = btn.dataset.tool;
+      btn.blur(); // so Space/Enter go to the map, not to this button
+      if (state.tool !== 'road' && cancelDraft()) pushToast('道の下書きを破棄しました', 'warn');
       const hints = {
         town: 'クリックして<b>町</b>を建設。完成まで時間がかかる。',
-        road: '<b>ドラッグ</b>して道をなぞる。島の中にのみ敷設可能。',
+        road: '<b>ドラッグ</b>で道の下書き → <b>確定</b>で建設。視点移動は<b>右ドラッグ</b> / <b>Space+ドラッグ</b> / 二本指。',
         spawn: 'クリックして<b>リスポーン地点</b>を設置。ここから冒険者が旅立つ。',
         rename: '町を<b>クリック</b>すると名前を変更できる。',
         delete: 'クリックして建造物を<b>撤去</b>する。',
