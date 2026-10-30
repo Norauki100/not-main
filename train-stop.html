@@ -82,7 +82,7 @@ kbd{background:#34303d;border-radius:4px;padding:1px 6px}
 <div id="top"><div class="card"><span id="dist">1200</span> m<span id="dl">停止位置まで</span></div><div class="card" id="gr">水平</div><div id="lim">60</div></div>
 <div id="warn"></div>
 <div id="bot"><div id="row"><div id="spd">0</div><div>km/h</div><div id="notch">N</div></div><div id="bar"></div>
-<div id="pad"><button id="bUp">加速 ▼</button><button id="bDn">ブレーキ ▲</button><button id="bAck">AWS確認</button><button id="bHorn">警笛</button></div></div>
+<div id="pad"><button id="bUp">加速 ▼</button><button id="bDn">ブレーキ ▲</button><button id="bAck">AWS確認</button><button id="bHorn">警笛</button><button id="bBell" style="display:none">電鈴</button></div></div>
 <div id="ov" style="display:none"></div>
 <button id="mbtn">☰ メニュー</button><button id="wzoom" style="display:none;position:fixed;right:12px;top:calc(env(safe-area-inset-top,0px) + 52px);z-index:5;padding:6px 12px;background:var(--panel);font-size:13px">🔍 ズーム</button>
 <div id="vbtns"><button id="vZoom" title="Zキー">🔍 ズーム</button><button id="vReset" style="display:none" title="Vキー">視点を戻す</button></div>
@@ -2659,6 +2659,7 @@ addEventListener('blur',()=>{stopHold();hornOff();WALK.k={}});
 for(const[id,d]of[['bUp',1],['bDn',-1]]){const b=$(id);b.addEventListener('pointerdown',e=>{e.preventDefault();audio();hold(d)});['pointerup','pointercancel','pointerleave'].forEach(t=>b.addEventListener(t,stopHold))}
 $('bAck').addEventListener('pointerdown',e=>{e.preventDefault();audio();ack()});
 {const b=$('bHorn');b.addEventListener('pointerdown',e=>{e.preventDefault();hornOn()});['pointerup','pointercancel','pointerleave'].forEach(x=>b.addEventListener(x,hornOff))}
+{const b=$('bBell');b.addEventListener('pointerdown',e=>{e.preventDefault();audio();if(RT&&RT.free&&(s.mode==='run'||s.mode==='dwell')&&!s.paused&&!FBELL){FBELL=true;bellOn()}});['pointerup','pointercancel','pointerleave'].forEach(x=>b.addEventListener(x,()=>{if(FBELL){FBELL=false;bellOff()}}));b.addEventListener('contextmenu',e=>e.preventDefault());setInterval(()=>{b.style.display=RT&&RT.free&&!WALK.on?'':'none'},300)}   // フリードライブの電鈴(押している間鳴る)
 // ---- 通知(ブラックアウトなし) / フリードライブ ----
 let toastT=0;
 function showToast(msg,ask){const e=$('toast');e.innerHTML='<span>'+msg+'</span>'+(ask?'<button data-t="y">折り返す</button><button data-t="n">続ける</button>':'');e.classList.add('on');clearTimeout(toastT);if(!ask)toastT=setTimeout(hideToast,2800)}
