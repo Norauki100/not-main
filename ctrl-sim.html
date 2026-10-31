@@ -1,3 +1,546 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ctrl/Sim — World Control Console Simulator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+    --bg: #0a0e14;
+    --bg-panel: #0d1420;
+    --bg-panel-raised: #111a29;
+    --line: #1c2838;
+    --line-bright: #2a3a52;
+    --text: #c9d1d9;
+    --text-dim: #5e7086;
+    --text-bright: #eef3f8;
+    --green: #39ff88;
+    --green-dim: #1c8850;
+    --blue: #4a9eff;
+    --blue-dim: #23548c;
+    --red: #ff5d5d;
+    --gold: #ffd166;
+    --purple: #b28dff;
+    --font-display: 'Space Grotesk', sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-mono);
+    overflow: hidden;
+    background-image:
+      radial-gradient(circle at 15% 10%, rgba(74,158,255,0.05), transparent 40%),
+      radial-gradient(circle at 85% 90%, rgba(57,255,136,0.04), transparent 40%);
+  }
+
+  #app {
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    grid-template-rows: 56px 1fr;
+    height: 100vh;
+    height: 100dvh;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  /* ---------- Header ---------- */
+  header {
+    grid-column: 1 / 3;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    border-bottom: 1px solid var(--line);
+    background: linear-gradient(180deg, #0d1420, #0a0e14);
+  }
+  .brand {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    font-family: var(--font-display);
+  }
+  .brand .mark {
+    color: var(--green);
+    font-weight: 700;
+    font-size: 18px;
+    letter-spacing: 0.5px;
+  }
+  .brand .sub {
+    color: var(--text-dim);
+    font-size: 12px;
+  }
+  .hstats {
+    display: flex;
+    gap: 22px;
+    font-size: 12px;
+  }
+  .hstat { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+  .hstat .val { font-family: var(--font-display); font-weight: 600; font-size: 15px; color: var(--text-bright); }
+  .hstat .val.gold { color: var(--gold); }
+  .hstat .val.green { color: var(--green); }
+  .hstat .val.red { color: var(--red); }
+  .hstat .lab { color: var(--text-dim); font-size: 10px; letter-spacing: 0.4px; }
+
+  .speed-controls { display: flex; gap: 2px; margin-left: 24px; }
+  .speed-btn {
+    width: 28px; height: 28px;
+    border: 1px solid var(--line-bright);
+    background: transparent;
+    color: var(--text-dim);
+    border-radius: 3px;
+    cursor: pointer;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s;
+  }
+  .speed-btn:hover { border-color: var(--green); color: var(--green); }
+  .speed-btn.active { background: var(--green); color: #05130a; border-color: var(--green); font-weight: 700; }
+
+  /* ---------- Map area ---------- */
+  #map-wrap {
+    position: relative;
+    overflow: hidden;
+    border-right: 1px solid var(--line);
+  }
+  #map-canvas { display: block; cursor: crosshair; touch-action: none; }
+
+  .map-hint {
+    position: absolute;
+    bottom: 14px;
+    left: 14px;
+    font-size: 11px;
+    color: var(--text-dim);
+    background: rgba(10,14,20,0.85);
+    border: 1px solid var(--line);
+    padding: 6px 10px;
+    border-radius: 3px;
+    pointer-events: none;
+    max-width: 320px;
+    line-height: 1.5;
+  }
+  .map-hint b { color: var(--text); }
+
+  .log-panel {
+    position: absolute;
+    top: 14px;
+    left: 14px;
+    width: 280px;
+    max-height: 160px;
+    overflow-y: auto;
+    background: rgba(10,14,20,0.85);
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    font-size: 11px;
+    padding: 8px 10px;
+  }
+  .log-panel .log-title { color: var(--text-dim); font-size: 10px; letter-spacing: 0.5px; margin-bottom: 6px; }
+  .log-line { color: var(--text-dim); line-height: 1.6; }
+  .log-line.pos { color: var(--green); }
+  .log-line.neg { color: var(--red); }
+  .log-line .t { color: var(--text-dim); margin-right: 4px; }
+
+  /* ---------- Side panel ---------- */
+  #side {
+    background: var(--bg-panel);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .tabs {
+    display: flex;
+    border-bottom: 1px solid var(--line);
+  }
+  .tab {
+    flex: 1;
+    padding: 10px 0;
+    text-align: center;
+    font-size: 11px;
+    color: var(--text-dim);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    letter-spacing: 0.3px;
+  }
+  .tab.active { color: var(--text-bright); border-bottom-color: var(--green); }
+
+  .tab-content { flex: 1; overflow-y: auto; padding: 16px; }
+  .tab-content::-webkit-scrollbar, .log-panel::-webkit-scrollbar { width: 6px; }
+  .tab-content::-webkit-scrollbar-thumb, .log-panel::-webkit-scrollbar-thumb { background: var(--line-bright); border-radius: 3px; }
+
+  .section-label {
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: 0.5px;
+    margin: 18px 0 8px;
+  }
+  .section-label:first-child { margin-top: 0; }
+
+  .tool-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .tool-btn {
+    background: var(--bg-panel-raised);
+    border: 1px solid var(--line);
+    color: var(--text);
+    border-radius: 4px;
+    padding: 10px 8px;
+    cursor: pointer;
+    text-align: left;
+    font-family: var(--font-mono);
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .tool-btn:hover { border-color: var(--line-bright); }
+  .tool-btn.active { border-color: var(--green); background: rgba(57,255,136,0.07); }
+  .tool-btn .icon { font-size: 16px; display: block; margin-bottom: 4px; }
+  .tool-btn .name { font-size: 11px; color: var(--text-bright); display: block; }
+  .tool-btn .cost { font-size: 10px; color: var(--gold); display: block; margin-top: 2px; }
+  .tool-btn.wide { grid-column: 1 / 3; display: flex; align-items: center; justify-content: space-between; flex-direction: row; }
+  .tool-btn.wide .icon { margin-bottom: 0; margin-right: 8px; }
+
+  .stat-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .stat-row .k { color: var(--text-dim); }
+  .stat-row .v { color: var(--text-bright); font-weight: 500; }
+  .stat-row .v.green { color: var(--green); }
+  .stat-row .v.red { color: var(--red); }
+  .stat-row .v.gold { color: var(--gold); }
+
+  .bar-bg {
+    height: 6px;
+    background: var(--line);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-top: 4px;
+  }
+  .bar-fill { height: 100%; border-radius: 3px; transition: width 0.4s; }
+
+  .town-card {
+    background: var(--bg-panel-raised);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    cursor: pointer;
+  }
+  .town-card:hover { border-color: var(--line-bright); }
+  .town-card .tname { font-family: var(--font-display); font-size: 13px; color: var(--text-bright); display: flex; justify-content: space-between; }
+  .town-card .tmeta { font-size: 10px; color: var(--text-dim); margin-top: 3px; }
+  .town-card .tmeta.crowd { color: var(--red); }
+
+  .empty-note {
+    font-size: 11px;
+    color: var(--text-dim);
+    line-height: 1.6;
+    padding: 20px 4px;
+    text-align: center;
+  }
+
+  select, input[type=range] {
+    width: 100%;
+    background: var(--bg-panel-raised);
+    border: 1px solid var(--line);
+    color: var(--text);
+    font-family: var(--font-mono);
+    border-radius: 3px;
+    padding: 6px;
+    font-size: 12px;
+  }
+
+  .slider-row { margin-bottom: 14px; }
+  .slider-row .slabel { display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 6px; }
+  .slider-row .slabel .sval { color: var(--gold); }
+
+  .toast-wrap {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    z-index: 20;
+    align-items: flex-end;
+  }
+  .toast {
+    background: rgba(13,20,32,0.95);
+    border: 1px solid var(--line-bright);
+    border-left: 3px solid var(--blue);
+    padding: 8px 12px;
+    border-radius: 3px;
+    font-size: 11px;
+    color: var(--text);
+    max-width: 260px;
+    animation: slidein 0.25s ease-out;
+  }
+  .toast.warn { border-left-color: var(--red); }
+  .toast.good { border-left-color: var(--green); }
+  @keyframes slidein { from { transform: translateX(20px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) { --bg: #0a0e14; }
+  }
+
+  @media (max-width: 860px) {
+    #app { grid-template-columns: 1fr; grid-template-rows: 56px 1fr 40vh; }
+    #map-wrap { border-right: none; border-bottom: 1px solid var(--line); }
+    header { flex-wrap: wrap; height: auto; padding: 8px 12px; row-gap: 6px; }
+    .hstats { gap: 12px; }
+    .speed-controls { margin-left: 12px; }
+  }
+
+
+  /* ---------- Release button ---------- */
+  .release-btn {
+    width: 100%;
+    background: var(--bg-panel-raised);
+    border: 1px solid var(--green-dim);
+    color: var(--green);
+    border-radius: 5px;
+    padding: 12px;
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 13px;
+    letter-spacing: 0.3px;
+    cursor: pointer;
+    margin-bottom: 18px;
+    transition: filter 0.15s, transform 0.1s, background 0.15s;
+  }
+  .release-btn:hover { filter: brightness(1.15); background: rgba(57,255,136,0.06); }
+  .release-btn:active { transform: scale(0.99); }
+  .release-btn.released {
+    background: rgba(57,255,136,0.08);
+    border-color: var(--green);
+    color: var(--text-dim);
+    cursor: default;
+  }
+  .release-btn.released:hover { filter: none; }
+
+  /* ---------- Road draft bar (confirm / cancel) ---------- */
+  .draft-bar {
+    position: absolute;
+    right: 14px;
+    bottom: 14px;
+    display: none;
+    align-items: center;
+    gap: 8px;
+    background: rgba(10,14,20,0.94);
+    border: 1px solid var(--line-bright);
+    border-radius: 6px;
+    padding: 8px 10px;
+    z-index: 15;
+    font-size: 11px;
+  }
+  .draft-bar.show { display: flex; }
+  .draft-info { color: var(--text); margin-right: 4px; }
+  .draft-info.short { color: var(--red); }
+  .draft-btn {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    border-radius: 4px;
+    padding: 7px 14px;
+    cursor: pointer;
+    border: 1px solid var(--line-bright);
+    background: transparent;
+    color: var(--text);
+  }
+  .draft-btn.cancel:hover { border-color: var(--red); color: var(--red); }
+  .draft-btn.confirm { background: var(--green); border-color: var(--green); color: #05130a; font-weight: 700; }
+  .draft-btn.confirm:disabled { opacity: 0.35; cursor: not-allowed; }
+
+  /* ---------- Inspector / release tab ---------- */
+  .field { display: block; margin-bottom: 12px; font-size: 11px; color: var(--text-dim); }
+  .field > span { display: block; margin-bottom: 5px; }
+  .text-input {
+    width: 100%; box-sizing: border-box;
+    background: var(--bg-panel-raised); border: 1px solid var(--line);
+    color: var(--text-bright); border-radius: 4px; padding: 8px 10px;
+    font-family: inherit; font-size: 13px;
+  }
+  .text-input:focus { outline: none; border-color: var(--green); }
+  #inspector { background: var(--bg-panel-raised); border: 1px solid var(--line); border-radius: 5px; padding: 12px; }
+  .insp-title { font-family: var(--font-display); font-size: 13px; color: var(--text-bright); margin-bottom: 10px; }
+  .insp-meta { font-size: 10px; color: var(--text-dim); line-height: 1.6; }
+  .town-card.sel { border-color: var(--green); }
+  .phase-note { font-size: 11px; color: var(--text-dim); line-height: 1.6; margin: 8px 0 12px; }
+  .rel-btn {
+    display: block; width: 100%; margin-bottom: 8px;
+    background: var(--bg-panel-raised); border: 1px solid var(--line-bright);
+    color: var(--text-bright); border-radius: 5px; padding: 11px;
+    font-family: var(--font-display); font-weight: 600; font-size: 13px; cursor: pointer;
+    transition: filter 0.15s, transform 0.1s;
+  }
+  .rel-btn:hover:not(:disabled) { filter: brightness(1.2); }
+  .rel-btn:active:not(:disabled) { transform: scale(0.99); }
+  .rel-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .rel-btn.test { border-color: var(--purple); color: var(--purple); }
+  .rel-btn.live { border-color: var(--green-dim); color: var(--green); }
+  .rel-btn.update { border-color: var(--blue); color: var(--blue); }
+  .ad-btn {
+    display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; width: 100%; margin-bottom: 8px; text-align: left;
+    background: var(--bg-panel-raised); border: 1px solid var(--line); color: var(--text);
+    border-radius: 5px; padding: 10px 12px; cursor: pointer; font-family: inherit;
+  }
+  .ad-btn:hover:not(:disabled) { border-color: var(--gold); }
+  .ad-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .ad-btn .an { font-size: 12px; color: var(--text-bright); }
+  .ad-btn .ac { font-size: 12px; color: var(--gold); grid-row: 1 / 3; grid-column: 2; align-self: center; }
+  .ad-btn .am { font-size: 10px; color: var(--text-dim); }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="brand">
+      <span class="mark" id="brand-name">Ctrl/Sim</span>
+      <span class="sub" id="brand-sub">未リリース — 準備中</span>
+    </div>
+    <div style="display:flex; align-items:center;">
+      <div class="hstats">
+        <div class="hstat"><span class="val gold" id="stat-cash">¥0</span><span class="lab">現金</span></div>
+        <div class="hstat"><span class="val green" id="stat-subs">0</span><span class="lab">加入者</span></div>
+        <div class="hstat"><span class="val" id="stat-online">0</span><span class="lab">同時接続</span></div>
+        <div class="hstat"><span class="val" id="stat-day">Day 1</span><span class="lab">経過</span></div>
+      </div>
+      <div class="speed-controls">
+        <button class="speed-btn" id="btn-pause" title="一時停止">❚❚</button>
+        <button class="speed-btn active" data-speed="1" title="通常速度">1×</button>
+        <button class="speed-btn" data-speed="3" title="速い">3×</button>
+        <button class="speed-btn" data-speed="8" title="超速い">8×</button>
+      </div>
+    </div>
+  </header>
+
+  <div id="map-wrap">
+    <canvas id="map-canvas"></canvas>
+    <div class="log-panel">
+      <div class="log-title">運営ログ</div>
+      <div id="log-list"></div>
+    </div>
+    <div class="map-hint" id="map-hint">クリックして<b>町</b>を建設。完成まで時間がかかる。</div>
+    <div class="toast-wrap" id="toast-wrap"></div>
+    <div class="draft-bar" id="draft-bar">
+      <span class="draft-info" id="draft-info"></span>
+      <button class="draft-btn cancel" id="btn-draft-cancel">キャンセル</button>
+      <button class="draft-btn confirm" id="btn-draft-confirm">確定</button>
+    </div>
+  </div>
+
+  <div id="side">
+    <div class="tabs">
+      <div class="tab active" data-tab="build">建設</div>
+      <div class="tab" data-tab="design">設計</div>
+      <div class="tab" data-tab="report">報告</div>
+      <div class="tab" data-tab="release">リリース</div>
+    </div>
+
+    <div class="tab-content" id="tab-build">
+      <div class="section-label">配置ツール</div>
+      <div class="tool-grid">
+        <button class="tool-btn active" data-tool="town">
+          <span class="icon">🏘</span><span class="name">町</span><span class="cost">¥500</span>
+        </button>
+        <button class="tool-btn" data-tool="road">
+          <span class="icon">〰</span><span class="name">道</span><span class="cost">¥40</span>
+        </button>
+        <button class="tool-btn" data-tool="spawn">
+          <span class="icon">✦</span><span class="name">リスポーン地点</span><span class="cost">¥300</span>
+        </button>
+        <button class="tool-btn" data-tool="inspect">
+          <span class="icon">🔍</span><span class="name">概要</span><span class="cost">&nbsp;</span>
+        </button>
+        <button class="tool-btn" data-tool="rename">
+          <span class="icon">✎</span><span class="name">町名変更</span><span class="cost">&nbsp;</span>
+        </button>
+        <button class="tool-btn" data-tool="delete">
+          <span class="icon">✕</span><span class="name">削除</span><span class="cost">&nbsp;</span>
+        </button>
+      </div>
+
+      <div class="section-label">概要（選択中）</div>
+      <div id="inspector"></div>
+
+      <div class="section-label">町一覧（<span id="town-count">0</span>）</div>
+      <div id="town-list"><div class="empty-note">マップをクリックして最初の町を建設しよう。</div></div>
+    </div>
+
+    <div class="tab-content" id="tab-design" style="display:none;">
+      <div class="section-label">世界の設計</div>
+
+      <div class="slider-row">
+        <div class="slabel"><span>モンスター密度</span><span class="sval" id="v-monster">50%</span></div>
+        <input type="range" id="s-monster" min="0" max="100" value="50">
+      </div>
+      <div class="slider-row">
+        <div class="slabel"><span>経験値倍率</span><span class="sval" id="v-xp">1.0×</span></div>
+        <input type="range" id="s-xp" min="10" max="300" value="100">
+      </div>
+      <div class="slider-row">
+        <div class="slabel"><span>サーバー難易度</span><span class="sval" id="v-diff">普通</span></div>
+        <input type="range" id="s-diff" min="0" max="2" value="1">
+      </div>
+      <div class="slider-row">
+        <div class="slabel"><span>月額料金</span><span class="sval" id="v-price">¥15</span></div>
+        <input type="range" id="s-price" min="5" max="40" value="15">
+      </div>
+
+      <div class="section-label">プレイヤークラス</div>
+      <div id="class-list"></div>
+    </div>
+
+    <div class="tab-content" id="tab-report" style="display:none;">
+      <div class="section-label">サーバー状況</div>
+      <div class="stat-row"><span class="k">週間収益</span><span class="v gold" id="r-revenue">¥0</span></div>
+      <div class="stat-row"><span class="k">週間コスト</span><span class="v red" id="r-cost">¥0</span></div>
+      <div class="stat-row"><span class="k">満足度（平均）</span><span class="v" id="r-satisfaction">—</span></div>
+      <div class="stat-row"><span class="k">過密エリア</span><span class="v red" id="r-crowd">0</span></div>
+      <div class="stat-row"><span class="k">総配置数</span><span class="v" id="r-placed">0</span></div>
+
+      <div class="section-label">満足度</div>
+      <div class="bar-bg"><div class="bar-fill" id="bar-satisfaction" style="width:50%; background:var(--green);"></div></div>
+
+      <div class="section-label">サーバー負荷</div>
+      <div class="bar-bg"><div class="bar-fill" id="bar-load" style="width:10%; background:var(--blue);"></div></div>
+    </div>
+
+    <div class="tab-content" id="tab-release" style="display:none;">
+      <div class="section-label">ゲーム情報</div>
+      <label class="field"><span>ゲーム名</span><input id="r-name" class="text-input" maxlength="30" placeholder="未設定（リリース時に自動生成）"></label>
+      <div class="stat-row"><span class="k">バージョン</span><span class="v" id="rl-version">v0.1</span></div>
+      <div class="stat-row"><span class="k">状態</span><span class="v" id="rl-phase">作成中</span></div>
+      <div class="phase-note" id="rl-note"></div>
+
+      <div class="section-label">公開</div>
+      <button id="btn-test" class="rel-btn test">🧪 テストリリース</button>
+      <button id="btn-endtest" class="rel-btn">テストを終了して開発に戻る</button>
+      <button id="btn-live" class="rel-btn live">🚀 正式リリース</button>
+      <button id="btn-update" class="rel-btn update">🔧 アップデート</button>
+      <div class="phase-note" id="rl-update-note"></div>
+
+      <div class="section-label">広告</div>
+      <div class="stat-row"><span class="k">認知度</span><span class="v gold" id="rl-aware">0 / 100</span></div>
+      <div class="bar-bg"><div class="bar-fill" id="bar-aware" style="width:0%; background:var(--gold);"></div></div>
+      <div class="phase-note" id="rl-ad-now"></div>
+      <div id="ad-list"></div>
+    </div>
+  </div>
+</div>
+
+<script>
 (function(){
   'use strict';
 
@@ -7,10 +550,15 @@
     day: 1,
     speed: 1,
     paused: false,
-    released: false,
+    phase: 'dev',        // 'dev' 作成中 | 'test' テストリリース | 'live' 正式リリース
+    released: false,     // = (phase === 'live')
     gameName: '',
-    gameVersion: '',
+    gameVersion: '0.1',
     gameYear: '',
+    awareness: 0,        // 認知度 0-100（広告で上がり、放っておくと下がる）
+    ad: null,            // 実施中の広告 {id,name,left,total,rate}
+    lastUpdateDay: -999,
+    selected: null,      // 概要ツールで選択中 {type:'town'|'spawn', id}
     towns: [],        // {x,y,id,level,name,buildLeft,buildTotal}
     roads: [],         // road nodes: {x,y,buildLeft,buildTotal} — one per occupied cell
     roadEdges: [],      // road links: {a: "gx,gy", b: "gx,gy", buildLeft, buildTotal} — a cell can have several
@@ -277,6 +825,7 @@
     }
     if (e.key === 'Escape') {
       if (cancelDraft()) pushToast('道の下書きをキャンセルしました');
+      else if (state.selected) selectObject(null);
       return;
     }
     if (e.key === 'Enter') {
@@ -470,6 +1019,13 @@
       return;
     }
 
+    if (state.tool === 'inspect') {
+      const hit = findObjectAt(w.x, w.y);
+      if (hit) selectObject(hit.type, hit.obj.id);
+      else selectObject(null);
+      return;
+    }
+
     if (state.tool === 'rename') {
       const t = state.towns.find(t => t.x===gx && t.y===gy);
       if (t) openRenamePrompt(t);
@@ -491,12 +1047,12 @@
     if (state.tool === 'town') {
       if (buildingOccupied(gx, gy)) return;
       const name = generateTownName();
-      state.towns.push({ x: gx, y: gy, id: cryptoId(), level: 1, name, buildLeft: BUILD_TIME.town, buildTotal: BUILD_TIME.town });
+      state.towns.push({ x: gx, y: gy, id: cryptoId(), level: 1, name, difficulty: 3, density: 50, buildLeft: BUILD_TIME.town, buildTotal: BUILD_TIME.town });
       state.cash -= cost;
       pushToast(`町「${name}」の建設を開始`, 'good');
     } else if (state.tool === 'spawn') {
       if (buildingOccupied(gx, gy)) return;
-      state.spawns.push({ x: gx, y: gy, id: cryptoId(), buildLeft: BUILD_TIME.spawn, buildTotal: BUILD_TIME.spawn });
+      state.spawns.push({ x: gx, y: gy, id: cryptoId(), name: 'リスポーン地点 ' + (state.spawns.length + 1), buildLeft: BUILD_TIME.spawn, buildTotal: BUILD_TIME.spawn });
       state.cash -= cost;
       pushToast('リスポーン地点の建設を開始', 'good');
     }
@@ -535,7 +1091,9 @@
     if (state.towns.length + state.roads.length + state.spawns.length < before) {
       addLog('建造物を撤去した。', 'neg');
     }
+    if (state.selected && !selectedObj()) selectObject(null);
     renderSidebar();
+    renderReleaseTab();
   }
   function cryptoId(){ return Math.random().toString(36).slice(2,9); }
 
@@ -604,14 +1162,16 @@
     const readySpawns = state.spawns.filter(isBuilt);
     const readyTowns = state.towns.filter(isBuilt);
 
-    if (!state.released) {
-      // pre-release: only a handful of dev testers wander around, no subs/economy growth
+    // 誰かが勝手に入ってくることはない:
+    //   作成中(dev)  … 誰も来ない
+    //   テスト(test) … 少人数のテスターだけ（プレイヤーが「テストリリース」を押した時だけ）
+    //   正式(live)   … 一般加入者
+    if (state.phase === 'test') {
       const testerChance = 0.05 * dt * state.speed;
       if (readySpawns.length > 0 && readyTowns.length > 0 && Math.random() < testerChance) {
         if (state.players.length < TESTER_CAP) spawnPlayer(true);
       }
-    } else {
-      // post-release: real subscriber traffic, capped by subs and town capacity
+    } else if (state.phase === 'live') {
       const subCap = Math.round(state.subs * 0.35);
       const townCap = 20 + readyTowns.length * 18;
       const onlineCap = Math.max(5, Math.min(subCap, townCap));
@@ -645,12 +1205,29 @@
       if (state.difficulty === 2) drift -= 0.05;
       if (state.difficulty === 0) drift -= 0.02;
       drift += 0.05;
+      drift += townDrift(p.x, p.y);
       p.satisfaction = Math.max(0, Math.min(100, p.satisfaction + drift * dt * state.speed));
       if (p.satisfaction < 15 && Math.random() < 0.01 * dt * state.speed) {
         p.leaving = true;
       }
     }
     state.players = state.players.filter(p => !p.leaving);
+  }
+
+  // 近くの町の難易度・モンスター密度が満足度に与える影響（町ごとに設定できる）
+  function townDrift(x, y){
+    let best = null, bestD = 96;
+    for (const t of state.towns) {
+      if (!isBuilt(t)) continue;
+      const d = Math.hypot(t.x - x, t.y - y);
+      if (d < bestD) { bestD = d; best = t; }
+    }
+    if (!best) return 0;
+    let d = 0;
+    const df = best.difficulty;
+    if (df === 1) d -= 0.02; else if (df === 4) d -= 0.04; else if (df === 5) d -= 0.1;
+    if (best.density > 80) d -= 0.04; else if (best.density < 20) d -= 0.03;
+    return d;
   }
 
   function countNearby(x, y, r){
@@ -667,13 +1244,24 @@
 
     const cost = Math.round((state.towns.length * 12) + (state.roads.length * 1.5) + (state.spawns.length * 6));
 
-    if (!state.released) {
+    // 広告と認知度（どのフェーズでも進む）
+    if (state.ad) {
+      state.awareness = Math.min(100, state.awareness + state.ad.rate);
+      state.ad.left--;
+      if (state.ad.left <= 0) { addLog(`${state.ad.name}の掲載が終了した。`, 'pos'); state.ad = null; }
+    } else {
+      state.awareness = Math.max(0, state.awareness - 0.4);
+    }
+
+    if (state.phase !== 'live') {
       // pre-release: no subscribers, no revenue — just upkeep cost ticking while you build
       state.cash -= cost;
       state.weekRevenue = 0;
       state.weekCost = cost;
       renderHeader();
       renderReport();
+      renderReleaseTab();
+      refreshInspector();
       return;
     }
 
@@ -682,6 +1270,7 @@
     const avgSat = avgSatisfaction();
     let growth = (builtTowns.length * 1.2) + (avgSat - 50) * 0.15;
     growth += (builtSpawns.length > 0 ? 1 : -2);
+    growth += state.awareness * 0.06;
     state.subs = Math.max(0, Math.round(state.subs + growth));
 
     const revenue = Math.round(state.subs * state.price * 0.14);
@@ -701,6 +1290,8 @@
 
     renderHeader();
     renderReport();
+    renderReleaseTab();
+    refreshInspector();
   }
 
   function avgSatisfaction(){
@@ -866,6 +1457,20 @@
       }
     }
 
+    const selObj = selectedObj();
+    if (selObj) {
+      const s = worldToScreen(selObj.x, selObj.y);
+      ctx.save();
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([4, 3]);
+      ctx.lineDashOffset = -performance.now() / 80;
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, 20 * state.camera.zoom, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+
     for (const p of state.players) {
       const s = worldToScreen(p.x, p.y);
       if (s.x < -20 || s.x > rect.width+20 || s.y < -20 || s.y > rect.height+20) continue;
@@ -997,21 +1602,24 @@
   requestAnimationFrame(loop);
 
   // ---------------- UI wiring ----------------
+  const TOOL_HINTS = {
+    town: 'クリックして<b>町</b>を建設。完成まで時間がかかる。',
+    road: '<b>ドラッグ</b>で道の下書き → <b>確定</b>で建設。視点移動は<b>右ドラッグ</b> / <b>Space+ドラッグ</b> / 二本指。',
+    spawn: 'クリックして<b>リスポーン地点</b>を設置。ここから冒険者が旅立つ。',
+    inspect: '町やリスポーン地点を<b>クリック</b>で選択 → 下の「概要」で名前・難易度などを変更。Escで選択解除。',
+    rename: '町を<b>クリック</b>すると名前を変更できる。',
+    delete: 'クリックして建造物を<b>撤去</b>する。',
+  };
+  function setTool(tool){
+    state.tool = tool;
+    document.querySelectorAll('.tool-btn[data-tool]').forEach(b => b.classList.toggle('active', b.dataset.tool === tool));
+    if (tool !== 'road' && cancelDraft()) pushToast('道の下書きを破棄しました', 'warn');
+    document.getElementById('map-hint').innerHTML = TOOL_HINTS[tool] || '';
+  }
   document.querySelectorAll('.tool-btn[data-tool]').forEach(btn => {
     btn.addEventListener('click', () => {
-      document.querySelectorAll('.tool-btn[data-tool]').forEach(b=>b.classList.remove('active'));
-      btn.classList.add('active');
-      state.tool = btn.dataset.tool;
+      setTool(btn.dataset.tool);
       btn.blur(); // so Space/Enter go to the map, not to this button
-      if (state.tool !== 'road' && cancelDraft()) pushToast('道の下書きを破棄しました', 'warn');
-      const hints = {
-        town: 'クリックして<b>町</b>を建設。完成まで時間がかかる。',
-        road: '<b>ドラッグ</b>で道の下書き → <b>確定</b>で建設。視点移動は<b>右ドラッグ</b> / <b>Space+ドラッグ</b> / 二本指。',
-        spawn: 'クリックして<b>リスポーン地点</b>を設置。ここから冒険者が旅立つ。',
-        rename: '町を<b>クリック</b>すると名前を変更できる。',
-        delete: 'クリックして建造物を<b>撤去</b>する。',
-      };
-      document.getElementById('map-hint').innerHTML = hints[state.tool] || '';
     });
   });
 
@@ -1068,6 +1676,11 @@
     document.getElementById('stat-day').textContent = 'Day ' + state.day;
   }
 
+  function esc(str){
+    return String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+  const DIFF_NAMES = ['', '入門', 'やさしい', '普通', '難しい', '過酷'];
+
   function renderSidebar(){
     document.getElementById('town-count').textContent = state.towns.length;
     const list = document.getElementById('town-list');
@@ -1075,27 +1688,107 @@
       list.innerHTML = '<div class="empty-note">マップをクリックして最初の町を建設しよう。</div>';
       return;
     }
+    const selId = state.selected && state.selected.type === 'town' ? state.selected.id : null;
     list.innerHTML = state.towns.map(t => {
       if (!isBuilt(t)) {
         const pct = Math.round((1 - t.buildLeft/t.buildTotal) * 100);
         return `<div class="town-card">
-          <div class="tname"><span>${t.name}</span><span style="color:var(--gold)">建設中 ${pct}%</span></div>
+          <div class="tname"><span>${esc(t.name)}</span><span style="color:var(--gold)">建設中 ${pct}%</span></div>
           <div class="tmeta">まもなく完成します</div>
         </div>`;
       }
       const crowd = countNearby(t.x, t.y, 96);
       const crowded = crowd > 18;
-      return `<div class="town-card" data-rename-id="${t.id}">
-        <div class="tname"><span>${t.name}</span><span style="color:var(--text-dim)">Lv.${t.level}</span></div>
-        <div class="tmeta ${crowded?'crowd':''}">近隣プレイヤー ${crowd}人${crowded?' — 過密警告':''}</div>
+      return `<div class="town-card${t.id === selId ? ' sel' : ''}" data-town-id="${t.id}">
+        <div class="tname"><span>${esc(t.name)}</span><span style="color:var(--text-dim)">難易度 ${'★'.repeat(t.difficulty)}</span></div>
+        <div class="tmeta ${crowded?'crowd':''}">近隣プレイヤー ${crowd}人 / 密度 ${t.density}%${crowded?' — 過密警告':''}</div>
       </div>`;
     }).join('');
-    list.querySelectorAll('.town-card[data-rename-id]').forEach(card => {
+    list.querySelectorAll('.town-card[data-town-id]').forEach(card => {
       card.addEventListener('click', () => {
-        const t = state.towns.find(tw => tw.id === card.dataset.renameId);
-        if (t) openRenamePrompt(t);
+        setTool('inspect');
+        selectObject('town', card.dataset.townId);
       });
     });
+  }
+
+  // ---------------- Inspector (概要ツール) ----------------
+  const inspectorEl = document.getElementById('inspector');
+
+  function selectedObj(){
+    const s = state.selected;
+    if (!s) return null;
+    const list = s.type === 'town' ? state.towns : state.spawns;
+    return list.find(o => o.id === s.id) || null;
+  }
+  function findObjectAt(wx, wy){
+    const R = GRID * 1.1;
+    let best = null, bestD = R;
+    for (const t of state.towns) { const d = Math.hypot(t.x - wx, t.y - wy); if (d < bestD) { bestD = d; best = { type: 'town', obj: t }; } }
+    for (const sp of state.spawns) { const d = Math.hypot(sp.x - wx, sp.y - wy); if (d < bestD) { bestD = d; best = { type: 'spawn', obj: sp }; } }
+    return best;
+  }
+  function selectObject(type, id){
+    state.selected = type ? { type, id } : null;
+    renderInspector();
+    renderSidebar();
+  }
+
+  function renderInspector(){
+    const o = selectedObj();
+    if (!o) {
+      state.selected = null;
+      inspectorEl.innerHTML = '<div class="empty-note">「概要」ツールで町やリスポーン地点をクリックすると、ここで名前や難易度を変更できる。</div>';
+      return;
+    }
+    const isTown = state.selected.type === 'town';
+    inspectorEl.innerHTML = `
+      <div class="insp-title">${isTown ? '🏘 町' : '✦ リスポーン地点'}</div>
+      <label class="field"><span>名前</span><input id="i-name" class="text-input" maxlength="20"></label>
+      ${isTown ? `
+      <div class="slider-row"><div class="slabel"><span>難易度</span><span class="sval" id="i-diff-v"></span></div>
+        <input type="range" id="i-diff" min="1" max="5" step="1"></div>
+      <div class="slider-row"><div class="slabel"><span>モンスター密度</span><span class="sval" id="i-dens-v"></span></div>
+        <input type="range" id="i-dens" min="0" max="100" step="5"></div>` : ''}
+      <div class="insp-meta" id="i-meta"></div>`;
+    const nameEl = document.getElementById('i-name');
+    nameEl.value = o.name;
+    let before = o.name;
+    nameEl.addEventListener('input', () => {
+      const v = nameEl.value.trim();
+      if (v) { o.name = v; renderSidebar(); }
+    });
+    nameEl.addEventListener('change', () => {
+      nameEl.value = o.name;
+      if (o.name !== before) {
+        addLog(`「${before}」は「${o.name}」に改名された。`, 'pos');
+        before = o.name;
+      }
+    });
+    if (isTown) {
+      const dEl = document.getElementById('i-diff'), nEl = document.getElementById('i-dens');
+      dEl.value = o.difficulty; nEl.value = o.density;
+      const upd = () => {
+        document.getElementById('i-diff-v').textContent = '★'.repeat(o.difficulty) + ' ' + DIFF_NAMES[o.difficulty];
+        document.getElementById('i-dens-v').textContent = o.density + '%';
+      };
+      dEl.addEventListener('input', () => { o.difficulty = parseInt(dEl.value); upd(); renderSidebar(); });
+      nEl.addEventListener('input', () => { o.density = parseInt(nEl.value); upd(); renderSidebar(); });
+      upd();
+    }
+    refreshInspector();
+  }
+
+  function refreshInspector(){
+    const o = selectedObj();
+    const meta = document.getElementById('i-meta');
+    if (!o || !meta) return;
+    if (!isBuilt(o)) { meta.textContent = '建設中…'; return; }
+    const near = state.players.filter(p => Math.hypot(p.x - o.x, p.y - o.y) < 96);
+    const sat = near.length ? near.reduce((s, p) => s + p.satisfaction, 0) / near.length : null;
+    meta.innerHTML = state.selected.type === 'town'
+      ? `近隣プレイヤー ${near.length}人 / 満足度 ${sat === null ? '—' : sat.toFixed(0)}<br>難易度が高い・密度が極端だと満足度が下がりやすい。`
+      : `座標 (${o.x / GRID}, ${o.y / GRID})`;
   }
 
   function renderReport(){
@@ -1137,51 +1830,152 @@
     setTimeout(() => el.remove(), 3200);
   }
 
-  // ---------------- Release flow (player-triggered, any time) ----------------
-  function openReleaseDialog(){
-    if (state.released) return;
-    const suggestedName = generateGameName();
-    const nameInput = window.prompt('ゲームのタイトルを入力してください（空欄で自動生成）：', suggestedName);
-    if (nameInput === null) return; // cancelled
-    const versionInput = window.prompt('バージョンを入力してください（空欄で自動生成）：', generateVersion());
-    if (versionInput === null) return;
-    const yearInput = window.prompt('リリース年を入力してください（空欄で今年）：', String(new Date().getFullYear()));
-    if (yearInput === null) return;
+  // ---------------- Release tab (リリースタブ) ----------------
+  const UPDATE_COST = 1500, UPDATE_COOLDOWN = 10; // 日
+  const AD_PLANS = [
+    { id: 'sns',   name: 'SNS広告', cost: 800,  days: 5,  rate: 1.5 },
+    { id: 'video', name: '動画広告', cost: 2500, days: 10, rate: 3 },
+    { id: 'cm',    name: '大型CM',  cost: 8000, days: 15, rate: 6 },
+  ];
+  const PHASE_NAMES = { dev: '作成中', test: 'テスト中', live: '公開中' };
 
-    releaseGame(nameInput.trim(), versionInput.trim(), yearInput.trim());
+  function canOpen(){ return state.towns.some(isBuilt) && state.spawns.some(isBuilt); }
+
+  function updateBrand(){
+    const name = state.gameName || 'Ctrl/Sim';
+    const sub = state.phase === 'live' ? `v${state.gameVersion} — ${state.gameYear}年リリース`
+              : state.phase === 'test' ? `v${state.gameVersion} — テスト中`
+              : '未リリース — 準備中';
+    document.getElementById('brand-name').textContent = name;
+    document.getElementById('brand-sub').textContent = sub;
+    document.title = state.gameName ? `${state.gameName} — Ctrl/Sim` : 'Ctrl/Sim — World Control Console Simulator';
+  }
+  function bumpVersion(v){
+    const m = /^(\d+)\.(\d+)/.exec(v);
+    return m ? `${m[1]}.${parseInt(m[2]) + 1}` : '1.1';
+  }
+  function refreshAll(){
+    updateBrand(); renderHeader(); renderSidebar(); renderReport(); renderReleaseTab();
   }
 
-  function releaseGame(nameInput, versionInput, yearInput){
-    state.gameName = nameInput || generateGameName();
-    state.gameVersion = versionInput || generateVersion();
-    state.gameYear = yearInput || String(new Date().getFullYear());
-    state.released = true;
-
-    // testers go home, the world opens to the public
+  function startTestRelease(){
+    if (state.phase !== 'dev') return;
+    if (!canOpen()) { pushToast('町とリスポーン地点を、それぞれ1つ以上完成させてから。', 'warn'); return; }
+    state.phase = 'test';
+    addLog('テストリリースを開始した。少人数のテスターだけが招かれる。', 'pos');
+    pushToast('テストリリースを開始しました', 'good');
+    refreshAll();
+  }
+  function endTest(){
+    if (state.phase !== 'test') return;
+    if (!window.confirm('テストを終了して開発に戻りますか？（テスターは退出します）')) return;
+    state.phase = 'dev';
     state.players = state.players.filter(p => !p.isTester);
-
-    document.getElementById('brand-name').textContent = state.gameName;
-    document.getElementById('brand-sub').textContent = `v${state.gameVersion} — ${state.gameYear}年リリース`;
-    document.title = `${state.gameName} — Ctrl/Sim`;
-
-    const btn = document.getElementById('btn-release');
-    if (btn) {
-      btn.textContent = `公開中：v${state.gameVersion}`;
-      btn.disabled = true;
-      btn.classList.add('released');
-    }
-
-    addLog(`「${state.gameName}」（v${state.gameVersion}, ${state.gameYear}年）を正式リリースした！世界が一般加入者に開放された。`, 'pos');
-    pushToast(`「${state.gameName}」をリリースしました`, 'good');
-    renderHeader();
-    renderSidebar();
-    renderReport();
+    addLog('テストを終了し、開発に戻った。', 'pos');
+    refreshAll();
   }
-  document.getElementById('btn-release').addEventListener('click', openReleaseDialog);
+  function releaseGame(){
+    if (state.phase === 'live') return;
+    if (!canOpen()) { pushToast('町とリスポーン地点を、それぞれ1つ以上完成させてから。', 'warn'); return; }
+    if (!window.confirm('正式リリースしますか？一般の加入者が入ってくるようになります。')) return;
+    if (!state.gameName) { state.gameName = generateGameName(); document.getElementById('r-name').value = state.gameName; }
+    state.gameVersion = '1.0';
+    state.gameYear = String(new Date().getFullYear());
+    state.phase = 'live';
+    state.released = true;
+    state.players = state.players.filter(p => !p.isTester);
+    state.subs = 10 + Math.round(state.awareness * 1.5); // 広告で認知度を上げておくと初動が増える
+    addLog(`「${state.gameName}」（v${state.gameVersion}）を正式リリースした！初動の加入者は${state.subs}人。`, 'pos');
+    pushToast(`「${state.gameName}」をリリースしました`, 'good');
+    refreshAll();
+  }
+  function doUpdate(){
+    if (state.phase !== 'live') return;
+    const wait = state.lastUpdateDay + UPDATE_COOLDOWN - state.day;
+    if (wait > 0) { pushToast(`次のアップデートまであと${wait}日`, 'warn'); return; }
+    if (state.cash < UPDATE_COST) { pushToast('資金が不足しています。', 'warn'); return; }
+    state.cash -= UPDATE_COST;
+    state.lastUpdateDay = state.day;
+    state.gameVersion = bumpVersion(state.gameVersion);
+    for (const p of state.players) p.satisfaction = Math.min(100, p.satisfaction + 8);
+    state.awareness = Math.min(100, state.awareness + 5);
+    addLog(`v${state.gameVersion} アップデートを配信した。プレイヤーの満足度が上がった。`, 'pos');
+    pushToast(`v${state.gameVersion} を配信しました`, 'good');
+    refreshAll();
+  }
+  function startAd(id){
+    const plan = AD_PLANS.find(a => a.id === id);
+    if (!plan) return;
+    if (state.ad) { pushToast('広告は同時に1つまでです。', 'warn'); return; }
+    if (state.cash < plan.cost) { pushToast('資金が不足しています。', 'warn'); return; }
+    state.cash -= plan.cost;
+    state.ad = { id: plan.id, name: plan.name, left: plan.days, total: plan.days, rate: plan.rate };
+    addLog(`${plan.name}の掲載を開始した（¥${plan.cost.toLocaleString()} / ${plan.days}日間）。`, 'pos');
+    pushToast(`${plan.name}を開始しました`, 'good');
+    renderHeader();
+    renderReleaseTab();
+  }
+
+  const adListEl = document.getElementById('ad-list');
+  adListEl.innerHTML = AD_PLANS.map(a => `<button class="ad-btn" data-ad="${a.id}">
+      <span class="an">${a.name}</span><span class="ac">¥${a.cost.toLocaleString()}</span>
+      <span class="am">${a.days}日間 / 認知度 +${a.rate}/日</span></button>`).join('');
+  adListEl.querySelectorAll('.ad-btn').forEach(b => b.addEventListener('click', () => startAd(b.dataset.ad)));
+
+  const rNameEl = document.getElementById('r-name');
+  rNameEl.addEventListener('input', () => { state.gameName = rNameEl.value.trim(); updateBrand(); });
+  document.getElementById('btn-test').addEventListener('click', startTestRelease);
+  document.getElementById('btn-endtest').addEventListener('click', endTest);
+  document.getElementById('btn-live').addEventListener('click', releaseGame);
+  document.getElementById('btn-update').addEventListener('click', doUpdate);
+
+  function renderReleaseTab(){
+    const ph = state.phase;
+    const open = canOpen();
+    document.getElementById('rl-version').textContent = 'v' + state.gameVersion;
+    document.getElementById('rl-phase').textContent = PHASE_NAMES[ph];
+    document.getElementById('rl-note').textContent =
+      ph === 'dev' ? (open ? '準備ができたらテストリリースか正式リリースへ。誰もプレイしに来ないので、ゆっくり作れる。'
+                           : 'テスト/正式リリースには、完成した町とリスポーン地点が1つずつ必要。')
+      : ph === 'test' ? 'テスターだけが少人数で遊んでいる。収益は発生しない。問題なければ正式リリースへ。'
+      : '一般加入者が遊んでいる。アップデートで満足度と話題性を上げられる。';
+
+    const btnTest = document.getElementById('btn-test');
+    const btnEnd = document.getElementById('btn-endtest');
+    const btnLive = document.getElementById('btn-live');
+    const btnUp = document.getElementById('btn-update');
+    btnTest.style.display = ph === 'dev' ? 'block' : 'none';
+    btnEnd.style.display = ph === 'test' ? 'block' : 'none';
+    btnLive.style.display = ph === 'live' ? 'none' : 'block';
+    btnUp.style.display = ph === 'live' ? 'block' : 'none';
+    btnTest.disabled = !open;
+    btnLive.disabled = !open;
+    const wait = state.lastUpdateDay + UPDATE_COOLDOWN - state.day;
+    btnUp.disabled = wait > 0 || state.cash < UPDATE_COST;
+    btnUp.textContent = `🔧 アップデート（¥${UPDATE_COST.toLocaleString()}）`;
+    document.getElementById('rl-update-note').textContent = ph !== 'live' ? ''
+      : wait > 0 ? `次のアップデートまであと${wait}日` : `配信するとバージョンが上がり、満足度+8・認知度+5。クールダウン${UPDATE_COOLDOWN}日。`;
+
+    document.getElementById('rl-aware').textContent = state.awareness.toFixed(0) + ' / 100';
+    document.getElementById('bar-aware').style.width = state.awareness + '%';
+    document.getElementById('rl-ad-now').textContent = state.ad
+      ? `${state.ad.name} 掲載中（残り${state.ad.left}日 / 認知度 +${state.ad.rate}/日）`
+      : '広告を出していない。認知度は日ごとに下がる。';
+    adListEl.querySelectorAll('.ad-btn').forEach(b => {
+      const plan = AD_PLANS.find(a => a.id === b.dataset.ad);
+      b.disabled = !!state.ad || state.cash < plan.cost;
+    });
+  }
 
   // ---------------- Init ----------------
-  addLog('未リリースの世界を作り始めた。準備ができたら「リリースする」を押そう。', 'pos');
+  addLog('未リリースの世界を作り始めた。準備ができたら「リリース」タブからテスト/正式リリースしよう。', 'pos');
   renderHeader();
   renderSidebar();
   renderReport();
+  renderInspector();
+  renderReleaseTab();
+  setTool(state.tool);
 })();
+</script>
+</body>
+</html>

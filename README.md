@@ -4,63 +4,79 @@
 
 リンク
 
+**電車運転するだけのゲーム**
 
+https://norauki100.github.io/not-main/train-stop.html
 
-スマホとか作るタイクーンゲー
+**クラシック版**
 
-device-tycoon.html：https://norauki100.github.io/not-main/device-tycoon.html
-
-
-
-glbファイルを見るだけ
-
-glb-viewer.html：https://norauki100.github.io/not-main/glb-viewer.html
+https://norauki100.github.io/not-main/train-stop-classic.html
 
 
 
-電車運転するだけのゲーム
+**スマホとか作るタイクーンゲー**
 
-train-stop.html：https://norauki100.github.io/not-main/train-stop.html
-
-
-
-MMORPG風のタイクーンゲー
-
-Ctrl/Sim：https://norauki100.github.io/not-main/ctrl-sim/index.html
+https://norauki100.github.io/not-main/device-tycoon.html
 
 
 
-空想の鉄道の時刻表を検索するだけ（誰得）
+**MMORPG風のタイクーンゲー**
 
-kr-time.html：https://norauki100.github.io/not-main/kr-time.html
-
-
-
-リンク集
-
-links.html：https://norauki100.github.io/not-main/links.html
+https://norauki100.github.io/not-main/ctrl-sim.html
 
 
 
+**glbファイルを見るだけ**
+
+https://norauki100.github.io/not-main/glb-viewer.html
+
+
+
+**空想の鉄道の時刻表を検索するだけ（誰得）**
+
+https://norauki100.github.io/not-main/kr-time.html
+
+
+
+**リンク集**
+
+https://norauki100.github.io/not-main/links.html
 
 
 
 
-くわしい紹介
+
+
+
+**くわしい紹介**
+
+**・train-stop.html**
+
+珀南鉄道の珀南本線（架空）を運転します。1.6アップデートで特急とかも運転できるよ
+
+**・device-tycoon**
+
+タイクーンゲーが好きなので作らせてみたら、まあまあな完成度のものができた
+
+スマホとかパソコン、タブレットを作って経営を体験するゲームだよ
+
+**・Ctrl/Sim**
+
+MMORPG初代のイメージで新しいタイクーンゲー作ってみたけど、
+
+人によっては普通につまらなさすぎてすぐ飽きるかもしれん
+
+**・かんたんmodインストーラー**
+
+これ一個でいろんなmodを入れて、しかもそれをプロファイルごとに管理できるよってだけ
+
+多分調べたら俺のやつよりもマシなやつがあると思う
+
+
 
 ・glb-viewer
 
 これは普通に俺がglbファイルをみることがあるから個人的に作らせた
-
-・Ctrl/Sim
-
-MMORPG初代のイメージで新しいタイクーンゲー作ってみたけどぶっちゃけつまらん
-
-・mistery3d
-
-自分で好きな3dモデルをアップロードしたらＰＶＰできますよみたいなゲームを作らせようとしたけど、
-
-なんかくそきもくなった。これは廃止予定です。
 
 ・kr-time
 
@@ -72,19 +88,7 @@ Claude有能すぎて普通に作ってくれた
 
 これは普通にまとめリンク集
 
-・train-stop.html
 
-珀南鉄道の珀南本線（架空）を運転します。1.6アップデートで特急とかも運転できるよ
-
-・かんたんmodインストーラー
-
-これ一個でいろんなmodを入れて、しかもそれをプロファイルごとに管理できるよってだけ
-
-多分調べたら俺のやつよりもマシなやつがあると思う
-
-・device-tycoon
-
-タイクーンゲーが好きなので作らせてみたら、まあまあな完成度のものができた
 
 
 
