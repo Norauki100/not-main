@@ -133,7 +133,7 @@ const XING=[1150,2880,5050,8150,11950].map(z=>({z,arm:0,act:false}));   // 踏�
 // 運転種別
 const VER='1.6.1';   // バージョン表記
 const CFG=Object.assign({kind:'ln',sp:0,t0:27000,cars:4,event:false},(()=>{try{return JSON.parse(localStorage.getItem('tsCfg1'))||{}}catch(_){return{}}})());   // kind:ln/lh/en/eh/free  sp:フリードライブの開始地点  t0:出発時刻(秒)  cars:両数
-CFG.t0=Math.max(21600,Math.min(82800,Math.round((+CFG.t0||27000)/1800)*1800));if(![2,4,6].includes(CFG.cars))CFG.cars=4;if(!['ln','lh','en','eh','tn','th','free','walk','cond'].includes(CFG.kind))CFG.kind='ln';if(!['ln','lh','en','eh','tn','th'].includes(CFG.ck))CFG.ck='ln';if(CFG.fv!=='N')CFG.fv='H';CFG.wsp=Math.max(0,Math.min(7,CFG.wsp|0));CFG.sp=Math.max(0,Math.min(5,CFG.sp|0));CFG.event=!!CFG.event;
+CFG.t0=Math.max(21600,Math.min(82800,Math.round((+CFG.t0||27000)/600)*600));if(![2,4,6].includes(CFG.cars))CFG.cars=4;if(!['ln','lh','en','eh','tn','th','free','walk','cond'].includes(CFG.kind))CFG.kind='ln';if(!['ln','lh','en','eh','tn','th'].includes(CFG.ck))CFG.ck='ln';if(CFG.fv!=='N')CFG.fv='H';CFG.wsp=Math.max(0,Math.min(7,CFG.wsp|0));CFG.sp=Math.max(0,Math.min(5,CFG.sp|0));CFG.event=!!CFG.event;
 const saveCfg=()=>{try{localStorage.setItem('tsCfg1',JSON.stringify(CFG))}catch(_){}};
 // ダイヤ(始発からの秒)。制限速度と勾配どおりに走った時間に約8%の余裕を足し、5秒単位に切り上げ。停車は普通30秒・急行25秒
 const ARRT={ln:[0,135,300,455,630,800,960,1145],lh:[0,145,315,480,650,810,965,1150],en:[0,205,450,605,865],eh:[0,230,385,630,880],tn:[0,440,710],th:[0,225,715]},
@@ -147,7 +147,29 @@ en:{key:'en',type:'急行',pre:'3N',lo:50,hi:99,dir:1,stops:[0,2,4,5,7],arr:ARRT
 eh:{key:'eh',type:'急行',pre:'3H',lo:50,hi:99,dir:-1,stops:[7,5,4,2,0],arr:ARRT.eh,dep:DEPT.eh,dest:'珀南 行'},
 tn:{key:'tn',type:'特急',pre:'5N',lo:1,hi:39,dir:1,stops:[0,5,7],arr:ARRT.tn,dep:DEPT.tn,dest:'北川空港 行'},
 th:{key:'th',type:'特急',pre:'5H',lo:1,hi:39,dir:-1,stops:[7,5,0],arr:ARRT.th,dep:DEPT.th,dest:'珀南 行'}};
-const OPP={ln:'lh',lh:'ln',en:'eh',eh:'en',tn:'th',th:'tn'},TURN=['珀南','北川空港'];   // 折り返しの対応 / 折り返し設備のある駅
+for(const k in ROUTES)ROUTES[k].base=k;
+// ---- ダイヤ(20分周期): 普通3・急行2・特急1(片方向)。o=周期の中の発車(0時からの秒を1200で割った余り)。a/d=始発からの着・発(秒)
+// 走行時間は実物の性能(起動2.0km/h/s・惰行・ブレーキ)で走った時間に4%+2秒の余裕。普通は北川・吉浜中央の待避線で急行・特急を待つ(待ち時間は d に入っている)
+const DIA_P=1200;
+const DIA=/*DIA*/[
+{k:'en1',b:'en',o:0,a:[0,235,485,645,910],d:[0,265,510,670,0]},
+{k:'ln1',b:'ln',o:250,a:[0,175,355,530,710,900,1205,1415],d:[0,205,385,560,740,1060,1235,0]},
+{k:'tn1',b:'tn',o:420,a:[0,420,690],d:[0,450,0]},
+{k:'en2',b:'en',o:600,a:[0,235,485,645,910],d:[0,265,510,670,0]},
+{k:'ln2',b:'ln',o:660,a:[0,175,355,530,710,900,1075,1285],d:[0,205,385,560,740,930,1105,0]},
+{k:'ln3',b:'ln',o:1050,a:[0,175,355,600,780,970,1235,1445],d:[0,205,455,630,810,1090,1265,0]},
+{k:'eh1',b:'eh',o:5,a:[0,250,410,655,900],d:[0,275,435,685,0]},
+{k:'lh1',b:'lh',o:255,a:[0,175,350,610,790,965,1295,1505],d:[0,205,450,640,820,1145,1325,0]},
+{k:'th1',b:'th',o:425,a:[0,220,690],d:[0,250,0]},
+{k:'eh2',b:'eh',o:605,a:[0,250,410,655,900],d:[0,275,435,685,0]},
+{k:'lh2',b:'lh',o:690,a:[0,175,350,540,720,895,1075,1285],d:[0,205,380,570,750,925,1105,0]},
+{k:'lh3',b:'lh',o:1055,a:[0,175,350,650,830,1005,1225,1435],d:[0,205,490,680,860,1075,1255,0]}]/*/DIA*/;
+const SCHED_OFF={},SCHED_P={};for(const D of DIA){ROUTES[D.k]=Object.assign({},ROUTES[D.b],{key:D.k,base:D.b,arr:D.a,dep:D.d});SCHED_OFF[D.k]=D.o;SCHED_P[D.k]=DIA_P}
+for(const b of['ln','lh','en','eh','tn','th']){const D=DIA.find(x=>x.b===b);if(D){ROUTES[b].arr=D.a;ROUTES[b].dep=D.d}}
+const DIAK=DIA.map(D=>D.k),KB=k=>ROUTES[k]?ROUTES[k].base:k;   // KB: ダイヤの列車(ln2など)→ 種別・方向(ln)
+// 時刻 t(0時からの秒)のあとに始発駅を出る、種別・方向 kind の列車 {k:ダイヤの列車, d:発車時刻}
+function tripFor(kind,t){let best=null;for(const D of DIA){if(D.b!==kind)continue;const d=D.o+Math.ceil((t-D.o)/DIA_P)*DIA_P;if(!best||d<best.d)best={k:D.k,d}}return best}
+const TURN=['珀南','北川空港'];   // 折り返しの対応 / 折り返し設備のある駅
 const trk=S=>S.no==='03'&&RT&&RT.trkN?String(RT.trkN):S.no==='01'&&RT&&RT.trk?String(RT.trk):S.no==='06'&&RT&&RT.trk2?String(RT.trk2):S.no==='08'&&RT&&RT.trkA?String(RT.trkA):(DIR>0?'2':'1');   // 番線
 // 特急(N10系)は1両25m(連結面間25.5m)・4両か6両
 const isTK=()=>!!(RT&&(RT.type==='特急'||(RT.free&&CFG.fv==='N'))),NCARS=()=>isTK()?Math.max(4,CFG.cars):CFG.cars,CARP=()=>isTK()?25.5:20.5,TRLEN=()=>NCARS()*CARP()-.5;
@@ -173,6 +195,10 @@ const YLO=z=>ISP*Math.min(SM((z-(ZY+100))/100),YCM(z));   // 待避線から本�
 const YLC=z=>z<ZY?YSD(z):YLO(z);   // 普通の通り道(本線→分岐→待避線→分岐→本線)
 const YSO=z=>ISP*Math.min(SM((z-(ZY+400))/100),YCM(z));   // 留置線の先(ZY+400〜500)から本線へ
 const MD=z=>TX+ISH(z)+ISP*YCM(z),MU=z=>-ISH(z)-ISP*YCM(z);   // 下り本線・上り本線の横位置
+// ---- 珀南の引き上げ線(3番線の線路を駅の先へまっすぐ延ばしたもの、-9。280〜780m、先に車止め)。上りは1・2番線で降車 → 回送で引き上げ線へ → 向きを変えて発車番線へ ----
+// HKO[p]: 1・2番線から引き上げ線へ / HKI[d]: 引き上げ線から発車番線へ(4〜6番線は500〜590mの渡り線で上り本線へ)。HKZ: 引き上げ線に停まる位置(編成の珀南寄りの端)
+const HKZ=600,hkx=z=>-9*SM((z-500)/90);
+const HKO=[null,z=>-23+ISP*ta1(z)+5*ta2(z),z=>-14+5*ta2(z)],HKI=[null,null,null,z=>-9,hkx,z=>hkx(z)+5*(1-tcx(z)),z=>hkx(z)+5*(1-tcx(z))+ISP*(1-ta6(z))];
 const depPath=[null,z=>-23+ISP*ta1(z)+5*ta2(z)+ISP*ta3(z)+5*tcx(z),z=>-14+5*ta2(z)+ISP*ta3(z)+5*tcx(z),z=>-9+ISP*ta3(z)+5*tcx(z),z=>5*tcx(z),z=>5,z=>14-ISP*ta6(z),z=>19-5*SM((z-40)/100)-ISP*ta6(z)];   // [7]=珀南の留置線から6番線を経て本線へ
 const arrPath=[null,z=>-23+ISP*ta1(z)+5*ta2(z)+ISP*ta3(z),z=>-14+5*ta2(z)+ISP*ta3(z),z=>-9+ISP*ta3(z),z=>0,z=>5*(1-tcx(z)),z=>5*(1-tcx(z))+ISP*(1-ta6(z))];   // 上り本線(0)から各番線へ
 function setRoute(key,o){o=o||{};const R=ROUTES[key],rv=R.dir<0,off=o.dep||0;RT=R;STAB.forEach((g,i)=>{if(g)g.visible=!((i===0&&o.stab)||(i===1&&o.stab2)||(i===2&&o.stab3))});DIR=R.dir;
@@ -180,19 +206,21 @@ const tk=R.type==='特急',TLn=tk?Math.max(4,CFG.cars)*25.5-.5:0;   // 特急は
 STN=R.stops.map(i=>Object.assign({},WST[i],{z:i===0?(rv?Z0+97.5:(tk?TLn-97.5:20.5*CFG.cars-98)):tk?(rv?Z0-(WST[i].z+12-TLn/2):WST[i].z+12+TLn/2):rv?Z0-WST[i].z+20*(Math.max(4,CFG.cars)-4):WST[i].z+40+20*(Math.max(4,CFG.cars)-4)}));/* 2両は4両の停止位置(2･4 Cars)に停まる *//* 珀南は全列車、車止めから2mに停まる(下りは最後尾が車止めから2m) */ARR=R.arr.map(x=>x+off);DEP=R.dep.map(x=>x+off);LIM=rv?(tk?LIMRT:LIMR):(tk?LIMFT:LIMF);LIMBASE=rv?(tk?LIMRBT:LIMRB):45;GR=rv?GRR:GRF;GBASE=rv?GRRB:0;SIG=rv?SIGR:SIGF;MAG=rv?MAGR:MAGF;newNum();
 const loc=R.type==='普通',exp=R.type==='急行'||R.type==='特急';XACT=[];XACT45=[];RT.off=off;   // 北川・北川空港: 普通は外側の待避線、急行は内側の本線 / 吉浜中央: 普通は内側の待避線、急行は外側の本線
 const typ6=loc?[3,6]:exp?[4,5]:[3,4,5,6];   // 珀南: 普通3,6番線 / 急行4,5番線
-if(!rv){const k=o.stab?6:(o.trk||pick(typ6)),f=depPath[o.stab?7:k],kN=o.kn||(loc?4:exp?3:pick([3,4])),kY=o.stab3?3:loc?3:exp?4:pick([3,4]),kA=loc?4:exp?3:pick([3,4]);
+if(!rv){const k=o.stab?6:(o.trk||pick(typ6)),f=depPath[o.stab?7:k],kN=o.kn||(loc?4:exp?3:pick([3,4])),kY=o.stab3?3:loc?3:exp?4:pick([3,4]),kA=o.ta||(loc?4:exp?3:pick([3,4]));
 RT.trk=k;RT.trkN=kN;RT.trk2=kY;RT.trkA=kA;
 const dpo=z=>-12+12*SM((z-(ZM-260))/100)+5*SM((z-(ZM-150))/90);   // 南川総合車両基地の入出庫線(-12)→上り本線(0)→渡り線で下り本線(5)へ
 const yc=o.stab3?YSO:kY===4?(z=>ISP*YCM(z)):YLC;   // 吉浜中央: 留置線から / 本線(4番線) / 待避線(3番線)
-PX=z=>o.depot&&z<ZM-55?dpo(z):(z<=520?f(z):TX)+ISH(z)+(kN===4?ISP*LPN(z):0)+yc(z)+(kA===4?ISP*LAP(z):0);
-if(k<=4)XACT.push([390,490]);if(kN===4)XACT45.push([SK-200,SK+250]);if(o.stab3)XACT45.push([ZY+380,ZY+620]);else if(kY===3)XACT45.push([ZY-275,ZY-150],[ZY+90,ZY+330]);if(o.depot)XACT.push([ZM-1000,ZM-60]);if(kA===4)XACT45.push([ZA-200,ZA-100])}
-else{const k=pick(typ6),g=arrPath[k],kN=o.kn||(loc?1:exp?2:pick([1,2])),kY=o.stab2?2:(loc?2:exp?1:pick([1,2])),kA=o.ka||(loc?1:exp?2:pick([1,2]));
+const cxD=z=>5*SM((z-(ZA-330))/100),dAn=kA===4?z=>ISP*LAP(z):kA===1?z=>-cxD(z)-ISP*LAP(z):kA===2?z=>-cxD(z):z=>0;   // 北川空港の着く番線(1・2番線へは渡り線)
+PX=z=>o.depot&&z<ZM-55?dpo(z):(z<=520?f(z):TX)+ISH(z)+(kN===4?ISP*LPN(z):0)+yc(z)+dAn(z);
+if(k<=4)XACT.push([390,490]);if(kN===4)XACT45.push([SK-200,SK+250]);if(o.stab3)XACT45.push([ZY+380,ZY+620]);else if(kY===3)XACT45.push([ZY-275,ZY-150],[ZY+90,ZY+330]);if(o.depot)XACT.push([ZM-1000,ZM-60]);if(kA===4||kA===1)XACT45.push([ZA-200,ZA-100]);if(kA<=2)XACT.push([ZA-330,ZA-230])}
+else{const k=o.tb||pick(typ6),g=arrPath[k],kN=o.kn||(loc?1:exp?2:pick([1,2])),kY=o.stab2?2:(loc?2:exp?1:pick([1,2])),kA=o.ka||(loc?1:exp?2:pick([1,2]));
 RT.trk=k;RT.trkN=kN;RT.trk2=kY;RT.trkA=kA;
 const cxA=z=>5*SM((z-(ZA-330))/100),dA=kA===1?z=>-ISP*LAP(z):kA===2?z=>0:kA===3?cxA:z=>cxA(z)+ISP*LAP(z);   // 北川空港の発車番線から上り本線(0)へ(3・4番線は渡り線を通る)
 const yc=o.stab2?(z=>z<ZY?YSD(z):0):kY===1?(z=>ISP*YCM(z)):YLC;   // 吉浜中央: 留置線(そのまま2番線を通って本線へ) / 本線(1番線) / 待避線(2番線)
 PX=z=>(z<=520?g(z):0)-ISH(z)-(kN===1?ISP*LPN(z):0)-yc(z)+dA(z);
 if(k>=5)XACT.push([Z0-490,Z0-390]);if(kN===1)XACT45.push([Z0-(SK+250),Z0-(SK-200)]);
 if(kY===2&&!o.stab2)XACT45.push([Z0-ZY-210,Z0-ZY+30]);if(kY===2||o.stab2)XACT45.push([Z0-ZY+140,Z0-ZY+290]);if(kA===1||kA===4)XACT45.push([100,200]);if(kA>=3)XACT.push([230,330])}}
+
 // 高架駅(吉浜中央・北川空港)のホームから高架下のコンコースへ下りる階段: s=上の端、d=下りていく向き(+1:+s/-1:-s)、oc=ホームの中心。HL=ホームと高架の床に開ける穴の長さ
 const ELST=[{s:ZY-8,d:-1,oc:-4.5},{s:ZY-8,d:-1,oc:9.5},{s:ZY+52,d:1,oc:-4.5},{s:ZY+52,d:1,oc:9.5},{s:ZA+8,d:1,oc:-4.5},{s:ZA+8,d:1,oc:9.5}],ELHL=11.6,ELW=2.0;
 // 高架下のコンコース(この中は高架の柱と梁を立てない): [s0,s1]。出入口 [s0,s1,側(±1)]
@@ -202,7 +230,7 @@ const limitAt=z=>{let l=LIMBASE;for(const e of LIM)if(z>=e[0])l=e[1];for(let i=0
 const nextLim=z=>{let b=null;for(const e of LIM)if(e[0]>z){b=e;break}for(const[L,v]of[[XACT,25],[XACT45,30]])for(const[a]of L)if(a>z&&(!b||a<b[0]))b=[a,v,''];return b};   // 次の制限(標識の制限・渡り線25・分岐30のうち一番近いもの)
 const gradeAt=z=>{let g=GBASE;for(const[a,v]of GR)if(z>=a)g=v;return g/1000};
 // 鉄道の用地(この外側から街)・駅や分岐の構内: [s0,s1,右端off,左端off](線路沿いの柵の位置・特殊信号発光機を置かない所に使う)
-const RAILZ=[[-1300,-290,-10.3,5.7],[-290,-100,-48,44],[-100,200,-26.5,23.2],[200,420,-17.5,15.5],[420,560,-9,12],
+const RAILZ=[[-1300,-290,-10.3,5.7],[-290,-100,-48,44],[-100,200,-26.5,23.2],[200,420,-17.5,15.5],[420,560,-13.8,12],[560,795,-13.8,9.8],
 [SN-230,SN+260,-8.8,13.8],[SK-230,SK+280,-12.8,17.8],[SQ-80,SQ+330,-9,16],[SY5-200,SY5+120,-9,14],[SY5-10,SY5+40,-13.5,18.5],
 [ZY-620,ZY+1040,-12.8,22],[ZM-1060,ZM-140,-68,10],[ZM-150,ZM+120,-9.4,14.4],[ZM-12,ZM+22,-9.4,19],[ZA-360,LEND+60,-12.8,17.8]];
 
@@ -216,7 +244,7 @@ renderer.domElement.id='c';document.body.prepend(renderer.domElement);
 }catch(e){document.body.innerHTML='<p style="padding:20px">このブラウザでは3Dを表示できません。</p>'}
 // 描く細かさ(画面の倍率に対して): 1=ネイティブ / 1.25 / 1.5。倍率がこれより高い画面はその倍率のまま。上限2
 let RES=1.25;try{const v=localStorage.getItem('tsRes');if(v!==null)RES=+v}catch(e){}
-const applyRes=()=>renderer.setPixelRatio(Math.min(2,Math.max(devicePixelRatio||1,RES)));applyRes();
+const RESH=[];const applyRes=()=>{renderer.setPixelRatio(Math.min(2,Math.max(devicePixelRatio||1,RES)));for(const f of RESH)f()};applyRes();   // RESH: 解像度を変えた時に一緒に直す物(高画質の描画)
 let SHADOW=true;try{const v=localStorage.getItem('tsShadow');if(v!==null)SHADOW=v==='1'}catch(e){}
 renderer.shadowMap.enabled=SHADOW;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
 scene=new THREE.Scene();const SKY=0xf0a46b;scene.background=new THREE.Color(SKY);scene.fog=new THREE.Fog(SKY,140,760);
@@ -249,7 +277,6 @@ for(let i=0;i<AN;i++){const s=AS0+i;let gy=ATY[i];for(const[a,b]of VIA)if(s>a&&s
 const aidx=s=>{let f=s-AS0;if(f<0)f=0;if(f>AN-1.001)f=AN-1.001;return f};
 const lin=(A,s)=>{const f=aidx(s),i=f|0,t=f-i;return A[i]+(A[i+1]-A[i])*t};
 const HD=s=>lin(ALH,s),KAP=s=>lin(ALK,s),TY=s=>lin(ATY,s),GY=s=>lin(AGY,s),EHt=s=>TY(s)-GY(s);   // 向き・曲率・線路の高さ・地面の高さ・高架の高さ
-const _fp=[0,0];
 function FP(s,off){let x,z,h;if(s<AS0){h=ALH[0];x=ALX[0]+Math.sin(h)*(s-AS0);z=ALZ[0]+Math.cos(h)*(s-AS0)}else if(s>AS1){h=ALH[AN-1];x=ALX[AN-1]+Math.sin(h)*(s-AS1);z=ALZ[AN-1]+Math.cos(h)*(s-AS1)}else{const f=aidx(s),i=f|0,t=f-i;x=ALX[i]+(ALX[i+1]-ALX[i])*t;z=ALZ[i]+(ALZ[i+1]-ALZ[i])*t;h=ALH[i]+(ALH[i+1]-ALH[i])*t}
 return[x+Math.cos(h)*off,z-Math.sin(h)*off]}   // 線路のs地点・横off → 地図の(x,z)
 const CK=s=>KAP(s);   // 揺れの計算用(曲線で内側に傾く)
@@ -268,7 +295,6 @@ const BATS=[];
 function mkBat(mat,o){o=o||{};const b={mat,ch:new Map(),cast:o.cast!==false,recv:o.recv!==false,uv:!!(mat.map||mat.alphaMap)};BATS.push(b);return b}
 let CUR=0;   // いま追加している物の区画
 const setCh=s=>{CUR=Math.floor(s/CH)};
-const setChXZ=(x,z)=>{const p=proj(x,z,2000);CUR=Math.floor((p?p.s:0)/CH)};
 // 頂点バッファ(型付き配列で伸ばしていく。法線と色は1バイトずつ)
 class GB{constructor(uv){this.n=0;this.ni=0;this.P=new Float32Array(3*512);this.N=new Int8Array(3*512);this.C=new Uint8Array(3*512);this.U=uv?new Float32Array(2*512):null;this.I=new Uint32Array(1024)}
 need(nv,ni){if((this.n+nv)*3>this.P.length){const c=Math.max(this.P.length*2,(this.n+nv)*3);const g=(A,k)=>{const B=new A.constructor(c/3*k);B.set(A);return B};this.P=g(this.P,3);this.N=g(this.N,3);this.C=g(this.C,3);if(this.U)this.U=g(this.U,2)}
@@ -276,7 +302,11 @@ if(this.ni+ni>this.I.length){const B=new Uint32Array(Math.max(this.I.length*2,th
 v(p,nx,ny,nz,col,u,w){const i=this.n++,k=i*3;this.P[k]=p[0];this.P[k+1]=p[1];this.P[k+2]=p[2];this.N[k]=nx*127;this.N[k+1]=ny*127;this.N[k+2]=nz*127;this.C[k]=col[0]*255;this.C[k+1]=col[1]*255;this.C[k+2]=col[2]*255;if(this.U){this.U[i*2]=u||0;this.U[i*2+1]=w||0}return i}}
 // 遠くでは描かない小物: 大きさが DSZ m 未満の箱・円柱・棒は、区画ごとに別のまとまり(chD)へ入れる(車両の部品 CUR>=90000 は対象外)
 const DSZ=3,DFAR=350;let DET=false;
-function bc(b){const M=DET&&CUR<90000?(b.chD||(b.chD=new Map())):b.ch;let c=M.get(CUR);if(!c){c=new GB(b.uv);M.set(CUR,c)}return c}
+// 街の建物の細かさ(線路からの距離で決める: fillBlock)。TIER 0=近い(全部)、1=中くらい(小物・車・ベランダ・陰の焼き込みなし)、2=遠い(旧式のブロック: 軒の裏・基礎・屋上の設備もなし)
+// SINK=true の間に描いた物は捨てる(乱数の使い方は変えないので、街の並びは変わらない)
+let TIER=0,SINK=false;const _SK=[new GB(false),new GB(true)];
+const sink=(on,f)=>{const s0=SINK;if(on)SINK=true;try{f()}finally{SINK=s0}};
+function bc(b){if(SINK||(DET&&TIER>0&&CUR<90000)){const c=_SK[b.uv?1:0];c.n=0;c.ni=0;return c}const M=DET&&CUR<90000?(b.chD||(b.chD=new Map())):b.ch;let c=M.get(CUR);if(!c){c=new GB(b.uv);M.set(CUR,c)}return c}
 const hexc=h=>[(h>>16&255)/255,(h>>8&255)/255,(h&255)/255];
 const jit=(col,a)=>{const k=1+(Math.random()-.5)*a;return[Math.min(1,col[0]*k),Math.min(1,col[1]*k),Math.min(1,col[2]*k)]};
 const nrm=(A,B,C)=>{const ux=B[0]-A[0],uy=B[1]-A[1],uz=B[2]-A[2],vx=C[0]-A[0],vy=C[1]-A[1],vz=C[2]-A[2];let nx=uy*vz-uz*vy,ny=uz*vx-ux*vz,nz=ux*vy-uy*vx;const l=Math.hypot(nx,ny,nz)||1;return[nx/l,ny/l,nz/l]};
@@ -376,7 +406,7 @@ g.fillStyle='#c9ccd0';g.fillRect(x+w/2-1,y,2,h);
 if(lit&&kind!==2){e.fillStyle=lit===2?'#cfe0ff':'#ffd58a';e.fillRect(x,y,w,h);if(kind===1){e.fillStyle='#a37a3e';e.fillRect(x,y,w*.32,h);e.fillRect(x+w*.68,y,w*.32,h)}}};
 const T_HOUSE=facade({W:512,H:256,nx:4,ny:2,draw:(g,e,cw,ch)=>{rsd(11);g.fillStyle='#e6e3dc';g.fillRect(0,0,512,256);g.fillStyle='rgba(0,0,0,.06)';for(let y=0;y<256;y+=8)g.fillRect(0,y,512,2);
 for(let j=0;j<2;j++)for(let i=0;i<4;i++){const big=(i+j)%3===0,w=big?cw*.62:cw*.42,h=big?ch*.52:ch*.36,x=i*cw+(cw-w)/2,y=j*ch+ch*.22;const r=rnd();winG(g,x,y,w,h,r<.3?1:0,e,r<.45?1:r<.6?2:0)}}});
-const MHOUSE=T_HOUSE;
+
 const T_APT=facade({W:512,H:512,nx:4,ny:4,draw:(g,e,cw,ch)=>{rsd(23);g.fillStyle='#e9e6df';g.fillRect(0,0,512,512);for(let j=0;j<4;j++){g.fillStyle='rgba(0,0,0,.12)';g.fillRect(0,j*ch,512,4);
 for(let i=0;i<4;i++){const w=cw*.46,h=ch*.42,x=i*cw+cw*.27,y=j*ch+ch*.25,r=rnd();winG(g,x,y,w,h,r<.35?1:0,e,r<.5?1:0);if(rnd()<.4){g.fillStyle='#d9d9d4';g.fillRect(x+w*.1,y+h+8,w*.5,ch*.16);g.fillStyle='#9a9a96';g.beginPath();g.arc(x+w*.3,y+h+8+ch*.08,ch*.05,0,7);g.fill()}}}}});
 const T_APTD=facade({W:512,H:512,nx:4,ny:4,draw:(g,e,cw,ch)=>{rsd(31);g.fillStyle='#d6d2c8';g.fillRect(0,0,512,512);for(let j=0;j<4;j++)for(let i=0;i<4;i++){const x=i*cw+cw*.08,y=j*ch+ch*.12,w=cw*.84,h=ch*.8,r=rnd();
@@ -394,7 +424,7 @@ g.fillStyle='#55626e';g.fillRect(0,30,256,36);e.fillStyle='#b9c6d8';e.fillRect(0
 const T_STN=facade({W:512,H:256,nx:4,ny:1,glow:1.1,draw:(g,e,cw,ch)=>{g.fillStyle='#d9d2c4';g.fillRect(0,0,512,256);for(let i=0;i<4;i++){const x=i*cw+12,w=cw-24;g.fillStyle='#38495a';g.fillRect(x,70,w,150);g.fillStyle='#c9ccd0';g.fillRect(x+w/2-2,70,4,150);g.fillStyle='rgba(255,255,255,.18)';g.fillRect(x,70,w*.3,150);e.fillStyle='#ffe9b0';e.fillRect(x,70,w,150)}g.fillStyle='#b9b09c';g.fillRect(0,236,512,20)}});
 const B_HOUSE=mkBat(T_HOUSE),B_APT=mkBat(T_APT),B_APTD=mkBat(T_APTD),B_OFF=mkBat(T_OFF),B_OFF2=mkBat(T_OFF2),B_SHOP=mkBat(T_SHOP),B_FACT=mkBat(T_FACT),B_STNF=mkBat(T_STN);
 // 看板(文字)を1枚のテクスチャに並べる
-const SGW=2048,SGH=2048,SGC=8,SGR=32,SIGNS=[];let sgN=0;const sgCv=document.createElement('canvas');sgCv.width=SGW;sgCv.height=SGH;const sgG=sgCv.getContext('2d'),sgE=document.createElement('canvas');sgE.width=SGW;sgE.height=SGH;const sgEG=sgE.getContext('2d');sgEG.fillStyle='#000';sgEG.fillRect(0,0,SGW,SGH);
+const SGW=2048,SGH=2048,SGC=8,SGR=32;let sgN=0;const sgCv=document.createElement('canvas');sgCv.width=SGW;sgCv.height=SGH;const sgG=sgCv.getContext('2d'),sgE=document.createElement('canvas');sgE.width=SGW;sgE.height=SGH;const sgEG=sgE.getContext('2d');sgEG.fillStyle='#000';sgEG.fillRect(0,0,SGW,SGH);
 const T_SIGN=new THREE.CanvasTexture(sgCv),T_SIGNE=new THREE.CanvasTexture(sgE);T_SIGN.anisotropy=8;
 const MSIGN=new THREE.MeshLambertMaterial({map:T_SIGN,emissiveMap:T_SIGNE,emissive:0xffffff,emissiveIntensity:0});NIGHT.push([MSIGN,.9]);const B_SIGN=mkBat(MSIGN,{cast:false});
 function signCell(txt,bg,fg,glow,sub){if(sgN>=SGC*SGR)return null;const i=sgN++,cx=(i%SGC)*256,cy=Math.floor(i/SGC)*64,g=sgG;g.fillStyle=bg;g.fillRect(cx,cy,256,64);g.fillStyle=fg;g.textAlign='center';g.textBaseline='middle';
@@ -404,13 +434,12 @@ return[cx/SGW,1-(cy+64)/SGH,(cx+256)/SGW,1-cy/SGH]}
 function signQuad(cell,A,B,y0,h,col){if(!cell)return;const[u0,v0,u1,v1]=cell,c=col||[1,1,1];quad(B_SIGN,[A[0],y0,A[1]],[B[0],y0,B[1]],[B[0],y0+h,B[1]],[A[0],y0+h,A[1]],c,u0,v0,u1,v1)}
 const SHOPN=[['コンビニ','#1f7a3a','#fff'],['薬局','#1f4fa8','#fff'],['ラーメン','#b32020','#ffe9a8'],['居酒屋','#3a2a1e','#ffcf6a'],['不動産','#e8e8e8','#204080'],['クリーニング','#ffffff','#1f7a9a'],['理容室','#e8e8e8','#b32020'],['書店','#2f4f3a','#f2e8c8'],['カフェ','#5a3a22','#f2e8c8'],['歯科','#ffffff','#2f6fb0'],['花屋','#f2f2e8','#3a7a3a'],['パン','#f2e2c0','#8a4a1e'],['そば','#1e1e1e','#f2e8c8'],['銀行','#14306a','#ffffff'],['弁当','#ffcf3a','#3a2a1e'],['塾','#ffffff','#e05a00'],['美容室','#ffffff','#7a3a8a'],['焼肉','#1e1e1e','#ff5a3a'],['寿司','#2a1e14','#ffe9c0'],['スーパー','#e04a1e','#ffffff'],['眼鏡','#ffffff','#1e3a6a'],['整骨院','#2f8a5a','#ffffff'],['ドラッグ','#ffd800','#1e2a6a'],['喫茶','#4a3020','#f2d8a8']];
 const SHOPC=SHOPN.map(([t,b,f])=>signCell(t,b,f,true));
-const STNSG={};   // 駅の看板
 // その他の看板(駅前など)
-const SG_PARK=signCell('P 駐車場','#1e4fa0','#ffffff',true),SG_TAXI=signCell('タクシー乗り場','#1e2a3a','#ffd800',false),SG_BUS=signCell('バス乗り場','#1e2a3a','#ffffff',false),SG_DEPOT=signCell('南川総合車両基地','#000080','#ffffff',false,'MINAMIKAWA DEPOT'),
-SG_AIR=signCell('北川空港','#16243a','#ffffff',true,'KITAGAWA AIRPORT'),SG_PORT=signCell('青山港','#1e3a5a','#ffffff',false,'AOYAMA PORT'),SG_HOTEL=signCell('HOTEL','#1e1e2a','#ffd88a',true),SG_MALL=signCell('ショッピングモール','#c83232','#ffffff',true),SG_DEPT=signCell('珀南百貨店','#16243a','#e8c870',true),SG_CINE=signCell('シネマ','#1e1e1e','#ff4a4a',true),SG_HOSP=signCell('病院','#ffffff','#2f8a5a',true),SG_LOGI=signCell('物流センター','#2f4f7a','#ffffff',false),SG_SCHOOL=signCell('小学校','#ffffff','#2a4a2a',false);
+const SG_PARK=signCell('P 駐車場','#1e4fa0','#ffffff',true),SG_TAXI=signCell('タクシー乗り場','#1e2a3a','#ffd800',false),
+SG_HOTEL=signCell('HOTEL','#1e1e2a','#ffd88a',true),SG_MALL=signCell('ショッピングモール','#c83232','#ffffff',true),SG_DEPT=signCell('珀南百貨店','#16243a','#e8c870',true),SG_CINE=signCell('シネマ','#1e1e1e','#ff4a4a',true),SG_HOSP=signCell('病院','#ffffff','#2f8a5a',true),SG_LOGI=signCell('物流センター','#2f4f7a','#ffffff',false),SG_SCHOOL=signCell('小学校','#ffffff','#2a4a2a',false);
 
 // =====================================================================================
-// ==== 高画質(RTX風): 物と物の境目・すみの陰(SAO=アンビエントオクルージョン)、(SSAO) ====
+// ==== 高画質: 物と物の境目・すみの陰(SAO=アンビエントオクルージョン)、(SSAO) ====
 // 設定で切り替え(パソコンは最初からオン、スマホはオフ)。オフの時は今までどおりの描き方
 // =====================================================================================
 let RTX=(()=>{try{const v=localStorage.getItem('tsRtx');if(v!==null)return v==='1'}catch(_){}return false})();   // 最初はオフ(陰は焼き込みで付ける)
@@ -428,7 +457,7 @@ ao.output=THREE.SSAOPass.OUTPUT.Default;ao.renderToScreen=true;COMP.addPass(ao);
 COMP.setPixelRatio(renderer.getPixelRatio());COMP.setSize(W,H)}
 function rtxApply(){if(RTX)rtxBuild();scene.traverse(o=>{if(o.material)(Array.isArray(o.material)?o.material:[o.material]).forEach(m=>m.needsUpdate=true)})}
 renderer.render=(sc,c)=>{if(RTX&&COMP&&!_inComp&&sc===scene&&c===cam){_inComp=true;try{if(typeof cullFar==='function')cullFar(c);COMP.render()}finally{_inComp=false}}else _rr(sc,c)};
-addEventListener('resize',()=>{if(COMP){COMP.setPixelRatio(renderer.getPixelRatio());COMP.setSize(innerWidth,innerHeight)}});
+const rtxSize=()=>{if(COMP){COMP.setPixelRatio(renderer.getPixelRatio());COMP.setSize(innerWidth,innerHeight)}};addEventListener('resize',rtxSize);RESH.push(rtxSize);   // 解像度の設定を変えた時も合わせる(前は高画質の描画だけ前の倍率のままだった)
 rtxApply();
 
 </script>
@@ -463,6 +492,7 @@ tk(-100,LEND,MU,{b0:1,b1:1,st:4});tk(-100,LEND,MD,{b0:1,b1:1,st:4});
 // 珀南: 1・2番線(終着)、3番線、6番線、留置線、渡り線
 tk(-100,100,-23,{b0:1});br(-23,-14,100,190);tk(-100,190,-14,{b0:1});br(-14,-9,190,280);tk(-100,280,-9,{b0:1});br(-9,0,280,380);
 tk(-100,140,14,{b0:1});br(14,TX,140,240);tk(-100,40,19,{b0:1});br(19,14,40,140);xo(390,490);
+tk(280,780,-9,{b1:1});br(0,-9,500,590);   // 珀南の引き上げ線(3番線の線路の延長)と、上り本線への渡り線
 // 北川: 待避線(外側の1・4番線)
 for(const[x0,x1]of[[0,-ISP],[TX,TX+ISP]]){br(x0,x1,SK-200,SK-100);tk(SK-100,SK+150,x1);br(x1,x0,SK+150,SK+250)}
 // 青山港前: 海側の貨物側線(この先は臨海鉄道で港へ。非電化)
@@ -523,13 +553,20 @@ buildSig(SIGF,false);buildSig(SIGR,true);
 const mkLamp=(off,s,rev)=>({m:mkSigAt(s,off,rev),a:'G'});
 const lampSet=(g,a)=>{if(g.a===a&&g.set)return;g.a=a;g.set=1;const on=[a==='G',a==='Y',a==='R'];g.m.forEach(([mt,c,off],k)=>mt.color.setHex(on[k]?c:off))};
 const KSG=[mkLamp(TX+ISP-2.3,SK+140,false),mkLamp(-ISP-2.3,SK+140,false),mkLamp(-ISP+2.2,SK-90,true),mkLamp(TX+ISP+2.3,SK-90,true)];   // 北川の待避線の出発信号機: 下り14/下り-9/上り-9/上り14
-function updSig(){const hs=!!(s.hold&&s.hold.ph<2),st=!!(EV&&EV.sup&&EV.sup.st==='static'),Js=[s.jam].filter(J=>J&&J.ph<2);lampSet(KSG[0],(hs||st)&&DIR>0||DIR<0?'R':'G');lampSet(KSG[1],'R');lampSet(KSG[2],(hs||st)&&DIR<0||DIR>0?'R':'G');lampSet(KSG[3],'R');const rr=s.z-TRLEN(),occ=i=>i<SIG.length&&SIG[i].z<=s.z&&(i+1>=SIG.length||SIG[i+1].z>rr);   // 自分の列車がいる区間(通り過ぎた信号は赤、その1つ後ろは黄)
-SIG.forEach((g,i)=>{let a=occ(i)?'R':occ(i+1)?'Y':'G';for(const J of Js){if(i===J.j)a='R';else if(i===J.j-1&&a!=='R')a='Y'}if(a===g.a&&g.set)return;g.a=a;g.set=1;const on=[a==='G',a==='Y',a==='R'];g.m.forEach(([mt,c,off],k)=>mt.color.setHex(on[k]?c:off))})}
+let WTOCC=null;const SIGRO=new Set();   // WTOCC: ダイヤの列車がいる閉そく(w8 の wtSignals)。SIGRO: ほかの列車のせいで赤になっている自分の向きの信号
+// 出発信号は、その線路から出ていく列車(自分の列車・ダイヤの列車)が発車5秒前〜先頭が信号を120m過ぎるまで青。それ以外は赤
+const nearSig=(h,sS,dir)=>dir>0?(h>sS-150&&h<sS+120):(h<sS+150&&h>sS-120);
+function diaGo(f){if(typeof WT_ON==='undefined'||!WT_ON)return false;for(const T of TRAINS){if(!T.trips||T.hide||T.st==='off')continue;if(f(T))return true}return false}
+const KSGD=[[TX+ISP,SK+140,1],[-ISP,SK+140,1],[-ISP,SK-90,-1],[TX+ISP,SK-90,-1]];   // 北川の待避線の出発信号: [線路の位置, 信号の位置, 向き]
+function updKSG(){KSGD.forEach(([x,sS,dir],i)=>{const hp=DIR>0?s.z:Z0-s.z;let go=!WALK.on&&RT&&DIR===dir&&(s.mode==='run'||s.mode==='dwell')&&Math.abs(PX(sS)-x)<2&&nearSig(hp,sS,dir)&&(s.mode==='run'||RT.free||s.dep-s.t<=5);
+if(!go)go=diaGo(T=>{if(T.dir!==dir)return false;const h=dir>0?T.sA+spTL(T.sp):T.sA;return nearSig(h,sS,dir)&&Math.abs(T.path(sS)-x)<2&&(T.st==='run'||T.dep<=5)});lampSet(KSG[i],go?'G':'R')})}
+function updSig(){const Js=[s.jam].filter(J=>J&&J.ph<2);updKSG();const wo=WTOCC&&WT_ON&&!WALK.on&&!RT.free?WTOCC[DIR>0?0:1]:null;SIGRO.clear();const rr=s.z-TRLEN(),occ=i=>i<SIG.length&&SIG[i].z<=s.z&&(i+1>=SIG.length||SIG[i+1].z>rr);   // 自分の列車がいる区間(通り過ぎた信号は赤、その1つ後ろは黄)
+SIG.forEach((g,i)=>{const ro=!!(wo&&wo.has(i));if(ro)SIGRO.add(i);let a=occ(i)||ro?'R':occ(i+1)||(wo&&wo.has(i+1))?'Y':'G';for(const J of Js){if(i===J.j)a='R';else if(i===J.j-1&&a!=='R')a='Y'}if(a===g.a&&g.set)return;g.a=a;g.set=1;const on=[a==='G',a==='Y',a==='R'];g.m.forEach(([mt,c,off],k)=>mt.color.setHex(on[k]?c:off))})}
 // 珀南の出発信号(各番線のホーム端)。発車5秒前に青になる
 const DSIG=[[1,-20.6],[2,-16.4],[3,-6.6],[4,-2.4],[5,7.4],[6,11.6]].map(([k,x])=>{const y0=3.6,g=grpT(96,x,0);cylT(BV,96,x,0,.08,y0,8,0x4a4d55);boxT(BV,96,x,y0-.35,.55,1.1,.3,0x15161b);
 const mk=(dy,c)=>{const mt=new THREE.MeshBasicMaterial({color:c}),m=new THREE.Mesh(new THREE.CircleGeometry(.17,16),mt);m.rotation.y=Math.PI;m.position.set(0,y0+.2+dy,-.16);g.add(m);return mt};
 return{k,red:mk(.28,0xff3b2e),grn:mk(-.28,0x0f2a18)}});
-function updDSig(){for(const d of DSIG){const go=DIR>0&&RT.trk===d.k&&s.z<200&&((s.mode==='dwell'&&s.dep-s.t<=5)||s.mode==='run');d.red.color.setHex(go?0x3a0f0f:0xff3b2e);d.grn.color.setHex(go?0x33ff77:0x0f2a18)}}
+function updDSig(){for(const d of DSIG){const go=(!WALK.on&&DIR>0&&RT.trk===d.k&&s.z<200&&((s.mode==='dwell'&&s.dep-s.t<=5)||s.mode==='run'))||diaGo(T=>T.dir>0&&T.si===0&&T.tbk===d.k&&((T.st==='dwell'&&T.dep<=5)||(T.st==="run"&&T.sA+spTL(T.sp)<200)));/* ダイヤの列車も */d.red.color.setHex(go?0x3a0f0f:0xff3b2e);d.grn.color.setHex(go?0x33ff77:0x0f2a18)}}
 // 標識(制限・予告・勾配)
 const signPlane=(t,w,h,s,off,y,rev)=>{const g=grpT(s,off,0),m=new THREE.Mesh(new THREE.PlaneGeometry(w,h),new THREE.MeshLambertMaterial({map:t,transparent:true,emissive:0x222222}));if(!rev)m.rotation.y=Math.PI;m.position.y=y;g.add(m);boxT(BV,s+(rev?-.08:.08),off,0,.07,y-h/2,.07,0x6a6d72)};
 const limTex=k=>tex(g=>{g.fillStyle='#fff';g.beginPath();g.arc(64,64,62,0,7);g.fill();g.strokeStyle='#d62828';g.lineWidth=14;g.beginPath();g.arc(64,64,54,0,7);g.stroke();g.fillStyle='#111';g.font='bold 58px sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillText(k,64,68)},128,128);
@@ -557,7 +594,7 @@ for(let k=1;k*1000<LEND;k++){const s=k*1000,o=MU(s)-3.2;boxT(BV,s,o,0,.18,1.1,.1
 // =====================================================================================
 // ==== 踏切・特殊発報信号機 ====
 // =====================================================================================
-const MLR=new THREE.MeshBasicMaterial({color:0x3a0f0f}),MAW=new THREE.MeshLambertMaterial({color:0xf4f4f4}),MAR=new THREE.MeshLambertMaterial({color:0xd32f2f}),MXB=new THREE.MeshLambertMaterial({color:0x1e1e1e}),MXY=new THREE.MeshLambertMaterial({color:0xf2c230});
+const MAW=new THREE.MeshLambertMaterial({color:0xf4f4f4}),MAR=new THREE.MeshLambertMaterial({color:0xd32f2f}),MXB=new THREE.MeshLambertMaterial({color:0x1e1e1e}),MXY=new THREE.MeshLambertMaterial({color:0xf2c230});
 function crossingGear(X,pts,arm){X.lampA=new THREE.MeshBasicMaterial({color:0x3a0f0f});X.lampB=new THREE.MeshBasicMaterial({color:0x3a0f0f});X.arms=X.arms||[];const s=X.z,g=grpT(s,0,0);
 for(const[px,dz,sg,fc]of pts){cylT(BV,s+dz,px,0,.07,3.6,8,0xeeeeee);boxT(BV,s+dz,px+fc*.12,2.6,.14,.7,1.1,0x222222);
 for(const[mat,d2]of[[X.lampA,-.35],[X.lampB,.35]]){const m=new THREE.Mesh(new THREE.SphereGeometry(.14,10,8),mat);m.position.set(px+fc*.24,2.95,dz+d2);g.add(m)}
@@ -600,7 +637,9 @@ function updXSG(){const C=EV&&EV.acc,on=C&&(C.st==='enter'||C.st==='stall'),k=Ma
 for(const q of XSG){const act=on&&q.X===C.X&&q.dir===DIR;q.lamps.forEach((L,i)=>L.mt.color.setHex(!act?0x3a0f0f:i===k?0xff2a1a:i===(k+XSG_N-1)%XSG_N?0x8a1a10:0x3a0f0f));
 q.glow.visible=!!act;if(act){const L=q.lamps[k];q.glow.position.x=L.x;q.glow.position.y=L.y;const p=q.g.position,dd=Math.hypot(cam.position.x-p.x,cam.position.z-p.z),sc=Math.max(.9,dd*.009);q.glow.scale.set(sc,sc,1)}}}
 const xAct=X=>{const wz=DIR>0?s.z:Z0-s.z;const LP=Math.max(420,Math.min(1100,s.v*40)),LO=Math.max(420,Math.min(1100,ONC.v*40));let a=DIR>0?(wz<X.z+12&&X.z-wz<LP):(wz>X.z-12&&wz-X.z<LP);
-if(ONC.on&&(!X.ped||ONC.v>1)){const ow=DIR>0?ONC.q:Z0-ONC.q;if(DIR>0?(ow>X.z-12&&ow-X.z<LO):(ow<X.z+12&&X.z-ow<LO))a=true}return a};
+if(ONC.on&&(!X.ped||ONC.v>1)){const ow=DIR>0?ONC.q:Z0-ONC.q;if(DIR>0?(ow>X.z-12&&ow-X.z<LO):(ow<X.z+12&&X.z-ow<LO))a=true}
+if(!a&&WT_ON&&!WALK.on)for(const T of TRAINS){if(!T.trips||T.hide||T.st==='off'||(X.ped&&T.v<1))continue;const TL=spTL(T.sp),hd=T.dir>0?T.sA+TL:T.sA,tl=T.dir>0?T.sA:T.sA+TL,L2=Math.max(420,Math.min(1100,T.v*40));if(T.dir>0?(tl<X.z+12&&X.z-hd<L2):(tl>X.z-12&&hd-X.z<L2)){a=true;break}}   // ダイヤの列車(運転モード)
+return a};
 let xbT=0,xbK=0;
 function updCross(dt){const wz=DIR>0?s.z:Z0-s.z,bl=performance.now()%900<450;let dmin=1e9,xa=0;
 for(const X of XING){X.act=(X.ped?(s.mode==='run'&&s.v>.5):(s.mode==='run'||s.mode==='dwell'))&&xAct(X);X.at=X.act?(X.at||0)+dt:0;const tg=X.act&&X.at>7?1:0;X.arm+=(tg-X.arm)*Math.min(1,dt*(tg?.8:1.3));
@@ -646,31 +685,32 @@ for(const o of cols){if(DECKH.some(q=>s>q[0]-14&&s<q[1]+14&&o>q[2]-1.2&&o<q[3]+1
 const LF=(x,z,yaw)=>{const c=Math.cos(yaw),s=Math.sin(yaw);return(lx,ly,lz)=>[x+lx*c+lz*s,ly,z-lx*s+lz*c]};
 const TREEC=instBat(new THREE.IcosahedronGeometry(1,1),new THREE.MeshLambertMaterial({color:0xffffff}),{col:true,far:true}),TREET=instBat(new THREE.CylinderGeometry(.12,.2,1,6),new THREE.MeshLambertMaterial({color:0x5a4030}),{cast:false,far:true});
 const FOREST=instBat(new THREE.ConeGeometry(1,1,7),new THREE.MeshLambertMaterial({color:0xffffff}),{col:true}),FORESTB=instBat(new THREE.IcosahedronGeometry(1,0),new THREE.MeshLambertMaterial({color:0xffffff}),{col:true});
-INSTS.push(TREEC,TREET,FOREST,FORESTB);
+const TREECL=instBat(new THREE.IcosahedronGeometry(1,0),TREEC.mat,{col:true,far:true});   // 線路から遠い街の木(TIER>0)は角ばった軽い形
+INSTS.push(TREEC,TREECL,TREET,FOREST,FORESTB);
 const TCOL=[0x3f6a3c,0x4b7a3f,0x35553a,0x5a7f3a,0x46703f,0x3a5f44];
 function tree(x,z,y0,h,kind){h=h||5+rnd()*3;const r=h*.32;instAdd(TREET,x,y0+h*.22,z,0,1,h*.45,1);
-const c=TCOL[Math.floor(rnd()*TCOL.length)];instAdd(TREEC,x,y0+h*.62,z,rnd()*6,r,r*1.1,r,c);if(h>4.5)instAdd(TREEC,x+r*.35,y0+h*.78,z-r*.2,rnd()*6,r*.7,r*.8,r*.7,c)}
+const c=TCOL[Math.floor(rnd()*TCOL.length)],TB=TIER>0?TREECL:TREEC;instAdd(TB,x,y0+h*.62,z,rnd()*6,r,r*1.1,r,c);if(h>4.5)instAdd(TB,x+r*.35,y0+h*.78,z-r*.2,rnd()*6,r*.7,r*.8,r*.7,c)}
 // 自動車
 const CARC=[0xe8e8ec,0xf2f2f2,0x23262b,0xb23a3a,0x2f4f7a,0x8a8f96,0xc9b037,0x3a5f44,0xd8d2c4,0x5a3a2a];
-function car(x,z,y0,yaw,c){const P=LF(x,z,yaw),col=hexc(c||CARC[Math.floor(rnd()*CARC.length)]);boxW(BV,x,y0+.28,z,1.72,.68,4.3,yaw,col,{nb:0});
-const q=P(0,0,-.25);boxW(BV,q[0],y0+.96,q[2],1.56,.6,2.3,yaw,hexc(0x1d2430),{top:col});for(const zz of[-1.35,1.35]){const w=P(0,0,zz);boxW(BV,w[0],y0,w[2],1.78,.56,.62,yaw,hexc(0x1a1a1a),{nt:1})}}
+function car(x,z,y0,yaw,c){const P=LF(x,z,yaw),col=hexc(c||CARC[Math.floor(rnd()*CARC.length)]);sink(TIER>0,()=>{boxW(BV,x,y0+.28,z,1.72,.68,4.3,yaw,col,{nb:0});   // 線路から遠い所の車は描かない
+const q=P(0,0,-.25);boxW(BV,q[0],y0+.96,q[2],1.56,.6,2.3,yaw,hexc(0x1d2430),{top:col});for(const zz of[-1.35,1.35]){const w=P(0,0,zz);boxW(BV,w[0],y0,w[2],1.78,.56,.62,yaw,hexc(0x1a1a1a),{nt:1})}})}
 // 窓テクスチャの壁(四方)+屋上
 function walls(b,x,y0,z,w,h,d,yaw,col,tx,top){boxW(b,x,y0,z,w,h,d,yaw,col,{tx,topB:BV,top:top||hexc(0x8a8a86)})}
 // 切妻屋根: 棟は Z 方向。y0=軒の高さ(壁の上)。roof色、壁色(妻の三角)
 function gable(x,z,yaw,y0,W,D,rise,oh,rc,wc){const P=LF(x,z,yaw),hw=W/2+oh,hd=D/2+oh,yr=y0+rise,ye=y0-rise*oh/(W/2+oh);
 const A=P(hw,ye,-hd),B=P(hw,ye,hd),C=P(0,yr,hd),D2=P(0,yr,-hd);quad(BV,A,D2,C,B,rc);const A2=P(-hw,ye,hd),B2=P(-hw,ye,-hd),C2=P(0,yr,-hd),D3=P(0,yr,hd);quad(BV,A2,D3,C2,B2,rc);
-const dk=[rc[0]*.55,rc[1]*.55,rc[2]*.55],dn=-.06;quad(BVN,P(hw,ye+dn,-hd),P(hw,ye+dn,hd),P(0,yr+dn,hd),P(0,yr+dn,-hd),dk);quad(BVN,P(-hw,ye+dn,hd),P(-hw,ye+dn,-hd),P(0,yr+dn,-hd),P(0,yr+dn,hd),dk);   // 軒の裏
+const dk=[rc[0]*.55,rc[1]*.55,rc[2]*.55],dn=-.06;sink(TIER>1,()=>{quad(BVN,P(hw,ye+dn,-hd),P(hw,ye+dn,hd),P(0,yr+dn,hd),P(0,yr+dn,-hd),dk);quad(BVN,P(-hw,ye+dn,hd),P(-hw,ye+dn,-hd),P(0,yr+dn,-hd),P(0,yr+dn,hd),dk)});   // 軒の裏
 const yg=y0+rise*(W/2)/(W/2+oh)-.02;tri(BV,P(-W/2,y0,D/2),P(W/2,y0,D/2),P(0,yg,D/2),wc);tri(BV,P(W/2,y0,-D/2),P(-W/2,y0,-D/2),P(0,yg,-D/2),wc);
-rodW(BV,P(0,yr+.06,-hd),P(0,yr+.06,hd),.22,[rc[0]*.8,rc[1]*.8,rc[2]*.8])}   // 棟
+sink(TIER>1,()=>rodW(BV,P(0,yr+.06,-hd),P(0,yr+.06,hd),.22,[rc[0]*.8,rc[1]*.8,rc[2]*.8]))}   // 棟
 // 寄棟屋根(棟は Z 方向)
 function hip(x,z,yaw,y0,W,D,rise,oh,rc){const P=LF(x,z,yaw),hw=W/2+oh,hd=D/2+oh,yr=y0+rise,ye=y0-rise*oh/(W/2+oh),rl=Math.max(.1,hd-hw);
 const a=P(hw,ye,-hd),b=P(hw,ye,hd),c=P(-hw,ye,hd),d=P(-hw,ye,-hd),r1=P(0,yr,-rl),r2=P(0,yr,rl);quad(BV,a,r1,r2,b,rc);quad(BV,c,r2,r1,d,rc);tri(BV,b,r2,c,[rc[0]*.92,rc[1]*.92,rc[2]*.92]);tri(BV,d,r1,a,[rc[0]*.92,rc[1]*.92,rc[2]*.92]);
-const dk=[rc[0]*.5,rc[1]*.5,rc[2]*.5];quad(BVN,a,b,c,d,dk)}
+const dk=[rc[0]*.5,rc[1]*.5,rc[2]*.5];sink(TIER>1,()=>quad(BVN,a,b,c,d,dk))}
 const WALLC=[0xf2eee4,0xe8e0d0,0xd9cfbd,0xc9c4ba,0xdfe3e6,0xcfc2ae,0xb9a58c,0xeae6e0,0xd2d6cf,0xa89a88],ROOFC=[0x3e3f46,0x2f3a52,0x5a3a2a,0x6a3a32,0x4a4a50,0x34455a,0x7a4a32,0x55595f];
 // 一戸建て。lot: 中心(x,z)、向きyaw(+Xが道路側)、W=奥行き、D=間口
 function house(x,z,y0,yaw,W,D,o){o=o||{};const P=LF(x,z,yaw),fl=o.fl||(rnd()<.82?2:1),hw=Math.min(W-5,8+rnd()*2.5),hd=Math.min(D-2.4,7+rnd()*3),fx=W/2-hw/2-2.6-rnd()*1.2,cx=fx-0,c=P(cx,0,(rnd()-.5)*Math.max(0,D-2.4-hd));
 const wc=jit(hexc(WALLC[Math.floor(rnd()*WALLC.length)]),.06),rc=jit(hexc(ROOFC[Math.floor(rnd()*ROOFC.length)]),.08),h=fl*2.9;
-boxW(BV,c[0],y0,c[2],hw+.3,.45,hd+.3,yaw,hexc(0x8f8c86),{});   // 基礎
+sink(TIER>1,()=>boxW(BV,c[0],y0,c[2],hw+.3,.45,hd+.3,yaw,hexc(0x8f8c86),{}));   // 基礎
 walls(B_HOUSE,c[0],y0+.45,c[2],hw,h,hd,yaw,wc,[12,5.8,rnd()*4]);solidW(c[0],c[2],hw,hd,yaw,y0,y0+h+2.5);
 const flat=rnd()<.14;if(flat){boxW(BV,c[0],y0+.45+h,c[2],hw+.3,.35,hd+.3,yaw,hexc(0xb9b5ac))}
 else if(rnd()<.6)gable(c[0],c[2],yaw+(hd>hw?0:Math.PI/2),y0+.45+h,hd>hw?hw:hd,hd>hw?hd:hw,1.7+rnd()*.6,.55,rc,wc);else hip(c[0],c[2],yaw+(hd>hw?0:Math.PI/2),y0+.45+h,hd>hw?hw:hd,hd>hw?hd:hw,1.6+rnd()*.5,.55,rc);
@@ -692,11 +732,11 @@ const wc=jit(hexc(fl>3?[0xe9e6df,0xd9d3c7,0xc9c2b6,0xb9b2a5,0xdcdcd6,0xc4b8a6][M
 const L2=LF(c[0],c[2],yaw);
 boxW(B_APT,c[0],y0,c[2],bw,h,bd,yaw,wc,{tx:[14,11.8,rnd()*3],topB:BV,top:hexc(0x9a968e),nr:1});solidW(c[0],c[2],bw,bd,yaw,y0,y0+h+1);   // 横・後ろ
 const f=L2(bw/2-.05,0,0);boxW(B_APTD,f[0],y0,f[2],.1,h,bd,yaw,wc,{tx:[14,11.8,rnd()*3],nt:1,nf:1,nb:1,nl:1});   // ベランダ側の窓
-if(!o.lod)for(let i=1;i<=fl;i++){const yy=y0+i*2.95-.25,q=L2(bw/2+.65,0,0);boxW(BV,q[0],yy,q[2],1.3,.18,bd,yaw,wc);const r=L2(bw/2+1.27,0,0);boxW(BV,r[0],yy+.18,r[2],.08,1.05,bd,yaw,hexc(fl>3?0xcfd6dc:0x8f949a))}   // ベランダ
-const n=o.lod?-1:Math.round(bd/3.5);for(let k=0;k<=n;k++){const q=L2(bw/2+.65,0,-bd/2+k*bd/n);boxW(BV,q[0],y0,q[2],1.3,h-.3,.15,yaw,wc)}   // 仕切り
-for(const[lx,lz,lw,ld]of[[0,bd/2-.1,bw,.2],[0,-bd/2+.1,bw,.2],[-bw/2+.1,0,.2,bd]]){const q=L2(lx,0,lz);boxW(BV,q[0],y0+h,q[2],lw,.9,ld,yaw,wc)}   // パラペット
+if(!o.lod)sink(TIER>0,()=>{for(let i=1;i<=fl;i++){const yy=y0+i*2.95-.25,q=L2(bw/2+.65,0,0);boxW(BV,q[0],yy,q[2],1.3,.18,bd,yaw,wc);const r=L2(bw/2+1.27,0,0);boxW(BV,r[0],yy+.18,r[2],.08,1.05,bd,yaw,hexc(fl>3?0xcfd6dc:0x8f949a))}});   // ベランダ
+const n=o.lod?-1:Math.round(bd/3.5);sink(TIER>0,()=>{for(let k=0;k<=n;k++){const q=L2(bw/2+.65,0,-bd/2+k*bd/n);boxW(BV,q[0],y0,q[2],1.3,h-.3,.15,yaw,wc)}});   // 仕切り
+sink(TIER>1,()=>{for(const[lx,lz,lw,ld]of[[0,bd/2-.1,bw,.2],[0,-bd/2+.1,bw,.2],[-bw/2+.1,0,.2,bd]]){const q=L2(lx,0,lz);boxW(BV,q[0],y0+h,q[2],lw,.9,ld,yaw,wc)}   // パラペット
 if(fl>3){const q=L2(-bw/4,0,bd/4);boxW(BV,q[0],y0+h,q[2],3.2,2.6,4,yaw,wc);if(rnd()<.6){const t=L2(-bw/4,0,-bd/4);cylW(BV,t[0],y0+h,t[2],1.1,1.8,10,hexc(0xd9dde2))}}
-const en=L2(bw/2+1.6,0,bd/2-2.5);boxW(BV,en[0],y0+2.6,en[2],2.4,.2,3,yaw,hexc(0x6a6d72));
+const en=L2(bw/2+1.6,0,bd/2-2.5);boxW(BV,en[0],y0+2.6,en[2],2.4,.2,3,yaw,hexc(0x6a6d72))});
 if(!o.lod&&rnd()<.5){const pk=P(W/2-2.5,0,-D/2+3);car(pk[0],pk[2],y0+.02,yaw+Math.PI/2)}}
 // 商店つき住宅・雑居ビル(1階が店)
 function shop(x,z,y0,yaw,W,D,fl,o){o=o||{};const P=LF(x,z,yaw),bw=Math.min(W-1.5,9+rnd()*6),bd=Math.min(D-.6,o.bd||D-.6),c=P(W/2-bw/2-.5,0,0),L2=LF(c[0],c[2],yaw);
@@ -715,8 +755,8 @@ const pod=h>28&&bw>16?Math.min(10,h*.18):0;   // 低層部
 if(pod){boxW(B_SHOP,c[0],y0,c[2],bw+1,4.6,bd+1,yaw,hexc(0xf2efe8),{tx:[18,4.6,rnd()*4],nt:1});boxW(b,c[0],y0+4.6,c[2],bw+1,pod-4.6,bd+1,yaw,tc,{tx:glass?[12.8,15.6]:[12.8,14.4],topB:BV,top:hexc(0x8a8f96)})}
 const tw=pod?bw*.78:bw,td=pod?bd*.78:bd,ty=pod?pod:0;solidW(c[0],c[2],pod?bw+1:bw,pod?bd+1:bd,yaw,y0,y0+h+1);boxW(b,c[0],y0+ty,c[2],tw,h-ty,td,yaw,tc,{tx:glass?[12.8,15.6,rnd()*3]:[12.8,14.4,rnd()*3],topB:BV,top:hexc(0x8a8f96)});
 if(!pod)boxW(B_SHOP,c[0],y0,c[2],tw+.05,4.4,td+.05,yaw,hexc(0xeef0f2),{tx:[18,4.4,rnd()*4],nt:1});
-for(const[lx,lz,lw,ld]of[[0,td/2-.15,tw,.3],[0,-td/2+.15,tw,.3],[tw/2-.15,0,.3,td],[-tw/2+.15,0,.3,td]]){const q=L2(lx,0,lz);boxW(BV,q[0],y0+h,q[2],lw,1.1,ld,yaw,hexc(0x9aa0a6))}   // パラペット
-const nm=1+Math.floor(rnd()*3);for(let i=0;i<nm;i++){const q=L2((rnd()-.5)*tw*.5,0,(rnd()-.5)*td*.5);boxW(BV,q[0],y0+h,q[2],2+rnd()*3,1.5+rnd()*2,2+rnd()*4,yaw,hexc(0xb9bcc2))}   // 設備
+sink(TIER>1,()=>{for(const[lx,lz,lw,ld]of[[0,td/2-.15,tw,.3],[0,-td/2+.15,tw,.3],[tw/2-.15,0,.3,td],[-tw/2+.15,0,.3,td]]){const q=L2(lx,0,lz);boxW(BV,q[0],y0+h,q[2],lw,1.1,ld,yaw,hexc(0x9aa0a6))}   // パラペット
+const nm=1+Math.floor(rnd()*3);for(let i=0;i<nm;i++){const q=L2((rnd()-.5)*tw*.5,0,(rnd()-.5)*td*.5);boxW(BV,q[0],y0+h,q[2],2+rnd()*3,1.5+rnd()*2,2+rnd()*4,yaw,hexc(0xb9bcc2))}});   // 設備
 if(h>45){const q=L2(0,0,0);boxW(BV,q[0],y0+h,q[2],tw*.5,4,td*.5,yaw,tc);boxW(BLAMP,q[0],y0+h+4,q[2],.5,.5,.5,yaw,hexc(0xff3020))}   // 航空障害灯
 if(o.sign){const a=L2(tw/2+.08,0,Math.min(td*.4,10)),bq=L2(tw/2+.08,0,-Math.min(td*.4,10));signQuad(o.sign,[a[0],a[2]],[bq[0],bq[2]],y0+h-4.5,Math.min(20,td*.8)/4)}
 if(o.trees!==false&&rnd()<.6){for(const zz of[-1,1]){const t=P(W/2-1,0,zz*(D/2-2.5));tree(t[0],t[2],y0,5+rnd()*2)}}}
@@ -792,7 +832,8 @@ const FGAP=[[SY5+6,SY5+28,-1],[SY5+6,SY5+28,1],[ZM-8,ZM+18,1]];
 function railFence(sg,s0,s1,E){const o=sg*E,hide=s=>EHt(s)>.8||inTun(s);let a=s0;
 const gs=XING.map(X=>[X.z-4.5,X.z+4.5]).concat(FGAP.filter(g=>g[2]===sg)).filter(g=>g[1]>s0&&g[0]<s1).sort((x,y)=>x[0]-y[0]).concat([[s1,s1]]);
 for(const[g0,g1]of gs){if(g0>a+1){ribbon(BFENCE,a,g0,6,sg<0?[[o,0,0xffffff],[o,1.8,null]]:[[o,1.8,0xffffff],[o,0,null]],null,s=>hide(s)?-99:GY(s),{uv:2.5});solidO(o,a,g0,GY,-1,1.8,hide)}a=Math.max(a,g1)}}
-function genDistrict(sg,s00,s11,type){if(!DT[type])return;for(const[a,b,E]of splitE(sg,s00,s11))genDistrict1(sg,a,b,type,E)}
+function genDistrict(sg,s00,s11,type){if(!DT[type]||s11<=s00+1)return;   // 長さのない地区(始まりと終わりが逆)は作らない(逆向きの道路ができていた)
+for(const[a,b,E]of splitE(sg,s00,s11))genDistrict1(sg,a,b,type,E)}
 function genDistrict1(sg,s0,s1,type,E){const P=DT[type];
 const dc=E+.8+P.sw/2,walk=P.walk?3:0;roadPar(sg,s0,s1,dc,P.sw,type);
 // フェンス(線路の用地の境目)
@@ -811,7 +852,8 @@ for(const[a,b,t]of DR)genDistrict(-1,a,b,t);for(const[a,b,t]of DL)genDistrict(1,
 // 駅前の大通り(珀南の駅ビルの先)
 ribbon(BVN,-1300,-290,8,[[-10.3,0,C_ASP],[5.7,0,null]],null,yG);for(let s=-1290;s<-300;s+=9){const p=FP(s,-2.3);setCh(s);boxW(BVN,p[0],yG(s)+.005,p[1],.15,.012,4.5,HD(s),C_YLN)}
 // ---- 敷地に建物 ----
-function fillBlock(L){const{sg,sa,sb,da,db,type}=L,dep=db-da,two=dep>=(type==='rural'?999:24),rows=two?[[da,(da+db)/2,-1],[(da+db)/2,db,1]]:[[da,db,-1]];const P=DT[type];
+function fillBlock(L){TIER=(L.da+L.db)/2<90?0:(L.da+L.db)/2<200?1:2;AOB=TIER<1;try{fillBlock0(L)}finally{TIER=0;AOB=true}}
+function fillBlock0(L){const{sg,sa,sb,da,db,type}=L,dep=db-da,two=dep>=(type==='rural'?999:24),rows=two?[[da,(da+db)/2,-1],[(da+db)/2,db,1]]:[[da,db,-1]];const P=DT[type];
 const big=(type==='core'||type==='biz');
 // 公園・駐車場・学校
 const r0=rnd();if(type==='res'&&r0<.035&&sb-sa>50){park(sg,sa,sb,da,db);return}if((type==='urban'||type==='core')&&r0<.07){parking(sg,sa,sb,da,db);return}
@@ -819,7 +861,7 @@ if(type==='res'&&r0>.975&&sb-sa>70&&dep>28){school(sg,sa,sb,da,db);return}
 for(const[ra,rb,face]of rows){let s=sa;while(s<sb-4){let w=P.lw[0]+rnd()*(P.lw[1]-P.lw[0]);if(sb-s-w<P.lw[0]*.6)w=sb-s;const sc=s+w/2,dc2=(ra+rb)/2,off=sg*dc2,k=1-KAP(sc)*off,wl=w*k,rd=rb-ra;s+=w;
 if(exclHit(sc-w/2,sc+w/2,sg*ra,sg*rb))continue;const p=FP(sc,off),pj=proj(p[0],p[1],900);if(!pj||Math.abs(pj.s-sc)>20||Math.abs(pj.off-off)>20)continue;
 const f=face<0?-sg:sg,yaw=HD(sc)+(f>0?0:Math.PI),y0=GY(sc);setCh(sc);
-const ns=nearSt(sc),onMain=(face<0&&L.k===0)||ns<120,lod=dc2>210;
+const ns=nearSt(sc),onMain=(face<0&&L.k===0)||ns<120,lod=dc2>210;TIER=dc2<90?0:dc2<200?1:2;AOB=TIER<1;   // 線路から遠いほど簡単に(TIER)
 if(type==='res'){lotGround(sc-w/2,sc+w/2,sg*ra,sg*rb,jit(hexc(rnd()<.45?0x6e6a5e:0x5a6a42),.1));const r=rnd();
 if(ns<260&&face<0&&L.k===0&&r<.45)shop(p[0],p[1],y0,yaw,rd,wl,2+Math.floor(rnd()*2),{vend:1});else if(r<.09)apt(p[0],p[1],y0,yaw,rd,wl,2+Math.floor(rnd()*2),{lod});else if(r<.13&&ns<700)apt(p[0],p[1],y0,yaw,rd,Math.max(wl,16),4+Math.floor(rnd()*4),{lod});else if(r<.97)house(p[0],p[1],y0,yaw,rd,wl,{lod});else{for(let t=0;t<3;t++){const q=LF(p[0],p[1],yaw)((rnd()-.5)*rd*.7,0,(rnd()-.5)*wl*.7);tree(q[0],q[2],y0)}}}
 else if(type==='urban'){lotGround(sc-w/2,sc+w/2,sg*ra,sg*rb,hexc(0x76746e));const r=rnd(),hf=1-Math.min(1,ns/900);
@@ -857,9 +899,9 @@ const SHORE=s=>s<5350||s>7200?-1:120+60*SM((s-6380)/500)+260*SM((s-6700)/500);  
 const SEAY=GY(SQ)-1.3;
 const nz=(a,b)=>Math.sin(a*.013+b*.021)*.5+Math.sin(a*.0071-b*.017+1.3)*.35+Math.sin(a*.031+b*.007+2.1)*.15;
 function terrH(s,off){const d=Math.abs(off-2.5),sg=off>2.5?1:-1;let h=0;
-const m=SM((s-6200)/250)*(1-SM((s-7980)/220));   // 青山港前〜吉浜の山
+const m=SM((s-(sg<0?6280:6620))/(sg<0?250:140))*(1-SM((s-7820)/200));   // 青山港前〜吉浜の山。街(〜6280・8020〜)と港(右側〜6610)の上にはかからない
 if(m>0){const inT=TUN.some(([a,b])=>s>=a&&s<=b),cut=inT?1:SM((d-8)/26);h+=m*cut*(15+38*SM((d-20)/220)+14*nz(s,off));if(inT)h=Math.max(h,10.5)}   // トンネルの上は天井(8.8m)より高く
-if(d>450)h+=Math.max(0,SM((d-450)/220)*(14+18*nz(s*.7,off*1.3)));   // 遠くの丘(街の外)
+if(d>480)h+=Math.max(0,SM((d-480)/220)*(14+18*nz(s*.7,off*1.3)));   // 遠くの丘(街の外。地面の格子の480mの列から上がる)
 const sh=SHORE(s);if(sg>0&&sh>0&&d>sh)h=Math.min(h,-3.2*SM((d-sh)/25)-(GY(s)-SEAY)*SM((d-sh)/25));
 return h}
 const MGROUND=new THREE.MeshLambertMaterial({vertexColors:true});const BGR=mkBat(MGROUND,{cast:false});
@@ -977,20 +1019,17 @@ const m=new THREE.Mesh(ge,MATV);m.castShadow=m.receiveShadow=true;const p=FP(sH,
 // 線路の座標系の点に物を置く
 function placeO(o,s,off,y,yaw2){const p=FP(s,off);o.position.set(p[0],TY(s)+(y||0),p[1]);o.rotation.y=HD(s)+(yaw2||0)}
 // ---- 駅などに止まっている編成 ----
-trainAt(4,'lc',-15,-23,1);trainAt(4,'lc',-15,-14,1);   // 珀南 1・2番線(終着線): 先頭-15、後ろは車止め側へ
 STAB[0]=trainAt(4,'lc',10,19,1);   // 珀南の留置線
 STAB[1]=trainAt(4,'lc',ZY+215,0,-1);STAB[2]=trainAt(4,'lc',ZY+390,TX,1);   // 吉浜中央の留置線(上り側・下り側)
 freightAt(SQ+195,13.2,4);   // 青山港前の貨物側線
 // 対向列車(上り線を走る)
 const ONC={on:false,z:0,v:20,cd:25,g:mkTrainObj(4,'lc','普通','珀南')};ONC.g.visible=false;
-const EXPG=mkTrainObj(4,'ex','急行','北川空港');EXPG.visible=false;   // 北川を通過する急行
-const npc=(sH,off,dir)=>{const g=mkTrainObj(4,'lc');placeTrain(g,sH,()=>off,dir);return g};const NPCS=[npc(SK+40,TX+ISP,1),npc(SK,-ISP,-1)];/* ふだんは隠すので、ぶつかる箱は作らない */setDest(NPCS[0],'普通','北川空港');setDest(NPCS[1],'普通','珀南');NPCS.forEach(g=>g.visible=false);   // 北川の待避線に停まる普通(下り用/上り用)
 
 // =====================================================================================
 // ==== 駅 ====
 // ホームの高さは PT(線路の基準から1.57m = レール面から1.1m)。島式ホームは幅6m、相対式は5m、車両とのすき間は10cm(ホームの端は線路の中心から1.5m)
 // =====================================================================================
-const C_PT=hexc(0xb4b0a8),C_PW=hexc(0x7d7a74),C_PE=hexc(0xd8d6d0),C_TAC=hexc(0xe8c21a),C_ROOF=hexc(0x6c6a78),C_COL=hexc(0x5a5f66);
+const C_PT=hexc(0xb4b0a8),C_PW=hexc(0x7d7a74),C_PE=hexc(0xd8d6d0),C_ROOF=hexc(0x6c6a78),C_COL=hexc(0x5a5f66);
 // 点字ブロック(警告ブロック): ホームの端から0.8〜1.1mに点の並んだ黄色いブロック、その内側に内方線(線状の突起)。in=内方線の側(1=テクスチャの上側)
 const tacMat=inn=>new THREE.MeshLambertMaterial({map:rep(tex(g=>{g.fillStyle='#e8c21a';g.fillRect(0,0,64,64);const y0=inn?9:0,y1=inn?64:55;g.fillStyle='#f6d84a';for(let i=0;i<5;i++)for(let j=0;j<5;j++){g.beginPath();g.arc(6.4+i*12.8,y0+(j+.5)*(y1-y0)/5,3.6,0,7);g.fill()}g.fillStyle='#c9a20e';for(let i=0;i<5;i++)for(let j=0;j<5;j++){g.beginPath();g.arc(7.2+i*12.8,y0+(j+.5)*(y1-y0)/5+.9,3.6,0,3.14);g.fill()}
 if(inn!==2){g.fillStyle='#f6d84a';g.fillRect(0,inn?1:57,64,5);g.fillStyle='#c9a20e';g.fillRect(0,inn?6:62,64,1.5)}},64,64)),polygonOffset:true,polygonOffsetFactor:-2});
@@ -1041,7 +1080,7 @@ for(let s=s0+6;s<s1-3;s+=12){for(const x of cx)colQ(s,x,PT+(y||0),.28,yt-PT-(y||
 // ベンチ・自販機・ごみ箱・時刻表(背の高い物は発車標の前に来ないよう、後で場所を決める)
 // 島式(bs省略): ベンチは真ん中から左へ1m、自販機・時刻表は右へ1m(真ん中は誘導ブロック)。相対式: bs=ホームの奥の向き(±1)で、全部奥側に寄せる
 function platFurn(s0,s1,oc,y,bs){y=PT+(y||0);const rel=!!bs,bo=rel?bs*1.15:1.0,vo=rel?bs*1.15:-1.0,go=rel?bs*1.5:.95,tto=rel?bs*1.2:-1.0;
-for(let s=s0+16;s<s1-10;s+=27){const o=oc+bo;if(inSTZ(s,o,1))continue;const bk=rel?-bs:1;boxT(BV,s,o,y+.4,.5,.08,1.9,0x6b4a2f);boxT(BV,s,o+(rel?bs:1)*.24,y+.48,.06,.45,1.9,0x6b4a2f);for(const dz of[-.8,.8])boxT(BV,s+dz,o,y,.4,.42,.08,0x333333);const p=FP(s,o);solidW(p[0],p[1],.6,1.9,HD(s),TY(s)+y-.3,TY(s)+y+.5)}
+for(let s=s0+16;s<s1-10;s+=27){const o=oc+bo;if(inSTZ(s,o,1))continue;boxT(BV,s,o,y+.4,.5,.08,1.9,0x6b4a2f);boxT(BV,s,o+(rel?bs:1)*.24,y+.48,.06,.45,1.9,0x6b4a2f);for(const dz of[-.8,.8])boxT(BV,s+dz,o,y,.4,.42,.08,0x333333);const p=FP(s,o);solidW(p[0],p[1],.6,1.9,HD(s),TY(s)+y-.3,TY(s)+y+.5)}
 tallQ(s0+9,oc+vo,s0,s1,sv=>{const o=oc+vo;for(const[ds,c]of[[0,0xc0392b],[1.1,0x2a6fb0]]){boxT(BV,sv+ds,o,y,.7,1.85,.95,c);boxT(BLAMP,sv+ds,o-Math.sign(vo)*.02,y+.9,.72,.7,.8,0xfff2c0)}const p=FP(sv+.55,o);solidW(p[0],p[1],.75,2.1,HD(sv),TY(sv)+y-.3,TY(sv)+y+1.9)});   // 自販機
 if(!inSTZ(s0+12.5,oc+go,.5))boxT(BV,s0+12.5,oc+go,y,.45,.9,.45,0x3a6a3a);   // ごみ箱
 tallQ(s0+44,oc+tto,s0,s1,sv=>{const o=oc+tto;boxT(BV,sv,o,y,.12,1.9,1.4,0x2c3340);boxT(BLAMP,sv,o+.07,y+.9,.02,.9,1.2,0xf4f4ee);boxT(BLAMP,sv,o-.07,y+.9,.02,.9,1.2,0xf4f4ee);const p=FP(sv,o);solidW(p[0],p[1],.2,1.4,HD(sv),TY(sv)+y-.3,TY(sv)+y+1.9)})}   // 時刻表
@@ -1161,14 +1200,10 @@ function benchA(ax,s,o,y,ds,L){const A=along(ax,s,o,ds);A.box(BV,0,.3,y+.42,L,.0
 // 柱(四角)
 function pillarT(s,o,y,h,w){boxT(BV,s,o,y,w||.8,h,w||.8,0xe2e0da);boxT(BV,s,o,y,(w||.8)+.04,.1,(w||.8)+.04,0x8a8f96);const p=FP(s,o);solidW(p[0],p[1],w||.8,w||.8,HD(s),TY(s)+y-.5,TY(s)+y+h)}
 // ---- 発車標(時刻表どおりに次の列車を出す) ----
-// 普通10分毎・急行20分毎(自分の列車に合わせてずらす)。急行の5分前に出る普通(lnW/lhW)は、北川で急行を待ってから発車する(緩急接続)
-const SCHED_OFF={ln:600,lnW:0,en:300,lh:840,lhW:240,eh:540},   // 上りは終点の折り返しが10分未満に収まる時刻(同じ番線に2本入らない)
-SCHED_P={ln:1200,lnW:1200,lh:1200,lhW:1200,en:1200,eh:1200};
-{const mkW=(k,ke)=>{const L=ROUTES[k],E=ROUTES[ke],jL=L.stops.indexOf(2),jE=E.stops.indexOf(2),nd=SCHED_OFF[ke]-SCHED_OFF[k+'W']+E.dep[jE]+90,d=nd-L.dep[jL];   // 急行が北川を出た90秒後に発車(先の閉そくが空いてから)
-ROUTES[k+'W']=Object.assign({},L,{key:k+'W',arr:L.arr.map((x,j)=>j>jL?x+d:x),dep:L.dep.map((x,j)=>j===jL?nd:j>jL&&x?x+d:x)})};mkW('ln','en');mkW('lh','eh')}
+// ダイヤ(DIA、p1_data.js)の列車を0時からの時刻で出す
 const hhmm=t=>{t=((Math.floor(t)%86400)+86400)%86400;return Math.floor(t/3600)+':'+String(Math.floor(t%3600/60)).padStart(2,'0')};
-function nextDeps(i,dir,t,n){const r=[],a0=typeof WALK!=='undefined'&&WALK.on?0:RT&&SCHED_OFF[RT.key]!==undefined?SCHED_OFF[RT.key]:0;   // 乗り鉄モードは時刻表そのまま
-for(const k of dir>0?['ln','lnW','en','tn']:['lh','lhW','eh','th']){if(SCHED_OFF[k]===undefined)continue;const Rr=ROUTES[k],j=Rr.stops.indexOf(i);if(j<0||j===Rr.stops.length-1)continue;const P=SCHED_P[k],A=CFG.t0+((SCHED_OFF[k]-a0)%P+P)%P+Rr.dep[j],m=Math.ceil((t-20-A)/P);
+function nextDeps(i,dir,t,n){const r=[];
+for(const k of DIAK){const Rr=ROUTES[k];if(Rr.dir!==dir)continue;const j=Rr.stops.indexOf(i);if(j<0||j===Rr.stops.length-1)continue;const P=SCHED_P[k],A=SCHED_OFF[k]+Rr.dep[j],m=Math.ceil((t-20-A)/P);
 const via=Rr.type!=='普通'?Rr.stops.slice(j+1,-1).map(x=>WST[x].n).join('・'):'';for(let q=0;q<n;q++)r.push({t:A+(m+q)*P,type:Rr.type,dest:WST[Rr.stops[Rr.stops.length-1]].n,via})}
 return r.sort((x,y)=>x.t-y.t).slice(0,n)}
 const BOARDS=[];const MFR=new THREE.MeshLambertMaterial({color:0x2c3340});
@@ -1190,7 +1225,6 @@ for(const sd of[1,-1]){const sub=new THREE.Group();sub.position.z=sd*.062;if(sd<
 const mk=(w,l,m,z)=>{const g=new THREE.BoxGeometry(w,l,.008);g.translate(0,l/2-.03,0);const h=new THREE.Mesh(g,m);h.position.z=z;sub.add(h);return h};hs.push([mk(.035,.19,MHAND,.006),mk(.025,.28,MHAND,.012),mk(.01,.29,MSEC,.018)])}
 if(hang>0){const r=new THREE.Mesh(new THREE.BoxGeometry(.04,hang,.04),MFR);r.position.y=.36+hang/2;gr.add(r)}CLOCKS.push({g:gr,hs})}
 // 毎フレーム: 時計の針と、近くの発車標の書き換え
-let _bdK=-1;
 function stnTick(t){const a=t%43200/43200*Math.PI*2,b=t%3600/3600*Math.PI*2,c=Math.floor(t%60)/60*Math.PI*2;for(const C of CLOCKS)if(C.g.position.distanceToSquared(cam.position)<90000)for(const h of C.hs){h[0].rotation.z=-a;h[1].rotation.z=-b;h[2].rotation.z=-c}
 const k=Math.floor(t/15);for(const B of BOARDS)if(B.k!==k&&Math.hypot(B.p[0]-cam.position.x,B.p[1]-cam.position.z)<500){B.k=k;drawBoard(B,t)}}   // 近くに来た発車標は、その時の時刻で書き直す
 // ホームの発車標と時計(上屋・屋根から吊る)。roof=屋根の下の高さ(線路から)
@@ -1400,21 +1434,21 @@ flushCols();   // 上屋の柱・背の高い物を置く(発車標の前・階�
 // =====================================================================================
 // ==== 青山港(左側): 岸壁・コンテナヤード・クレーン・倉庫・タンク・大型船・臨海鉄道 ====
 // =====================================================================================
-{const s0=SQ-470,s1=SQ+930,sh=s=>SHORE(s)+2.5,y=GY(SQ);
+{const s0=SQ-470,s1=SQ+640,sh=s=>SHORE(s)+2.5,y=GY(SQ);   // 港は山(右側は6620から)の手前まで
 // 港の道路
-roadPar(1,s0,s1,22,8,'urban');for(const c of[SQ-300,SQ+60,SQ+420,SQ+800])roadX(1,c,18,110,8);
+roadPar(1,s0,s1,22,8,'urban');for(const c of[s0+4,SQ-300,SQ+60,SQ+420,s1-4])roadX(1,c,18,110,8);   // 道路の両端も交差点にする(途中で途切れない)
 lotGround(s0,s1,26,sh(SQ),hexc(0x6a6c6e));
 // 岸壁
 ribbon(BV,s0,s1,10,[[0,-3,hexc(0x8a8680)],[0,.25,hexc(0xb9b5ac)],[1.2,.25,hexc(0x55575a)],[1.2,-3,null]],s=>sh(s)-1.2,()=>y);
 for(let s=s0+5;s<s1;s+=14)boxT(BV,s,sh(s)-.7,.25,.5,.5,.5,0x2a2a2a);   // ボラード
 // コンテナヤード
 const CC=[0xb23a3a,0x2f4f7a,0xd98a2b,0x3f7a4f,0xe8e8ec,0x6b7076,0xc9b037,0x7a4a2f,0x2f7a8a];rsd(4242);
-for(let s=SQ+80;s<SQ+760;s+=14)for(let o=68;o<100;o+=2.8){if(rnd()<.2)continue;const n=1+Math.floor(rnd()*4);for(let k=0;k<n;k++)boxT(BV,s,o,.05+k*2.6,2.45,2.55,12,jit(hexc(CC[Math.floor(rnd()*CC.length)]),.12))}
+for(let s=SQ+80;s<SQ+580;s+=14)for(let o=68;o<100;o+=2.8){if(rnd()<.2)continue;const n=1+Math.floor(rnd()*4);for(let k=0;k<n;k++)boxT(BV,s,o,.05+k*2.6,2.45,2.55,12,jit(hexc(CC[Math.floor(rnd()*CC.length)]),.12))}
 // ガントリークレーン
 for(const s of[SQ+180,SQ+330,SQ+480,SQ+630]){const o=sh(s)-14;for(const dz of[-7,7])for(const dx of[-9,9])boxT(BV,s+dz,o+dx,0,1.2,30,1.2,0xc83232);boxT(BV,s,o,30,20,2,16,0xc83232);boxT(BV,s,o+18,31,58,1.6,2.4,0xc83232);boxT(BV,s,o-6,32,8,4,6,0xe8e8ec);for(const dx of[-9,9])boxT(BV,s,o+dx,6,1,1.2,15,0xc83232)}
 // 倉庫・タンク
 for(const[s,o,w,d,h]of[[SQ-380,60,40,70,11],[SQ-280,60,40,60,10],[SQ-160,62,44,90,12],[SQ-380,110,40,70,10]]){const p=FP(s,o);setCh(s);factory(p[0],p[1],y,HD(s)+Math.PI,w,d,h,{truck:true})}
-for(let i=0;i<6;i++){const s=SQ+800+(i%3)*28,o=48+Math.floor(i/3)*28,p=FP(s,o);setCh(s);cylW(BV,p[0],y,p[1],11,14,20,hexc(0xe8e8ec));cylW(BV,p[0],y+14,p[1],11,1.2,20,hexc(0xd9dde2),8)}
+for(let i=0;i<6;i++){const s=SQ-60+(i%3)*28,o=48+Math.floor(i/3)*28,p=FP(s,o);setCh(s);cylW(BV,p[0],y,p[1],11,14,20,hexc(0xe8e8ec));cylW(BV,p[0],y+14,p[1],11,1.2,20,hexc(0xd9dde2),8)}
 signT(tex(g=>{g.fillStyle='#1e3a5a';g.fillRect(0,0,512,128);g.fillStyle='#fff';g.font='bold 60px sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillText('青山港',256,52);g.font='bold 26px sans-serif';g.fillText('AOYAMA PORT',256,100)},512,128),10,2.5,SQ+60,26.5,5,-Math.PI/2);
 // 大型船(コンテナ船・タンカー・タグボート)
 const ship=(s,L,B,hh,hc,cont,tank)=>{const o=sh(s)+B/2+6,yy=SEAY;for(let i=0;i<10;i++){const s1=s+L*(i/10-.5),s2=s1+L/10,w=B*(i===9?.55:i===0?.75:1);boxT(BV,(s1+s2)/2,o,yy-4,w,hh+4,L/10+.05,hc,{top:hexc(0x7a1f1f)})}
@@ -1423,9 +1457,9 @@ if(cont)for(let i=0;i<16;i++)for(let j=0;j<6;j++)for(let k=0;k<1+((i+j)%3);k++)b
 if(tank)for(let i=0;i<6;i++){const p=FP(s-L*.2+i*L*.11,o);setCh(s);cylW(BV,p[0],yy+hh,p[1],B*.18,2,10,hexc(0x9aa0a6))}};
 ship(SQ+400,290,44,14,0x20324d,true,false);ship(SQ-200,230,38,12,0x23262b,false,true);ship(SQ+760,30,9,3,0x2a5d3a,false,false);
 // 臨海鉄道: 貨物側線(13.2)の先からS字に海側へ寄って、港の中を走る(非電化)
-{const ps=[];const add=(a,b,f,o)=>{tk(a,b,f,Object.assign({ne:1},o));ps.push(TRK[TRK.length-1])};add(SQ+185,SQ+315,13.2,{st:4});add(SQ+315,SQ+526,bX(13.2,58,SQ+315,SQ+526),{st:2.5});add(SQ+526,SQ+760,58,{b1:1,st:4});for(const q of ps)drawTrack(q);
+{const ps=[];const add=(a,b,f,o)=>{tk(a,b,f,Object.assign({ne:1},o));ps.push(TRK[TRK.length-1])};add(SQ+185,SQ+315,13.2,{st:4});add(SQ+315,SQ+526,bX(13.2,58,SQ+315,SQ+526),{st:2.5});add(SQ+526,SQ+610,58,{b1:1,st:4});for(const q of ps)drawTrack(q);
 const xs=SQ+315+211*.03;boxT(BV,xs,13.4,.3,9,.18,5,0x55575c);   // 港の道路の踏切
-lotGround(SQ+300,SQ+780,50,66,hexc(0x9a968e))}
+lotGround(SQ+300,SQ+620,50,66,hexc(0x9a968e))}
 }
 
 // =====================================================================================
@@ -1444,8 +1478,12 @@ boxT(BV,Z-430,GX(1),0,7,7,40,0xb8c4cc,{top:hexc(0x6a7076)});boxT(BV,Z-430,GX(1),
 boxT(B_OFF2,Z-560,GX(NT)-13,0,14,10,36,hexc(0xe2ddd2),{tx:[12.8,14.4],topB:BV,top:hexc(0x8a8f96)});
 signT(tex(g=>{g.fillStyle='#000080';g.fillRect(0,0,768,128);g.fillStyle='#fff';g.font='bold 56px sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillText('珀南鉄道 南川総合車両基地',384,52);g.font='bold 24px sans-serif';g.fillText('HAKUNAN RAILWAY  MINAMIKAWA DEPOT',384,102)},768,128),16,2.6,Z-560,GX(NT)-5.9,6,Math.PI/2);
 // 留置中の編成
-const lv=['lc','lc','ex','lc','gr','ex','lc','lc','ex'];for(let k=1;k<=NT;k++){if(k===3)continue;const n=k%3===0?6:4,len=n*20;trainAt(n,lv[k-1],ZE+30+len+(k*37%60),GX(k),1);if(k<=5&&zk(k)-60-(ZE+30+len+(k*37%60))>100)trainAt(4,lv[(k+3)%9],zk(k)-80,GX(k),1)}
-ribbon(BFENCE,ZE,Z-150,6,[[-66,0,0xffffff],[-66,1.8,null]],null,GY,{uv:2.5});solidO(-66,ZE,Z-150,GY,-1,1.8)}
+const lv=['lc','lc','ex','lc','gr','ex','lc','lc','ex'];for(let k=1;k<=NT;k++){if(k===3)continue;const n=k%3===0?6:4,len=n*20;trainAt(n,lv[k-1],ZE+30+len+(k*37%60),GX(k),1);if(k<=5&&zk(k)-60-(ZE+30+len+(k*37%60))>100){let h=zk(k)-80;for(const X of XING)if(h>X.z-5&&h-80<X.z+5)h=X.z+85<=zk(k)-62?X.z+85:X.z-5;trainAt(4,lv[(k+3)%9],h,GX(k),1)}}   // 踏切(基地の中)の上には置かない
+// 基地の中を通る踏切(本線の踏切の続き): 基地の線路もまたいで、基地の外側の道路(線路から80m)へ抜ける。外側の道路は両側の街の道路につながる
+const XD=XING.find(X=>!X.ped&&X.z>ZE&&X.z<Z-150);
+for(const[a,b]of XD?[[ZE,XD.z-5],[XD.z+5,Z-150]]:[[ZE,Z-150]]){ribbon(BFENCE,a,b,6,[[-66,0,0xffffff],[-66,1.8,null]],null,GY,{uv:2.5});solidO(-66,a,b,GY,-1,1.8)}
+if(XD){const s=XD.z;boxT(BV,s,-37.25,.3,57.5,.18,5.6,0x55575c);for(let k=0;k<=NT;k++)boxT(BV,s,GX(k),.47,1.0,.02,5.4,0x6a6c70);   // 基地の線路の上の踏切の路面
+roadX(-1,s,8.5,84,8);roadPar(-1,ZE-10,Z-140,80,8,'res')}}
 
 // =====================================================================================
 // ==== 北川空港(右側): ターミナル・管制塔・エプロン・旅客機・滑走路 ====
@@ -1495,7 +1533,7 @@ const ax=b.hw<.3?0:b.hd<.3?1:(px<pz?0:1);if(ax===0)lx+=Math.sign(lx||1)*px;else 
 // 乗り鉄モードを始める場所: 改札の外(改札の前)。[s, 横, 床の高さ(線路から), 向き(0=+s向き・π/2=左向き)]
 const WSPAWN=[z=>[-136,-2.3,PT,0],z=>[z-50+6.5,2.5,PT,0],z=>[z-3,-9.6,8.65,Math.PI/2],z=>[z-3,-11.2,8.65,Math.PI/2],z=>[z+17,-11.6,PT,Math.PI/2],z=>[z-47,2.5,-EHt(z),0],z=>[z+5,16.8,PT,-Math.PI/2],z=>[z+53,2.5,-EHt(z),Math.PI]];
 function startWalk(i){viewReset(true);if(_mbg){_mbg=false;for(const id of HUDIDS)$(id).style.visibility=''}   // タイトルの背景で隠した表示(メニューボタンなど)を戻す
-walkTrainStart(i);audio();ttsLoad();closeMenu();hideToast();setRoute('ln');s=newState('walk');s.clk=true;ONC.on=false;ONC.g.visible=false;clearEv();EV=null;
+walkTrainStart(i);audio();closeMenu();hideToast();setRoute('ln');s=newState('walk');s.clk=true;ONC.on=false;ONC.g.visible=false;clearEv();EV=null;
 const S=WST[i],[sp,of,yy,yw]=WSPAWN[i](S.z),p=FP(sp,of);WALK.on=true;WALK.i=i;WALK.x=p[0];WALK.z=p[1];WALK.y=surfH(p[0],p[1],TY(sp)+yy+.5);WALK.vy=0;WALK.base=WALK.y;WALK.ground=true;WALK.yaw=HD(sp)+yw;WALK.ey=undefined;WALK.pitch=0;WALK.k={};
 cab.visible=false;$('pad').style.display='none';$('ov').style.display='none';$('walkhud').style.display='block';$('whelp').style.display='';clearTimeout(WALK.ht);WALK.ht=setTimeout(()=>{$('whelp').style.display='none'},12000);$('mbtn').style.display='block';$('vbtns').style.display='none';if(A)A.m.gain.value=0;if(A&&!A.wk){A.wk=A.createGain();A.wk.connect(A.destination)}if(A)A.wk.gain.value=masterVol()}
 function pip(){if(!A||!A.wk)return;const t0=A.currentTime;for(const d of[0,.11]){const o=A.createOscillator(),g=A.createGain();o.frequency.value=2093;g.gain.setValueAtTime(.0001,t0+d);g.gain.linearRampToValueAtTime(.18,t0+d+.005);g.gain.setValueAtTime(.18,t0+d+.07);g.gain.linearRampToValueAtTime(.0001,t0+d+.085);o.connect(g);g.connect(A.wk);o.start(t0+d);o.stop(t0+d+.1)}}   // 改札の「ピッ」
@@ -1518,7 +1556,8 @@ if(WALK.ground&&WALK.y-h<.6&&WALK.vy<=0){WALK.y=h}else{WALK.vy-=9.8*dt;WALK.y+=W
 WALK.ground=WALK.y<=h+.001;if(WALK.ground)WALK.base=WALK.y;if((K[' ']||WALK.jump)&&WALK.ground){WALK.vy=4;WALK.ground=false;WALK.y+=.01}WALK.jump=false;
 }
 let walkHudT=0;
-function walkFrame(dt){walkZoomStep(dt);if(!s.paused&&!menuKind){walkTrainUpdate(dt);if(COND.on)condUpdate(dt);autoAnn(dt);if(WALK.inT)trainWalkStep(dt);else walkStep(dt);s.t+=dt}if(WALK.inT)trainSync();   // 列車に乗っている間は列車の座標で歩く
+function walkFrame(dt){if(N10CAB&&N10CAB.visible)n10CabPlace(0,0,0,0,0,false);   // 特急を運転したあとの先頭車(運転台用)を残さない
+walkZoomStep(dt);if(!s.paused&&!menuKind){walkTrainUpdate(dt);if(COND.on)condUpdate(dt);if(WALK.inT)trainWalkStep(dt);else walkStep(dt);s.t+=dt}if(WALK.inT)trainSync();   // 列車に乗っている間は列車の座標で歩く
 wtAudio();   // 乗れる列車の音
 let ty=WALK.y+1.4;if(WALK.inT&&(WALK.fh||0)>.6)ty=Math.min(ty,WALK.y+NK.HR-.22-(CY.FL+WALK.fh));/* 2階(展望席)は天井が低いので、目の高さを天井の下に */if(WALK.ey===undefined||WALK.inT||Math.abs(ty-WALK.ey)>1.2||!WALK.ground)WALK.ey=ty;else WALK.ey+=(ty-WALK.ey)*Math.min(1,dt*14);   // 階段などで目の高さがかくかくしないよう、なめらかに追いかける
 let ex=WALK.x,ey=WALK.ey,ez=WALK.z;if(COND.on&&COND.lean&&WALK.inT){const[,c,lz]=wtCar(),p=c.localToWorld(new THREE.Vector3(COND.lean*(CAR_W/2+.32),CY.FL+1.62,lz));ex=p.x;ey=p.y;ez=p.z}   /* 車掌: 窓から顔を出す */
@@ -1544,7 +1583,7 @@ const MBG={s:ZM+700,o:80,h:30,ts:ZM+350,to:2.5,ty:8};let _mbg=false;   /* 南川
 const HUDIDS=['top','bot','warn','mbtn','vbtns'];
 function menuBG(dt){const on=!!menuKind&&menuKind!=='pause'&&s.mode==='ready'&&!WALK.on;
 if(!on){if(_mbg){_mbg=false;cab.visible=true;for(const id of HUDIDS)$(id).style.visibility=''}return false}
-if(!_mbg){_mbg=true;cab.visible=false;for(const id of HUDIDS)$(id).style.visibility='hidden'}
+if(!_mbg){_mbg=true;cab.visible=false;n10CabPlace(0,0,0,0,0,false);for(const id of HUDIDS)$(id).style.visibility='hidden'}
 const p=FP(MBG.s,MBG.o),q=FP(MBG.ts,MBG.to),y=GY(MBG.s)+MBG.h,l=Math.hypot(q[0]-p[0],q[1]-p[1]);cam.position.set(p[0],y,p[1]);cam.up.set(0,1,0);cam.lookAt(q[0],TY(MBG.ts)+MBG.ty,q[1]);
 envUpdate(dt,false,(q[0]-p[0])/l,(q[1]-p[1])/l,y,CFG.t0);renderer.render(scene,cam);return true}
 
@@ -1679,21 +1718,13 @@ const seatPos=(S,f)=>S.cross?{x:S.x,z:S.zc+f*.04,ly:f>0?0:Math.PI,ax:S.ax,az:S.z
 const SPH=buildSPH(wtEnd,'H'),SPH22=buildSPH(i=>i%2===0?1:2,'H22');
 const spTL=sp=>sp.L/2+sp.CP*(sp.N-1)+sp.L/2,spOfKey=k=>k[0]==='t'?SPN:SPH;
 // ---- 時刻表 → 列車の位置 ----
-// 通り道(運転モードと同じ): 普通は珀南3番線・北川/吉浜中央/北川空港は外側の線、急行は珀南4番線と本線
-const cxA=z=>5*SM((z-(ZA-330))/100);
-// 吉浜中央は逆: 普通は内側の待避線(2・3番線)、急行は外側の本線(1・4番線)
-const PATH={ln:z=>(z<=520?depPath[3](z):TX)+ISH(z)+ISP*LPN(z)+YLC(z)+ISP*LAP(z),
-lh:z=>(z<=520?arrPath[3](z):0)-ISH(z)-ISP*LPN(z)-YLC(z)+cxA(z)+ISP*LAP(z),
-en:z=>(z<=520?depPath[4](z):TX)+ISH(z)+ISP*YCM(z),
-eh:z=>(z<=520?arrPath[4](z):0)-ISH(z)-ISP*YCM(z)+cxA(z),
-tn:z=>(z<=520?depPath[5](z):TX)+ISH(z)+ISP*YCM(z)-5*SM((z-(ZA-330))/100),   // 特急: 珀南5番線・吉浜中央は本線(1・4番線)・北川空港2番線
-th:z=>(z<=520?arrPath[5](z):0)-ISH(z)-ISP*YCM(z)};
 // 停車位置(1両目の端 sA): 下りは駅中心-40、上りは駅中心(停止位置目標の4両の所)。終点は両方とも駅中心-40
 const stopSA=(R,i)=>R.type==='特急'?(i===0?-97.5:WST[i].z+12-spTL(SPN)/2):i===0?-97.5:(R.dir>0||i===WST.length-1)?WST[i].z-40:WST[i].z;   // 珀南は車止めから2m
-// 駅間の走り方: 制限速度(運転モードと同じ標識・分岐の45km/h・渡り線の25km/h)を守り、加速0.8・減速0.9m/s²(3km/h/s前後)。
-// 制限は編成の全体(4両)が抜けるまで守る。時刻表の時間ちょうどで着くように、全体の最高速度を下げて合わせる
-const ACC=.8,DEC=.9;
-function wtLim(k,s,dir){const b=k.replace('W',''),t=b[0]==='t',LF=t?LIMFT:LIMF,LR=t?LIMRT:LIMR;let l;if(dir>0){l=45;for(const e of LF)if(s>=e[0])l=e[1]}else{const p=Z0-s;l=t?LIMRBT:LIMRB;for(const e of LR)if(p>=e[0])l=e[1]}
+// 駅間の走り方(実物の運転のしかた): 力行(80km/hまではP4、その先はP5)→ 惰行(ノッチを切って走行抵抗と勾配で少しずつ落ちる。12km/h落ちたらまた力行)→ ブレーキ。
+// 制限速度は編成の全体が抜けるまで守る。時刻表に間に合う範囲でいちばん低い惰行の速度を選ぶ(着くのは定刻の約2秒前)。
+// ブレーキは速度で強さが変わる: 高い速度では少し弱く(約2.4km/h/s)、中間は約2.9km/h/s、15km/h以下から緩めて、止まる直前は約1.2km/h/s(ショックなく止まる)。
+// 性能いっぱいでも間に合わない区間は、P5でブレーキも少し強めにして走り、遅れは次の駅の停車時間を縮めて(最低 DWMIN 秒)取り戻す(wtEff)
+function wtLim(k,s,dir){const b=KB(k),t=b[0]==='t',LF=t?LIMFT:LIMF,LR=t?LIMRT:LIMR;let l;if(dir>0){l=45;for(const e of LF)if(s>=e[0])l=e[1]}else{const p=Z0-s;l=t?LIMRBT:LIMRB;for(const e of LR)if(p>=e[0])l=e[1]}
 const in_=(a,c)=>s>=a&&s<c;
 if((b==='ln'||b==='en')&&in_(390,490))l=Math.min(l,25);   // 珀南の渡り線
 if((b==='ln'||b==='lh')&&(in_(SK-200,SK+250)||in_(ZY+95,ZY+205)||in_(ZY-275,ZY-150)))l=Math.min(l,30);   // 北川の外側線への分岐 / 吉浜中央の待避線と本線の間の分岐
@@ -1701,50 +1732,124 @@ if(b==='ln'&&in_(ZA-200,ZA-100))l=Math.min(l,30);if(b==='ln'&&in_(ZA-330,ZA-230)
 if(b==='lh'&&in_(ZA-200,ZA-100))l=Math.min(l,30);if(b==='lh'&&in_(380,500))l=Math.min(l,25);if((b==='ln'||b==='lh')&&in_(130,250))l=Math.min(l,30);/* 珀南の6番線への分岐・渡り線 */if(b==='lh'&&in_(275,385))l=Math.min(l,30);/* 珀南の3番線への分岐 */if((b==='lh'||b==='eh')&&in_(ZA-330,ZA-230))l=Math.min(l,25);   // 北川空港の渡り線
 if(b==='tn'&&in_(ZA-330,ZA-230))l=Math.min(l,25);if(b==='th'&&in_(390,490))l=Math.min(l,25);   // 特急の渡り線
 return l/3.6}
+const DWMIN=20;
+const grAt=s=>{let g=0;for(const e of GRF)if(s>=e[0])g=e[1];return g};   // 勾配(‰、+z 向きに上り)
+const dStop=v=>{const k=v*3.6;return(k<=4?1.2+k/4*.8:k<=15?2+(k-4)/11*.9:k<=70?2.9:2.9-Math.min(.5,(k-70)/40*.5))/3.6};   // ブレーキの減速度(m/s²)
 const _PF=new Map();
-function segProf(k,j){const key=k+'_'+j;if(_PF.has(key))return _PF.get(key);const tk=k[0]==='t';const R=ROUTES[k],sa=i=>stopSA(R,R.stops[i]),s0=sa(j-1),s1=sa(j),L=Math.abs(s1-s0),sg=Math.sign(s1-s0)||1,T=R.arr[j]-R.dep[j-1],n=Math.max(4,Math.ceil(L/2)),h=L/n,TL=spTL(spOfKey(k));
-const lim=new Float64Array(n+1);for(let i=0;i<=n;i++){const sA=s0+sg*h*i;let m=1e9;for(let q=0;q<=TL;q+=2)m=Math.min(m,wtLim(k,sA+q,R.dir));lim[i]=m}   // 編成の範囲(1両目の端sAから+s側へ)で一番低い制限
-const v=new Float64Array(n+1),mk=(ac,dc)=>{for(let i=1;i<=n;i++){const u=v[i-1],aa=ac<0?Math.max(.03,-ac*accelN(u*3.6<80?4:5,u*3.6,tk)/3.6-(.012+.00012*u*u)):ac;v[i]=Math.min(lim[i],Math.sqrt(u*u+2*aa*h))}v[n]=0;for(let i=n-1;i>=0;i--)v[i]=Math.min(v[i],Math.sqrt(v[i+1]*v[i+1]+2*dc*h));v[0]=0};
-const tm=c=>{let t=0;for(let i=0;i<n;i++){const a=Math.min(v[i],c),b=Math.min(v[i+1],c);t+=2*h/Math.max(a+b,1e-3)}return t};
-mk(-1,DEC);if(tm(60)>T)mk(-1.25,1.0);if(tm(60)>T)mk(1.0,1.0);   /* 運転士の操作の目安どおり: 85km/hまではP4、そこからP5(フルノッチ)。ac<0 はその倍率 */   // 時刻表に間に合わない区間は強めに加速・減速する
-const c=60;   // 制限速度いっぱいで走る(早く着いたら駅で発車時刻まで待つ)
-const tc=new Float64Array(n+1),vv=new Float64Array(n+1);for(let i=0;i<=n;i++)vv[i]=Math.min(v[i],c);for(let i=0;i<n;i++)tc[i+1]=tc[i]+2*h/Math.max(vv[i]+vv[i+1],1e-3);
-const k2=tc[n]>T?tc[n]/T:1;   // 間に合わない時(ほぼ無い)は少し速く走る
-const P={n,h,tc,v:vv,k2,sg,L};_PF.set(key,P);return P}
+// 1区間の速度の表(2mごと)。vc=惰行に入る速度(m/s)、strong=遅れている時(P5・ブレーキ1.15倍)
+function wtRun(k,j,G,vc,strong){const tk=k[0]==='t',{n,h,lim,s0,sg}=G,v=new Float64Array(n+1);let pw=true;
+for(let i=1;i<=n;i++){const u=v[i-1],s=s0+sg*h*(i-.5);if(pw&&u>=vc)pw=false;else if(!pw&&u<vc-12/3.6)pw=true;
+const a=(pw?accelN(strong||u*3.6>=80?5:4,u*3.6,tk)/3.6*(u<1?.6+.4*u:1):0)-(.012+.00012*u*u)-9.8*grAt(s)/1000*sg;   // 動き出しは少しやわらかく
+v[i]=Math.min(lim[i],Math.sqrt(Math.max(0,u*u+2*a*h)));if(v[i]<.3)pw=true}
+v[n]=0;for(let i=n-1;i>=0;i--)v[i]=Math.min(v[i],Math.sqrt(v[i+1]*v[i+1]+2*dStop(v[i+1])*(strong?1.15:1)*h));v[0]=0;
+const tc=new Float64Array(n+1);for(let i=0;i<n;i++)tc[i+1]=tc[i]+2*h/Math.max(v[i]+v[i+1],1e-3);return{n,h,tc,v,k2:1,sg,L:G.L}}
+// 時刻表どおりに走った時の実際の発車・到着(遅れを含む)と、区間ごとの走り方
+function wtEff(k){const key=k+'_E';if(_PF.has(key))return _PF.get(key);const R=ROUTES[k],N=R.stops.length,dep=R.dep.slice(),arr=R.arr.slice(),sa=i=>stopSA(R,R.stops[i]),TL=spTL(spOfKey(k));
+for(let j=1;j<N;j++){const s0=sa(j-1),s1=sa(j),L=Math.abs(s1-s0),sg=Math.sign(s1-s0)||1,n=Math.max(4,Math.ceil(L/2)),h=L/n,lim=new Float64Array(n+1);
+for(let i=0;i<=n;i++){const sA=s0+sg*h*i;let m=1e9;for(let q=0;q<=TL;q+=2)m=Math.min(m,wtLim(k,sA+q,R.dir));lim[i]=m}   // 編成の範囲(1両目の端sAから+s側へ)で一番低い制限
+const G={n,h,lim,s0,sg,L},tgt=R.arr[j]-dep[j-1]-2,full=wtRun(k,j,G,99,false);let P;
+if(full.tc[n]>tgt){const st=wtRun(k,j,G,99,true);P=st.tc[n]<full.tc[n]?st:full}
+else{let lo=5,hi=Math.max(...lim);P=full;for(let it=0;it<16;it++){const m=(lo+hi)/2,Q=wtRun(k,j,G,m,false);if(Q.tc[n]<=tgt){P=Q;hi=m}else lo=m}}
+_PF.set(k+'_'+j,P);arr[j]=dep[j-1]+P.tc[n];if(j<N-1)dep[j]=Math.max(R.dep[j],arr[j]+DWMIN)}
+const E={dep,arr};_PF.set(key,E);return E}
+function segProf(k,j){const key=k+'_'+j;if(!_PF.has(key))wtEff(k);return _PF.get(key)}
 function segAt(P,u){u*=P.k2;const{n,h,tc,v}=P;if(u<=0)return{x:0,v:0,a:0};if(u>=tc[n])return{x:P.L,v:0,a:0};let lo=0,hi=n;while(hi-lo>1){const m=(lo+hi)>>1;if(tc[m]<=u)lo=m;else hi=m}
 const dt=tc[lo+1]-tc[lo],a=(v[lo+1]-v[lo])/Math.max(dt,1e-6),t=u-tc[lo];return{x:Math.min(P.L,h*lo+v[lo]*t+.5*a*t*t),v:(v[lo]+a*t)*P.k2,a:a*P.k2*P.k2}}
-function prof(L,T,u){const a=.7,b=.85,c=1/(2*a)+1/(2*b),dd=T*T-4*c*L;let v=dd>=0?(T-Math.sqrt(dd))/(2*c):T/(2*c);const t1=v/a,t3=v/b,t2=Math.max(0,T-t1-t3),tot=.5*a*t1*t1+v*t2+.5*b*t3*t3,k=L/Math.max(tot,1e-6);
-let x,vv,ac;if(u<t1){x=.5*a*u*u;vv=a*u;ac=a}else if(u<t1+t2){x=.5*a*t1*t1+v*(u-t1);vv=v;ac=0}else{const r=Math.max(0,T-u);x=tot-.5*b*r*r;vv=b*r;ac=-b}return{x:x*k,v:vv*k,a:ac*k}}
 // 運用: 時刻表の列車(下り・上り)を、終点で着いた順に次の折り返しの列車へつなぐ(1分以上あける)。つながった列は1本の編成
 // 北川空港の普通は4番線と1番線を交互に使う(折り返しの列車が同じ番線に重ならないように)。1番線へは渡り線を通る
 // 通り道を番線つきで作る: tb=珀南の番線、ta=北川空港の番線(折り返しの列車が同じ番線に重ならないよう、着いた順に空いている番線を使う)
 const TRK_HK={'普通':[3,6],'急行':[4],'特急':[5]},TRK_AP={'普通':[4,1],'急行':[3],'特急':[2]},_PO=new Map();
-const PATH_OF=(k,ta,tb)=>{const b=k.replace('W',''),R=ROUTES[k],ty=R.type,lc=ty==='普通',dn=R.dir>0;ta=ta||TRK_AP[ty][0];tb=tb||TRK_HK[ty][0];const key=b+ta+'_'+tb;if(_PO.has(key))return _PO.get(key);
+const PATH_OF=(k,ta,tb)=>{const b=KB(k),R=ROUTES[k],ty=R.type,lc=ty==='普通',dn=R.dir>0;ta=ta||TRK_AP[ty][0];tb=tb||TRK_HK[ty][0];const key=b+ta+'_'+tb;if(_PO.has(key))return _PO.get(key);
 const cx=z=>5*SM((z-(ZA-330))/100),ap=dn?(ta===4?z=>ISP*LAP(z):ta===1?z=>-cx(z)-ISP*LAP(z):ta===2?z=>-cx(z):z=>0):(ta===4?z=>cx(z)+ISP*LAP(z):ta===1?z=>-ISP*LAP(z):ta===2?z=>0:cx),
 mid=lc?z=>ISP*LPN(z)+YLC(z):z=>ISP*YCM(z),f=dn?z=>(z<=520?depPath[tb](z):TX)+ISH(z)+mid(z)+ap(z):z=>(z<=520?arrPath[tb](z):0)-ISH(z)-mid(z)+ap(z);_PO.set(key,f);return f};
+// ---- 珀南の入換(上りが1・2番線に着く → 降車 → 回送で引き上げ線へ → 向きを変えて発車番線へ → 乗車 → 発車) ----
+// 入換の速さ: 構内(600mより駅寄り)は30km/h、引き上げ線の奥は45km/h。HKP: 走り方(segAt で使える形)
+let HK_TYPES=new Set(['普通','急行','特急']);   // 入換をする種別(全部)。引き上げ線は1本なので、余裕の少ない列車から先に割り当てる
+const HK_UNLOAD=40,HK_REV=25,HK_BOARD=50,_HKP=new Map();
+const HK_DEP={'普通':[3,6],'急行':[4,5],'特急':[5,4]};   // 入換のあと出る番線の候補(前から順に使いたい番線)。5・6番線は下り本線の側なので、着く列車とぶつからない
+function HKP(tk,TL,s0,s1){const key=[tk,TL,s0,s1].join();if(_HKP.has(key))return _HKP.get(key);const L=Math.abs(s1-s0),sg=Math.sign(s1-s0),n=Math.max(4,Math.ceil(L/2)),h=L/n,lim=new Float64Array(n+1);
+for(let i=0;i<=n;i++){const sA=s0+sg*h*i;let m=1e9;for(let q=0;q<=TL;q+=2)m=Math.min(m,(sA+q<600?30:45)/3.6);lim[i]=m}const P=wtRun(tk?'t':'l',0,{n,h,lim,s0,sg,L},99,false);_HKP.set(key,P);return P}
+// 区間(資源)ごとに、列車の車体が入っている時間を予約する。区間は分岐・渡り線の「線路ごと」に分ける(0=上り本線の側、9=引き上げ線・3番線の側、5=下り本線の側)。
+// 曲がって渡る動きは両方の線路を使う。同じ線路を続いて走るだけの所は信号が守るので数えない。P1〜P6=ホーム、Z=引き上げ線
+const XZA=['XZ0',500,900],XZ0=['XZ0',500,590],XZ9=['XZ9',500,590],XO0=['XO0',390,490],XO5=['XO5',390,490],T30=['T30',280,390],T39=['T39',280,390],A12=['A12',100,280],TD5=['TD5',140,240],TD6=['TD6',140,240];
+const HKR={arr:p=>p<=2?[XZA,XO0,T30,T39,A12,['P'+p,-100,100]]:p===3?[XZA,XO0,T30,T39,['P3',-100,250]]:p===4?[XZA,XO0,T30,['P4',-100,250]]:p===5?[XZA,XO0,XO5,TD5,['P5',-100,140]]:[XZA,XO0,XO5,TD5,TD6,['P6',-100,140]],   /* 着く列車は場内信号(600m)の手前から上り本線を予約 */
+dep:d=>d===3?[['P3',-100,250],T39,T30,XO0,XO5]:d===4?[['P4',-100,250],T30,XO0,XO5]:d===5?[['P5',-100,140],TD5,XO5]:[['P6',-100,140],TD6,TD5,XO5],
+out:p=>[['P'+p,-100,100],A12,T39,XZ9,['Z',380,790]],
+in:d=>d===3?[['Z',380,790],XZ9,T39,['P3',-100,250]]:d===4?[['Z',480,790],XZ9,XZ0,XO0,T30,['P4',-100,250]]:d===5?[['Z',480,790],XZ9,XZ0,XO0,XO5,TD5,['P5',-100,140]]:[['Z',480,790],XZ9,XZ0,XO0,XO5,TD5,TD6,['P6',-100,140]]};
+// 動き(時刻 t → 車体の珀南寄りの端 sA)が区間 [a,b] に入っている時間
+function hkSpan(posF,T0,T1,TL,a,b){let lo=null,hi=null;for(let t=T0;t<=T1;t+=1){const sA=posF(t);if(sA===null)continue;if(sA<b&&sA+TL>a){if(lo===null)lo=t;hi=t}}return lo===null?null:[lo,hi]}
+function hkPlan(blocks){const R={};const res=n=>R[n]||(R[n]=[]),M=8,free=(n,a,b)=>!res(n).some(([x,y])=>a<y+M&&b>x-M),put=(n,a,b)=>res(n).push([a,b]);
+const tlOf=ty=>spTL(ty==='特急'?SPN:SPH),tkOf=ty=>ty==='特急';
+const AR=[],DP=[];for(const b of blocks)b.forEach((tr,i)=>{if(tr.to===0)AR.push({tr,nx:b[i+1]});if(tr.from===0)DP.push({tr,pv:i?b[i-1]:null})});
+AR.sort((x,y)=>x.tr.a-y.tr.a);DP.sort((x,y)=>x.tr.d-y.tr.d);
+// 番線: 着く列車は1・2番線を交互(空いている方)、出る列車は種別の番線(普通は3・6番線を交互)
+const lastP={1:-1e9,2:-1e9},cnt={},dOf=ty=>{const L=TRK_HK[ty];cnt[ty]=(cnt[ty]||0)+1;return L[cnt[ty]%L.length]};
+for(const o of AR){if(HK_TYPES.has(o.tr.type)){const p=lastP[1]<=lastP[2]?1:2;o.p=p;lastP[p]=o.tr.a}else{o.p=dOf(o.tr.type);o.direct=true}o.tr.tb=o.p}
+for(const o of AR)if(o.direct)put('P'+o.p,o.tr.a,(o.nx?o.nx.d:o.tr.a+600)+20);   // そのまま折り返す列車はホームにいる間ずっと
+// 本線の列車(時刻は決まっている)を先に予約する。普通の発車番線(3・6番線)は、ほかの動きと重ならない方を選ぶ
+const pos=(k,dep)=>t=>tripAt(k,t-dep).sA,spans=(segs,F,T0,T1,TL)=>segs.map(([n,a,b])=>{const s=hkSpan(F,T0,T1,TL,a,b);return s?[n,s[0],s[1]]:null}).filter(x=>x);
+for(const o of AR){const sp=spans(HKR.arr(o.p),pos(o.tr.k,o.tr.d),o.tr.a-200,o.tr.a+2,tlOf(o.tr.type));for(const x of sp){if(!o.direct&&x[0]==='P'+o.p){o.pa=x[1];continue}put(...x)}o.stop=o.tr.a;if(o.pa===undefined)o.pa=o.tr.a-40}   // 1・2番線のどちらに着くかは入換の計画で決める(pa: ホームに入り始める時刻)
+for(const o of DP){const a=o.pv&&AR.find(x=>x.tr===o.pv),F=pos(o.tr.k,o.tr.d),TL=tlOf(o.tr.type);if(a&&!a.direct){o.hk=true;continue}   /* 入換のあと出る列車の番線は入換の計画で決める */let C=a&&a.direct?[a.p]:TRK_HK[o.tr.type].slice();if(C.length>1){const pref=dOf(o.tr.type);C.sort((x,y)=>(x===pref?0:1)-(y===pref?0:1))}
+let pick=C[0];for(const d of C){if(spans(HKR.dep(d),F,o.tr.d,o.tr.d+150,TL).every(([n,x,y])=>free(n,x,y))){pick=d;break}}o.d=pick;o.tr.tb=pick;for(const x of spans(HKR.dep(pick),F,o.tr.d,o.tr.d+150,TL))put(...x)}
+// 入換: 着いた順に、引き上げ線へ出る時刻・ホームへ入る時刻をいちばん早い空いている時刻に決める
+let bad=0;HKFAIL.length=0;for(const o of AR){const nx=o.nx;if(!nx||o.direct)continue;
+const ty=o.tr.type,TL=tlOf(ty),tk=tkOf(ty),FD=pos(nx.k,nx.d);
+const P1=HKP(tk,TL,-97.5,HKZ),P2=HKP(tk,TL,HKZ,-97.5),D1=P1.tc[P1.n],D2=P2.tc[P2.n];
+const f1=t1=>t=>t<t1?-97.5:t>t1+D1?HKZ:-97.5+segAt(P1,t-t1).x,f2=t2=>t=>t<t2?HKZ:t>t2+D2?-97.5:HKZ-segAt(P2,t-t2).x;
+const ok=(segs,F,T0,T1)=>{const sp=[];for(const[n,a,b]of segs){const s=hkSpan(F,T0,T1,TL,a,b);if(s){if(!free(n,s[0],s[1]))return null;sp.push([n,s[0],s[1]])}}return sp};
+// 1・2番線(空いている方)→ 引き上げ線 → 出る番線(種別の番線のうち空いている方)。引き上げ線は車体が入っている間ずっと予約する。いちばん早く出る番線に入れる組み合わせを選ぶ
+let best=null;
+for(const p of[o.p,3-o.p]){if(!free('P'+p,o.pa,o.stop+HK_UNLOAD+40))continue;
+for(const d of HK_DEP[nx.type]){const SD=spans(HKR.dep(d),FD,nx.d,nx.d+150,TL);if(!SD.every(([n,x,y])=>free(n,x,y)))continue;
+for(let t1=o.stop+HK_UNLOAD;t1<nx.d;t1+=5){if(!free('P'+p,o.pa,t1+40))break;const A=ok(HKR.out(p).filter(x=>x[0]!=='P'+p&&x[0]!=='Z'),f1(t1),t1,t1+D1+2);if(!A)continue;const z1=hkSpan(f1(t1),t1,t1+D1+2,TL,380,790);let got=null;
+for(let u=t1+D1+HK_REV;u<nx.d-D2-10;u+=5){const B2=ok(HKR.in(d).filter(x=>x[0]!=='Z'),f2(u),u,u+D2+2);if(!B2||!free('P'+d,u,nx.d-10))continue;const z2=hkSpan(f2(u),u,u+D2+2,TL,380,790);if(free('Z',z1[0],z2[1]))got={p,d,t1,t2:u,s1:A.concat([['Z',z1[0],z2[1]]]),s2:B2,SD};break}
+if(got){if(!best||got.t2<best.t2)best=got;break}}}}
+if(!best){bad++;HKFAIL.push({tr:o.tr,nx,pa:o.pa,stop:o.stop,why:[1,2].map(p=>[p,free('P'+p,o.pa,o.stop+HK_UNLOAD+40),HK_DEP[nx.type].map(d=>[d,spans(HKR.dep(d),FD,nx.d,nx.d+150,TL).filter(([n,x,y])=>!free(n,x,y)).map(x=>x[0]).join('/')])])});continue}const{p,d,t1,t2}=best;o.p=p;o.tr.tb=p;
+for(const x of best.s1)put(...x);for(const x of best.s2)put(...x);for(const x of best.SD)put(...x);put('P'+p,o.pa,t1+40);put('P'+d,t2,nx.d+20);
+o.tr.hk={p:o.p,d,t1,D1,t2,D2,P1,P2,late:Math.max(0,t2+D2+HK_BOARD-nx.d)};nx.tb=d}
+return bad}
+// ---- 北川空港の番線: 急行3・特急2番線は決まり。普通は4・1番線のうち、渡り線(ZA-330〜-230)で交差する動きと重ならない方 ----
+// 4番線に着く/1番線から出る動きは交差しない。1番線に着く・4番線から出る動きは渡り線で反対の本線を横切る
+const APR={arr:p=>p===4||p===3?[['DM',ZA-430,ZA-90],['P'+p,ZA-100,LEND]]:[['DM',ZA-430,ZA-220],['XO',ZA-340,ZA-220],['UM',ZA-240,ZA-90],['P'+p,ZA-100,LEND]],
+dep:p=>p===1||p===2?[['P'+p,ZA-100,LEND],['UM',ZA-430,ZA-90]]:[['P'+p,ZA-100,LEND],['DM',ZA-240,ZA-90],['XO',ZA-340,ZA-220],['UM',ZA-430,ZA-220]]};
+function apPlan(AS){const R={},res=n=>R[n]||(R[n]=[]),M=8,free=(n,a,b)=>!res(n).some(([x,y])=>a<y+M&&b>x-M),put=(n,a,b)=>res(n).push([a,b]);
+const tlOf=ty=>spTL(ty==='特急'?SPN:SPH),pos=(k,dep)=>t=>tripAt(k,t-dep).sA,sp=(segs,o,isArr)=>{const tr=isArr?o.tr:o.nx,F=pos(tr.k,tr.d),T0=isArr?o.a-150:tr.d,T1=isArr?o.a+2:tr.d+150;return segs.map(([n,a,b])=>{const s=hkSpan(F,T0,T1,tlOf(tr.type),a,b);return s?[n,s[0],s[1]]:null}).filter(x=>x)};
+const use=(o,p)=>{const A=sp(APR.arr(p),o,true),D=o.nx?sp(APR.dep(p),o,false):[];return A.concat(D,[['P'+p,o.a,(o.nx?o.nx.d:o.a+600)+20]])};
+const set=(o,p)=>{o.tr.ta=p;if(o.nx)o.nx.ta=p;for(const x of use(o,p))put(...x)};
+for(const o of AS)if(o.tr.type!=='普通')set(o,TRK_AP[o.tr.type][0]);
+for(const o of AS){if(o.tr.type!=='普通')continue;let best=null,bc=1e9;for(const p of TRK_AP['普通']){const u=use(o,p),c=u.filter(([n,a,b])=>!free(n,a,b)).length;if(c<bc){bc=c;best=p}}set(o,best)}}
+let HKBAD=0;const HKFAIL=[];   // 入換の計画ができなかった折り返し(確認用)
+const HK_MIN=ty=>{const TL=spTL(ty==='特急'?SPN:SPH),tk=ty==='特急',a=HKP(tk,TL,-97.5,HKZ),b=HKP(tk,TL,HKZ,-97.5);return HK_UNLOAD+a.tc[a.n]+HK_REV+b.tc[b.n]+HK_BOARD};   // 珀南で折り返すのに最低いる時間
 function buildBlocks(){const W0=CFG.t0-3*3600,W1=CFG.t0+21*3600,trips=[];
-for(const k of['ln','lnW','lh','lhW','en','eh','tn','th']){const R=ROUTES[k],P=SCHED_P[k],off=SCHED_OFF[k];for(let m=Math.floor((W0-CFG.t0-off)/P);;m++){const d=CFG.t0+off+m*P;if(d>W1)break;if(d<W0)continue;trips.push({k,d,a:d+R.arr.at(-1),from:R.stops[0],to:R.stops.at(-1),type:R.type})}}
+for(const k of DIAK){const R=ROUTES[k],P=SCHED_P[k],off=SCHED_OFF[k];for(let m=Math.floor((W0-off)/P);;m++){const d=off+m*P;/* ダイヤの時刻(0時から) */if(d>W1)break;if(d<W0)continue;trips.push({k,d,a:d+arrAt(k,R.stops.length-1),from:R.stops[0],to:R.stops.at(-1),type:R.type})}}
 trips.sort((x,y)=>x.d-y.d);const blocks=[];
-for(const tr of trips){let best=null;for(const b of blocks){const L=b.at(-1);if(L.type===tr.type&&L.to===tr.from&&L.a+60<=tr.d&&(!best||L.a<best.at(-1).a))best=b}if(best)best.push(tr);else blocks.push([tr])}
+for(const tr of trips){let best=null;for(const b of blocks){const L=b.at(-1);if(L.type===tr.type&&L.to===tr.from&&L.a+(L.to===0&&HK_TYPES.has(L.type)?HK_MIN(L.type):60)<=tr.d&&(!best||L.a<best.at(-1).a))best=b}if(best)best.push(tr);else blocks.push([tr])}
 {const AS=[];for(const b of blocks)b.forEach((tr,i)=>{if(tr.to===WST.length-1||tr.to===0)AS.push({tr,nx:b[i+1],term:tr.to,a:tr.d+arrAt(tr.k,ROUTES[tr.k].stops.length-1),d:b[i+1]?b[i+1].d:1e9})});
-AS.sort((x,y)=>x.a-y.a);const free=new Map();for(const o of AS){const L=(o.term?TRK_AP:TRK_HK)[o.tr.type],fk=n=>o.term+'_'+n,fr=n=>free.has(fk(n))?free.get(fk(n)):-1e9;let ta=L.find(n=>fr(n)+40<=o.a);if(ta===undefined)ta=L.reduce((p,n)=>fr(n)<fr(p)?n:p,L[0]);free.set(fk(ta),o.d);const f=o.term?'ta':'tb';o.tr[f]=ta;if(o.nx)o.nx[f]=ta}}   // 着いた順に空いている番線へ(折り返しは同じ番線から)
+AS.sort((x,y)=>x.a-y.a);apPlan(AS.filter(o=>o.term))}
+HKBAD=hkPlan(blocks);   // 珀南の入換(番線もここで決める)
+// 北川空港は空いている番線へ(折り返しは同じ番線から)。前の列車が出てから120秒あける(渡り線を25km/hで抜けきるまで)
 return blocks}
-// 実際に着く時刻(始発からの秒): 制限速度いっぱいで走るので時刻表より少し早い
-const arrAt=(k,j)=>{const P=segProf(k,j);return ROUTES[k].dep[j-1]+P.tc[P.n]/P.k2};
-function tripAt(k,tau,arrT,depT){const R=ROUTES[k],St=R.stops,D=R.dep,n=St.length,sa=j=>stopSA(R,St[j]);
+const arrAt=(k,j)=>wtEff(k).arr[j];   // 実際に着く時刻(始発からの秒)
+function tripAt(k,tau,arrT,depT){const R=ROUTES[k],St=R.stops,D=wtEff(k).dep,n=St.length,sa=j=>stopSA(R,St[j]);
 if(tau<0)return{st:'dwell',j:0,sA:sa(0),arr:arrT,dep:0};
 for(let j=1;j<n;j++){const ta=arrAt(k,j);if(tau<ta){const t0=D[j-1],L=sa(j)-sa(j-1),p=segAt(segProf(k,j),tau-t0),sg=Math.sign(L)||1;return{st:'run',j:j-1,nx:j,sA:sa(j-1)+sg*p.x,v:p.v,acc:p.a,tgt:sa(j)}}
 if(j<n-1&&tau<D[j])return{st:'dwell',j,sA:sa(j),arr:ta,dep:D[j]}}
 return{st:'dwell',j:n-1,sA:sa(n-1),arr:arrT!==undefined?arrT:arrAt(k,n-1),dep:depT===undefined?1e9:depT}}
 // 時刻 t の列車の状態(位置・走行/停車・ドア・向き・次の駅・行先)。終点の折り返し中は次の列車として扱う
-function trainState(T,t){const B=T.trips;let i=T.ti||0;while(i>0&&B[i].d>t)i--;while(i<B.length-1&&B[i+1].d<=t)i++;T.ti=i;
+// 珀南の入換の間の状態(1・2番線で降車 → 引き上げ線へ → 向きを変えて発車番線へ)。発車番線に着いたあとは普通の折り返しと同じ
+function hkState(T,tr,nx,H,t){const cl=x=>Math.max(0,Math.min(1,x));T.shunt=true;T.hide=!!T.excl;T.key=tr.k;T.tbk=H.p;T.si=0;T.next=0;T.near=false;T.dest='';T.v=0;T.acc=0;T.door=0;T.dep=1e9;T.dtype='回送';
+if(t<H.t1){T.path=PATH_OF(tr.k,tr.ta,H.p);T.sA=-97.5;T.st='dwell';T.dir=H.t1-t<15?1:-1;T.door=cl(Math.min(t-tr.a-2,H.t1-12-t)/2.2);T.dep=H.t1-t;if(t<H.t1-12){T.dtype=T.type;T.dest='珀南';T.dir=-1}return}
+if(t<H.t1+H.D1){const p=segAt(H.P1,t-H.t1);T.path=HKO[H.p];T.sA=-97.5+p.x;T.v=p.v;T.acc=p.a;T.st='run';T.dir=1;return}
+if(t<H.t2){T.path=HKO[H.p];T.sA=HKZ;T.st='dwell';T.dir=t-H.t1-H.D1>15?-1:1;T.dep=H.t2-t;T.tbk=H.d;return}
+const p=segAt(H.P2,t-H.t2);T.path=HKI[H.d];T.sA=HKZ-p.x;T.v=p.v;T.acc=-p.a;T.st='run';T.dir=-1;T.tbk=H.d}
+function trainState(T,t){const B=T.trips;let i=T.ti||0;while(i>0&&B[i].d>t)i--;while(i<B.length-1&&B[i+1].d<=t)i++;T.ti=i;T.shunt=false;T.dtype=null;
 let k,r,nk,tau;const tr=B[i];
 if(t<tr.d){k=tr.k;tau=t-tr.d;r=tripAt(k,tau,-1e4,0);nk=k}
 else if(t<tr.a){k=tr.k;tau=t-tr.d;r=tripAt(k,tau);nk=k}
-else if(B[i+1]){const nx=B[i+1];k=nx.k;tau=t-nx.d;r=tripAt(k,tau,tr.d+arrAt(tr.k,ROUTES[tr.k].stops.length-1)-nx.d,0);nk=k}
+else if(B[i+1]){const nx=B[i+1],H=tr.to===0&&tr.hk;if(H&&t<H.t2+H.D2){hkState(T,tr,nx,H,t);return}k=nx.k;tau=t-nx.d;r=tripAt(k,tau,(H?H.t2+H.D2:tr.d+arrAt(tr.k,ROUTES[tr.k].stops.length-1))-nx.d,0);nk=k}
 else{k=tr.k;tau=t-tr.d;r=tripAt(k,tau,0,1e9);nk=k}
-T.hide=WALK.tr!==T&&((i===0&&t<tr.d-480)||(!B[i+1]&&t>tr.a+480));   // 最初の列車の8分より前・最後の列車の着いた8分より後は車庫へ(見せない)
-const R=ROUTES[k];T.key=nk;{const q=t>=tr.a&&B[i+1]?B[i+1]:tr;T.path=PATH_OF(k,q.ta,q.tb)}T.sA=r.sA;T.st=r.st;T.v=r.v||0;T.acc=r.acc||0;T.dir=R.dir;
+T.hide=!!T.excl||(WALK.tr!==T&&((i===0&&t<tr.d-480)||(!B[i+1]&&t>tr.a+480)));   /* excl: 運転モードで自分が運転している編成 */   // 最初の列車の8分より前・最後の列車の着いた8分より後は車庫へ(見せない)
+const R=ROUTES[k];T.key=nk;{const q=t>=tr.a&&B[i+1]?B[i+1]:tr;T.path=PATH_OF(k,q.ta,q.tb);T.tbk=q.tb||TRK_HK[q.type][0]}   /* tbk: 珀南の番線(下りは出る番線) */T.sA=r.sA;T.st=r.st;T.v=r.v||0;T.acc=r.acc||0;T.dir=R.dir;
 if(r.st==='dwell'){T.tArr=tau-r.arr;T.si=R.stops[r.j];T.door=Math.max(0,Math.min(1,Math.min(tau-r.arr-2,r.dep-6-tau)/2.2));T.dep=r.dep-tau;
 let RN=R,jn=r.j+1;if(jn>=R.stops.length&&B[i+1]){RN=ROUTES[B[i+1].k];jn=1}T.next=RN.stops[Math.min(jn,RN.stops.length-1)];T.near=false;T.dest=WST[RN.stops.at(-1)].n;T.dir=RN.dir}
 else{T.si=R.stops[r.j];T.door=0;T.next=R.stops[r.nx];T.rem=Math.abs(r.tgt-r.sA);T.near=T.rem<400;T.dep=1e9;T.dest=WST[R.stops.at(-1)].n}}
@@ -1766,7 +1871,7 @@ const m=new THREE.Mesh(ge,MATWS);m.castShadow=true;m.receiveShadow=true;c.add(m)
 if(cz0){const m=new THREE.Group(),IM=new THREE.MeshLambertMaterial({color:0xeceae2}),h=CY.WTOP-CY.FL;for(const[x,y,w,hh]of[[0,0,.84,CY.SILL-CY.FL+.15],[0,CY.WTOP-CY.FL-.06,.84,.06],[-.39,0,.06,h],[.39,0,.06,h]]){const bm=new THREE.Mesh(new THREE.BoxGeometry(w,hh,.04),IM);bm.position.set(x,y+hh/2,0);m.add(bm)}const gl=new THREE.Mesh(new THREE.PlaneGeometry(.72,CY.WTOP-CY.SILL-.21),MATGLS);gl.position.set(0,(CY.SILL-CY.FL+.15+CY.WTOP-CY.FL-.06)/2,0);gl.renderOrder=5;m.add(gl);
 const zl=cz0*(WT_H-WT_CAB);m.position.set(0,CY.FL,zl);inn.add(m);(T.ad=T.ad||[]).push({m,car:i,x:0,z:zl,dx:.84,dz:0,cd:true,hw:.42,k:0});
 const B0=new THREE.MeshLambertMaterial({color:LIV.lc[0]});for(const sd of[-1,1]){const g2=new THREE.Group(),h2=CY.DTOP-CY.FL,wy0=CY.SILL-CY.FL+.08,wy1=CY.WTOP-CY.FL-.08;for(const[y0,y1,z0,z1]of[[0,wy0,-.3,.3],[wy1,h2,-.3,.3],[wy0,wy1,-.3,-.21],[wy0,wy1,.21,.3]]){const pn=new THREE.Mesh(new THREE.BoxGeometry(.04,y1-y0,z1-z0),B0);pn.position.set(0,(y0+y1)/2,(z0+z1)/2);g2.add(pn)}{const st=new THREE.Mesh(new THREE.BoxGeometry(.02,.12,.6),new THREE.MeshLambertMaterial({color:LIV.lc[1]}));st.position.set(sd*.03,CY.ST1-CY.FL+.06,0);g2.add(st)}   /* 扉の帯 */
-const w2=new THREE.Mesh(new THREE.PlaneGeometry(.42,wy1-wy0),MATGLS);w2.rotation.y=Math.PI/2;w2.position.set(0,(wy0+wy1)/2,0);w2.renderOrder=5;g2.add(w2);   /* 窓つきの扉(窓は穴をあけてガラス) */const zc2=cz0*CRZ(WT_H);g2.position.set(sd*(CAR_W/2+.03),CY.FL,zc2);c.add(g2);(T.crewD=T.crewD||[]).push({m:g2,car:i,sd,z:zc2,cz:cz0,key:'crew:'+i+':'+sd,k:0})}}   // 乗務員室の扉(車掌モードでOキー・ボタンで開け閉め)   // 乗務員室の扉(車掌モードの車掌が近づくと開く)
+const w2=new THREE.Mesh(new THREE.PlaneGeometry(.42,wy1-wy0),MATGLS);w2.rotation.y=Math.PI/2;w2.position.set(0,(wy0+wy1)/2,0);w2.renderOrder=5;g2.add(w2);   /* 窓つきの扉(窓は穴をあけてガラス) */const zc2=cz0*CRZ(WT_H);g2.position.set(sd*(CAR_W/2+.03),CY.FL,zc2);c.add(g2);(T.crewD=T.crewD||[]).push({m:g2,car:i,sd,z:zc2,cz:cz0,key:'crew:'+i+':'+sd,k:0})}}   // 乗務員室の扉(車掌モードでOキー・ボタンで開け閉め)
 const cr=CROSSG.map(gx=>{const mm=new THREE.Mesh(gx,MATIN);inn.add(mm);return mm});T.cross.push(cr);
 // 乗客(向き2通り)
 const pg=[1,-1].map(f=>{const b=mkBat(MATIN),save=CUR;CUR=99997;for(const k of seated){const S=SEATS[k];if(S.car!==i)continue;const P=seatPos(S,f);personAt(b,P.x,P.z+CP*i,P.ly,true,hexc(rnd(TOPS)),hexc(rnd(BOTS)),hexc(rnd(HAIR)))}
@@ -1800,19 +1905,30 @@ for(const L of T.lamps||[]){const front=(L.zs>0)===(T.dir<0);for(const m of L.he
 for(const C of T.crew){const front=T.dir<0?C.i===0:C.i===T.sp.N-1,rear=T.dir<0?C.i===T.sp.N-1:C.i===0;C.dr.visible=front;C.co.visible=rear&&!T.cond}   // 運転士は進む向きの運転台、車掌は後ろ
 for(let i=0;i<T.sp.N;i++){const c=T.cars[i];T.inn[i].visible=WALK.tr===T||c.position.distanceTo(cam.position)<170}}   // 車内は近くの列車だけ描く
 let WT_ON=false;
-function walkTrainStart(i){const BL=buildBlocks();for(const T of TRAINS)T.trips=null;
-for(const b of BL){const ty=b[0].type,f22=ty!=='特急'&&Math.random()<.3;let T=TRAINS.find(x=>!x.trips&&x.type===ty&&!!x.f22===f22);if(!T)T=mkWalkTrain(ty,f22);T.trips=b;T.ti=0}   // 普通・急行はたまに2+2
-for(const T of TRAINS)T.g.visible=!!T.trips;WT_ON=true;WALK.inT=false;WALK.tr=null;walkTrainUpdate(0)}
+// ダイヤの列車を走らせる。excl={k,d}: 運転モードで自分が運転する列車(その編成は出さない)。戻り値: その列車(番線 ta/tb つき)
+function walkTrainStart(i,excl){const BL=buildBlocks();for(const T of TRAINS){T.trips=null;T.excl=false;T.lagT=0}let me=null;
+for(const b of BL){const ty=b[0].type,f22=ty!=='特急'&&Math.random()<.3;let T=TRAINS.find(x=>!x.trips&&x.type===ty&&!!x.f22===f22);if(!T)T=mkWalkTrain(ty,f22);T.trips=b;T.ti=0;   // 普通・急行はたまに2+2
+if(excl){const EL=Array.isArray(excl)?excl:[excl],q=b.find(tr=>EL.some(e=>e&&tr.k===e.k&&tr.d===e.d));if(q){T.excl=true;me=me||q}}}
+for(const T of TRAINS)T.g.visible=!!T.trips&&!T.excl;WT_ON=true;WALK.inT=false;WALK.tr=null;walkTrainUpdate(0);return me}
+// 運転モード: 決まった列車の番線を先に調べる(setRoute の前に)
+function diaTrip(excl){const BL=buildBlocks();for(const b of BL){const q=b.find(tr=>tr.k===excl.k&&tr.d===excl.d);if(q)return q}return excl}
 function walkTrainStop(){WT_ON=false;SEATMK.visible=false;for(const T of TRAINS)T.g.visible=false;WALK.inT=false;WALK.tr=null;WALK.seat=-1;SITPOP.style.display='none'}
 // 毎フレーム: 時刻から全部の列車の位置を出す。近くの列車はドアの音・笛・電鈴
-function walkTrainUpdate(dt){if(!WT_ON)return;const t=CFG.t0+s.t;wtSignals();
-for(const T of TRAINS){if(!T.trips)continue;const pd=T.door,pdep=T.dep;trainState(T,t-(T.lagT||0));if(T.cond)condDoor(T,dt);T.g.visible=!T.hide;if(T.hide){T.st='off';continue}placeWT(T);drawLCD(T);if(T.lcd2){drawN10LCD(T);n10Side(T)}setDest(T,T.type,T.dest);{const op=T.door>.02;T.lampL.color.setHex(op&&T.oside>0?0xff3a20:0x3a1410);T.lampR.color.setHex(op&&T.oside<0?0xff3a20:0x3a1410)}
+function walkTrainUpdate(dt){if(!WT_ON)return;const t=CFG.t0+s.t,run=!WALK.on;if(run)diaGuard(dt);wtSignals(run&&!RT.shunt?(DIR>0?0:1):-1);if(!run){updDSig();updKSG()}   // 乗り鉄: 珀南・北川の出発信号もダイヤの列車で動かす   // run: 運転モード(自分の向きの信号は updSig)
+for(const T of TRAINS){if(!T.trips)continue;const pd=T.door,pdep=T.dep;trainState(T,t-(T.lagT||0));if(T.cond)condDoor(T,dt);T.g.visible=!T.hide;if(T.hide){T.st='off';continue}placeWT(T);drawLCD(T);if(T.lcd2){drawN10LCD(T);n10Side(T)}setDest(T,T.dtype||T.type,T.dtype==='回送'?'':T.dest);{const op=T.door>.02;T.lampL.color.setHex(op&&T.oside>0?0xff3a20:0x3a1410);T.lampR.color.setHex(op&&T.oside<0?0xff3a20:0x3a1410)}
 const near=WALK.tr===T||T.cars[1].position.distanceTo(cam.position)<60;
-if(near&&A){if(pd===0&&T.door>0)doorOpen();if(pd===1&&T.door<1)doorClose();if(!T.cond&&T.st==='dwell'&&pdep>12.5&&T.dep<=12.5){const ri=T.dir<0?T.sp.N-1:0;const d=WALK.tr===T?Math.abs(wtCar()[0]-ri)*T.sp.CP:T.cars[ri].position.distanceTo(_cv.set(WALK.x,WALK.y,WALK.z));whistle(.12*Math.max(.06,Math.exp(-d/22)))}   /* 車掌の笛: 車掌から離れるほど小さく *//* 車掌の笛(約2.6秒)が鳴り終わってからドアが閉まり始める */if(!T.cond&&T.st==='dwell'&&pdep>2.2&&T.dep<=2.2)ring()}}}
-// 閉そく信号(乗り鉄モード): 列車がいる区間の信号は赤、その手前は黄
-function wtSignals(){const occ=[new Set(),new Set()];
-for(const T of TRAINS){if(!T.trips||T.hide)continue;const TL=spTL(T.sp);const d=T.dir>0?0:1,L=d?SIGR:SIGF;for(let q=0;q<=TL;q+=10){const s=T.sA+q,z=d?Z0-s:s;for(let i=L.length-1;i>=0;i--)if(z>=L[i].z){occ[d].add(i);break}}}
-for(const d of[0,1]){const L=d?SIGR:SIGF;L.forEach((g,i)=>lampSet(g,occ[d].has(i)?'R':occ[d].has(i+1)?'Y':'G'))}}
+if(!run&&near&&A){if(pd===0&&T.door>0)doorOpen();if(pd===1&&T.door<1)doorClose();if(!T.cond&&!T.shunt&&T.st==='dwell'&&pdep>12.5&&T.dep<=12.5){const ri=T.dir<0?T.sp.N-1:0;const d=WALK.tr===T?Math.abs(wtCar()[0]-ri)*T.sp.CP:T.cars[ri].position.distanceTo(_cv.set(WALK.x,WALK.y,WALK.z));whistle(.12*Math.max(.06,Math.exp(-d/22)))}   /* 車掌の笛: 車掌から離れるほど小さく *//* 車掌の笛(約2.6秒)が鳴り終わってからドアが閉まり始める */if(!T.cond&&!T.shunt&&T.st==='dwell'&&pdep>2.2&&T.dep<=2.2)ring()}}}
+// 運転モード: 自分の列車の後ろを同じ線路で走るダイヤの列車は、近づきすぎないよう待つ(駅で発車を待つ・走っていれば速度を落として止まる)。離れたら少しずつ遅れを取り戻す
+function diaGuard(dt){if(!RT||RT.free)return;const hw=DIR>0?s.z:Z0-s.z,tw=hw-DIR*TRLEN();
+for(const T of TRAINS){if(!T.trips||T.hide||T.st==='off'||T.dir!==DIR)continue;const TL=spTL(T.sp),th=DIR>0?T.sA+TL:T.sA,gap=DIR>0?tw-th:th-tw;let same=false;try{same=Math.abs(T.path(th)-PX(th))<2.5}catch(_){}
+if(same&&gap>-5&&T.st==='dwell'&&gap<1200&&T.dep<4)T.lagT=(T.lagT||0)+dt;
+else if(same&&gap>-5&&T.st==='run'&&gap<700)T.lagT=(T.lagT||0)+dt*Math.max(0,Math.min(1,(700-gap)/250));
+else if(T.lagT>0&&(!same||gap>1500))T.lagT=Math.max(0,T.lagT-dt*.15)}}
+// 閉そく信号: 列車がいる区間の信号は赤、その手前は黄。skip: 運転モードで自分の向き(updSig が WTOCC を使って決める)
+function wtSignals(skip){const occ=[new Set(),new Set()];WTOCC=occ;
+const onMain=(T,d,s)=>Math.abs(T.path(s)-(d?MU(s):MD(s)))<2.5;   // 本線の上にいる部分だけ数える(待避線・終点のホームの線路・引き上げ線に入った部分は本線の区間をふさがない)
+for(const T of TRAINS){if(!T.trips||T.hide||!T.path)continue;const TL=spTL(T.sp);const d=T.shunt||T.dtype==='回送'?1:T.dir>0?0:1,L=d?SIGR:SIGF;for(let q=0;q<=TL;q+=10){const s=T.sA+q,z=d?Z0-s:s;if(T.shunt||T.dtype==='回送'?Math.abs(T.path(s)-MU(s))>=2.5:!onMain(T,d,s))continue;   /* 入換中は上り本線の上にいる所だけ */for(let i=L.length-1;i>=0;i--)if(z>=L[i].z){occ[d].add(i);break}}}
+for(const d of[0,1]){if(d===skip)continue;const L=d?SIGR:SIGF;L.forEach((g,i)=>lampSet(g,occ[d].has(i)?'R':occ[d].has(i+1)?'Y':'G'))}}
 // ---- 車内を歩く(列車の座標) ----
 const WTR_R=.28;
 function wtCollide(){const T=WALK.tr,r=WTR_R,fh=WALK.fh||0,bs=T.sp.box.concat(T.sp.dbox.filter(d=>!(d.sd===T.oside&&T.door>.9)).map(d=>d.b),T.pbox,(T.ad||[]).filter(D=>D.bx&&D.k<.6).map(D=>D.bx));
@@ -1834,7 +1950,7 @@ const P=T.sp;for(let i=0;i<P.N;i++){const c=T.cars[i];v.set(WALK.x,WALK.y,WALK.z
 if(ax<CAR_W/2+.3&&(T.crewOpen&&T.crewOpen.size&&T.v<.3||T.st==='dwell'&&T.door>.9&&sd===T.oside)&&v.y>CY.FL-.8&&(P.DZ(i).some(dz=>Math.abs(v.z-dz)<P.DW/2-.08)||(T.crewOpen&&T.crewOpen.has('crew:'+i+':'+sd)&&Math.abs(v.z-wtCab(P.EO?P.EO(i):wtEnd(i))*CRZ(WT_H))<.24))){/* 開いたドアに歩いて入ると乗る(その場所から続けて歩ける) */WALK.inT=true;WALK.tr=T;WALK.tx=sd*Math.min(ax,1.44);WALK.tz=v.z-P.CP*i;WALK.hy=0;WALK.fh=0;WALK.vy=0;WALK.ly=WALK.yaw-c.rotation.y;WALK.cy=c.rotation.y;return}
 if(ax<CAR_W/2+.26){v.x=sd*(CAR_W/2+.26);c.localToWorld(v);WALK.x=v.x;WALK.z=v.z}}}}
 // 表示用: 列車の種別・行先と次の駅
-function wtInfo(){const T=WALK.tr;if(!T)return'';const cn=T.key&&T.key.endsWith('W')&&(T.next===2||T.si===2)?'　北川で急行に接続します':'';return T.type+' '+T.dest+'行　'+(T.st==='dwell'&&T.door>0?'ただいま '+WST[T.si].n:(T.near?'まもなく ':'次は ')+WST[T.next].n)+cn}
+function wtInfo(){const T=WALK.tr;if(!T)return'';const cn=T.st==='dwell'&&T.dep>40&&(T.si===2||T.si===5)?'　'+WST[T.si].n+'で通過待ちをします':'';return T.type+' '+T.dest+'行　'+(T.st==='dwell'&&T.door>0?'ただいま '+WST[T.si].n:(T.near?'まもなく ':'次は ')+WST[T.next].n)+cn}
 // ---- 音: 運転の時と同じ音を、乗っている列車(外にいるときは一番近い列車)の動きで鳴らす ----
 function wtAudio(){if(!A||!WT_ON)return;let T=WALK.tr,gm=1;
 if(WALK.inT&&T)gm=T.sp===SPN?.22:.55;   // 車内は静か(N10系はとても静か)
@@ -1949,7 +2065,7 @@ for(const sd of[-1,1]){let za=-H;for(const d of doors){BX(sd*1.38,sd*1.6,za,d-DH
 }else{
 // ======== 先頭車(後ろの車両は180°回して使う)。横の形は図(n10_side)どおり: 鼻の先(レール面1.53m)から上は運転台の前面ガラス → 展望席の前面ガラス → 高い屋根(4.0m)。
 // 高い屋根は鼻から8.2m(q=4.27)まで続き、そこで垂直に下がって客室の屋根(3.75m)。前のドアは高い屋根のすぐ後ろ、後ろのドアは後ろの端から3.5m ========
-const FL=K.FL,HR=N.HR,QB=11.87,QT=12.47,TIP=1.06,QC=11.93,YC=2.42,QR=10.38,QK=9.6,QS=4.27,QF=.6,CFL=.56;
+const FL=K.FL,HR=N.HR,QB=11.87,QT=12.47,TIP=1.06,QC=11.93,YC=2.42,QR=10.38,QK=9.6,QS=4.27,CFL=.56;
 const DQ=[3.67,-9.43];   // ドアの位置(q)
 const upF=q=>N.UF0;   // 2階の通路は平ら(座席だけ段の上)
 const OBR=k=>k*.19;   // 展望席の段: 後ろの列ほど19cmずつ高い(前の列の頭ごしに前が見える)
@@ -2130,19 +2246,11 @@ for(const x of[-1.28,1.28]){const m=new THREE.Mesh(new THREE.BoxGeometry(.18,.09
 
 const mk=seat=>{const b=mkBat(MATIN),save=CUR;CUR=99997;personAt(b,seat?cz*.55:cz*.95,cz*(seat?11.02:-11.0),cz>0?0:Math.PI,seat,hexc(0x1f2a44),hexc(0x2a2f3a),0,true,seat?.56-CY.FL:0);const cc=b.ch.get(99997);BATS.splice(BATS.indexOf(b),1);CUR=save;const mm=new THREE.Mesh(gbGeo(cc),MATIN);inn.add(mm);return mm};T.crew.push({i,dr:mk(true),co:mk(false)})}}
 TRAINS.push(T);return T}
-// ---- 特急の時刻: 吉浜中央で普通を追い抜く(普通は待避線で特急の発車を待つ)。北川で待つ普通(上り)は特急の通過も待つ ----
-{const aY=(k)=>{const R=ROUTES[k],j=R.stops.indexOf(5);return arrAt(k,j)},jY=k=>ROUTES[k].stops.indexOf(5);
-// 特急が吉浜中央に着くのは、追い抜く普通が着いた60秒後。普通は特急が出た45秒後に出る
-const r5=x=>Math.round(x/5)*5;SCHED_OFF.tn=r5(((SCHED_OFF.ln+aY('ln')+60-aY('tn'))%1200+1200)%1200);SCHED_OFF.th=r5(((SCHED_OFF.lh+aY('lh')+60-aY('th'))%1200+1200)%1200);SCHED_P.tn=SCHED_P.th=1200;
-const hold=(k,j,abs)=>{const R=ROUTES[k],nd=Math.ceil((abs-SCHED_OFF[k])/5)*5;if(nd<=R.dep[j])return;const d=nd-R.dep[j];R.dep=R.dep.map((x,i)=>i===j?nd:i>j&&x?x+d:x);R.arr=R.arr.map((x,i)=>i>j?x+d:x);_PF.clear()};
-hold('ln',jY('ln'),SCHED_OFF.tn+ROUTES.tn.dep[jY('tn')]+45);hold('lh',jY('lh'),SCHED_OFF.th+ROUTES.th.dep[jY('th')]+45);
-// 上りの特急が北川を通り過ぎる時刻(最後尾が抜けるまで)
-{const R=ROUTES.th,j=R.stops.indexOf(0),P=segProf('th',j),s0=stopSA(R,R.stops[j-1]),tgt=SK-210;let u=0;for(;u<2000;u+=1){const p=segAt(P,u);if(s0+P.sg*p.x+spTL(SPN)<tgt)break}
-const pass=SCHED_OFF.th+R.dep[j-1]+u,L=ROUTES.lhW,jk=L.stops.indexOf(2),cur=SCHED_OFF.lhW+L.dep[jk],dd=((pass+60-cur)%1200+1200)%1200;if(dd<420)hold('lhW',jk,cur+dd)}}   // 特急の最後尾が北川の分岐を抜けて60秒後まで待つ
 
 // ---- 運転するとき(N10系): 先頭車の車体をカメラのまわりに置く(運転士の目は 運転台の左・床から1.2m)。H1000系の運転台の壁などは隠す ----
 let N10CAB=null;
-function n10CabPlace(px,py,pz,ux,uz,on){if(!on){if(N10CAB)N10CAB.visible=false;for(const m of CAB_SHELL)m.visible=true;return}
+function n10CabPlace(px,py,pz,ux,uz,on){PILG.position.set(0,on?.04:0,on?.25:0);   // N10系: 表示灯の箱はパネルの上のすぐ奥(正面の窓ガラスを突き抜けないように)
+if(!on){if(N10CAB)N10CAB.visible=false;for(const m of CAB_SHELL)m.visible=true;return}
 if(!N10CAB){const C=carN10(1,true);N10CAB=new THREE.Group();for(const[g,m]of[[C.ge,MATWS],[C.gi,MATIN],[C.gg,MATGLS],[C.gl,MATCL],[C.gce,MATCE]])if(g){const mm=new THREE.Mesh(g,m);if(m===MATGLS||m===MATGLD)mm.renderOrder=5;N10CAB.add(mm)}scene.add(N10CAB)}
 N10CAB.visible=true;for(const m of CAB_SHELL)m.visible=false;const th=Math.atan2(ux,uz);N10CAB.rotation.set(0,th,0);N10CAB.position.set(px-.45*uz-10.85*ux,py-1.76,pz+.45*ux-10.85*uz)}
 
@@ -2163,7 +2271,7 @@ const condRes=(()=>{const d=document.createElement('div');d.id='condres';d.style
 // 選ぶ画面(運転メニューの右側)
 function condMenuHTML(){let h='<h2>乗務する列車</h2><div class="tl c2">';for(const k of KINDS)h+=TL('ck:'+k[0],(CFG.ck||'ln')===k[0],k[1]+'　'+k[2],k[3]);
 return h+'</div><p class="note">最後尾の車掌の位置から始まります(発車の約90秒前・ドアが開いた状態)。<br><b>ドア扱い</b>: 車掌の位置で、停車したら Z(左)/X(右)でホーム側のドアを開ける。発車時刻が近づいたら C で閉め、B を長押ししてベル(発車合図)。ホームの先の出発反応灯が光ったら発車してよい合図。乗務員室・車掌室の扉と乗務員扉は O で開け閉め(乗務員扉から外に出られます)。ボタンは画面右下の操作パネルでも。遅れたら停車時間を短くして回復できます。合図があるまで列車は発車しません。<br><b>車内放送</b>: 走り出したら N で「次は」、駅の近く(約400m手前から)で M で「まもなく」。<br><b>車内点検</b>: 全部の車両を見回る。<b>検札</b>: 座っているお客さんの近くで F(どちらも減点はなし)。N10系の車掌室は最後尾の車両の中間車寄り。<br>G で笛(停車中・ドアが開いている時)。減点方式で採点します。</p>'}
-function condSay(t){COND.sub=t;COND.subT=8;ttsSay(t,false)}
+function condSay(t){COND.sub=t;COND.subT=8}   // 放送は字幕だけ(声は重い・質が低いので使わない)
 function condMsg(t){COND.msg=t;COND.msgT=3.5}
 function condPen(t,p){COND.pen.push([t,p]);condMsg(t+'　-'+p)}
 // 進む向きの左が車両の +x なら +1
@@ -2172,14 +2280,14 @@ function condLeft(T){const dr=COND.on&&COND.T===T?COND.R.dir:T.dir,a=FP(T.sA,0),
 function condSpot(T){const ri=T.dir<0?T.sp.N-1:0,sg=ri===0?1:-1,n10=T.sp===SPN,lz=n10?-sg*11.15:sg*(WT_H-1.1);return{ri,sg,n10,x:n10?.95*sg:-sg*.2,lz,tz:lz-T.sp.CP*ri,face:n10?sg*Math.PI/2:sg>0?Math.PI:0}}
 function condInZone(){const C=COND,T=C.T;if(!WALK.inT||WALK.tr!==T)return false;const P=C.spot,[ci,,lz]=wtCar();return ci===P.ri&&(P.n10?Math.abs(lz-P.lz)<1.3&&Math.abs(WALK.tx)>.45:lz*P.sg>WT_H-WT_CAB-.9)}
 function startCond(k){const R=ROUTES[k];if(!R)return;startWalk(R.stops[0]);for(const T of TRAINS){T.cond=false;T.lagT=0;T.cside=undefined}
-let best=null,bt=null;for(const T of TRAINS){if(!T.trips)continue;for(const tr of T.trips){if(tr.k.replace('W','')!==k||tr.d<CFG.t0+60)continue;if(!best||tr.d<best.d){best=tr;bt=T}}}
+let best=null,bt=null;for(const T of TRAINS){if(!T.trips)continue;for(const tr of T.trips){if(KB(tr.k)!==k||tr.d<CFG.t0+60)continue;if(!best||tr.d<best.d){best=tr;bt=T}}}
 if(!best){condMsg('この時刻の列車が見つかりません');return}
 s.t=best.d-90-CFG.t0;walkTrainUpdate(0);
 COND={on:true,k,T:bt,trip:best,R:ROUTES[best.k],type:R.type,dk:1,dt:1,side:bt.osL||1,bell:false,ring:false,ringT:0,ringN:0,hold:0,pen:[],vis:new Set(),checked:new Set(),nofare:0,secNext:false,secNear:false,first:true,pst:'dwell',opened:true,early:false,final:false,done:false,msg:'',msgT:0,sub:'',subT:0,endT:0,stops:0};
 bt.cond=true;bt.lagT=0;walkTrainUpdate(0);COND.side=bt.osL||COND.side;
 const P=condSpot(bt);COND.spot=P;const c=bt.cars[P.ri];WALK.inT=true;WALK.tr=bt;WALK.tx=P.x;WALK.tz=P.tz;WALK.hy=0;WALK.fh=0;WALK.vy=0;WALK.seat=-1;WALK.cy=c.rotation.y;WALK.ly=P.face;WALK.yaw=WALK.ly+WALK.cy;WALK.pitch=0;
 condEl.style.display='block';condBtns.style.display='flex';condRes.style.display='none';condMsg('乗務開始: 発車時刻が近づいたらドアを閉めて(C)、発車合図(B)')}
-function condStop(){if(!COND.on)return;COND.on=false;for(const T of TRAINS){T.cond=false;T.lagT=0;T.cside=undefined}condEl.style.display='none';condBtns.style.display='none';if(CLAMP)CLAMP.visible=false;condRes.style.display='none';try{speechSynthesis.cancel()}catch(_){}}
+function condStop(){if(!COND.on)return;COND.on=false;for(const T of TRAINS){T.cond=false;T.lagT=0;T.cside=undefined}condEl.style.display='none';condBtns.style.display='none';if(CLAMP)CLAMP.visible=false;condRes.style.display='none'}
 // 毎フレーム(列車の状態を出した直後): ドアは車掌の操作どおり、合図がないと発車しない
 function condDoor(T,dt){const C=COND;if(!C.on||C.T!==T)return;const st=Math.max(-1,Math.min(1,(C.dt-C.dk)/2.2*1));C.dk=Math.max(0,Math.min(1,C.dk+Math.sign(C.dt-C.dk)*Math.min(Math.abs(C.dt-C.dk),dt/2.2)));T.door=C.dk;T.cside=C.side;
 const ok=C.dt===0&&C.dk<.01&&C.bell;if(T.lagT>0){if(T.st==='run')T.lagT=Math.max(0,T.lagT-dt*.08);else if(ok&&!C.final&&T.dep>.5)T.lagT=Math.max(0,T.lagT-dt)}   // 遅れの回復: 走行中は少し速く、停車中は合図が済んだら早めに発車
@@ -2250,29 +2358,6 @@ if(fail)h+='<p>'+fail+'</p>';h+='<p style="font-size:30px;margin:4px 0"><b>'+sc+
 h+=C.pen.length?'<ul style="margin:8px 0;padding-left:18px">'+C.pen.map(p=>'<li>'+p[0]+'　<b style="color:#ff8a7a">-'+p[1]+'</b></li>').join('')+'</ul>':'<p>減点なし</p>';
 h+='<div style="display:flex;gap:8px;margin-top:10px"><button id="cr1" style="flex:1;padding:9px;border:0;border-radius:8px;background:#f2b01e;font-weight:700">もう一度</button><button id="cr2" style="flex:1;padding:9px;border:0;border-radius:8px;background:#3a3644;color:#fff;font-weight:700">タイトルへ</button></div></div>';
 condRes.innerHTML=h;condRes.style.display='flex';if(document.pointerLockElement)document.exitPointerLock();$('cr1').onclick=()=>startCond(C.k);$('cr2').onclick=()=>{condStop();toTitle()}}
-// ---- 乗り鉄モードの自動放送(読み上げ): 発車して少ししたら「次は」、駅の約400m手前で「まもなく」。前にチャイム ----
-function annChime(){if(!A||!A.wk)return;const t0=A.currentTime;[[0,784],[.42,659]].forEach(([d,f])=>{const o=A.createOscillator(),g=A.createGain();o.type='sine';o.frequency.value=f;g.gain.setValueAtTime(.0001,t0+d);g.gain.linearRampToValueAtTime(.09,t0+d+.02);g.gain.exponentialRampToValueAtTime(.0005,t0+d+1.1);o.connect(g);g.connect(A.wk);o.start(t0+d);o.stop(t0+d+1.2)})}   // 「ピン・ポーン」
-function annSay(t){}   // 自動放送は音なし(声を使わないのでチャイムも鳴らさない)
-function autoAnn(dt){if(COND.on||!WALK.inT||!WALK.tr)return;const T=WALK.tr;if(T.st!=='run'){T.annRun=0;T.annA=false;T.annB=false;return}
-T.annRun=(T.annRun||0)+dt;const S=WST[T.next],R=ROUTES[T.key],last=R&&T.next===R.stops.at(-1);
-if(!T.annA&&T.annRun>7&&!T.near){T.annA=true;annSay((last?'次は、終点、':'次は、')+S.n+'、'+S.n+'です。')}
-if(!T.annB&&T.near){T.annB=true;T.annA=true;annSay(last?'まもなく、終点、'+S.n+'です。お忘れ物のないよう、ご注意ください。':'まもなく、'+S.n+'です。')}}
-
-// 放送の声は使わない(重い・質が低いので)。チャイムと字幕だけ
-function ttsSay(){}
-function ttsLoad(){}
-// ---- 運転モードの退避・接続(吉浜中央): 普通を運転すると特急が後から着いて先に発車(通過待ち・接続)。急行・特急を運転すると、待避線に普通が待っている(接続) ----
-// 相手の列車は乗り鉄モードと同じ時刻の関係(普通が着いて60秒後に特急が着く、特急が出て45秒後に普通が出る)で走らせる
-const CONN={T:{},on:false};
-function connStart(){CONN.on=false;for(const k in CONN.T)CONN.T[k].g.visible=false;if(!RT||RT.free)return;const ys=RT.stops.indexOf(5);if(ys<=0||ys>=RT.stops.length-1)return;
-const dn=RT.dir>0,loc=RT.type==='普通',k=loc?(dn?'tn':'th'):(dn?'ln':'lh'),R=ROUTES[k],jn=R.stops.indexOf(5);if(jn<0)return;
-const ty=R.type;if(!CONN.T[ty]){const T=mkWalkTrain(ty);T.trips=[];T.g.visible=false;CONN.T[ty]=T}
-const aN=arrAt(k,jn),base=ARR[RT.stops.indexOf(5)]+(loc?60:-60);CONN.on=true;CONN.k=k;CONN.jn=jn;CONN.t0=base-aN;CONN.Tr=CONN.T[ty];CONN.msg=false}
-function connUpdate(){if(!CONN.on)return;const T=CONN.Tr,k=CONN.k,R=ROUTES[k],tau=s.t-CONN.t0,a=arrAt(k,CONN.jn),d=R.dep[CONN.jn];
-if(tau<a-110||tau>d+100){T.g.visible=false;return}const r=tripAt(k,tau,undefined,undefined);T.g.visible=true;T.key=k;T.path=PATH_OF(k);T.sA=r.sA;T.st=r.st;T.v=r.v||0;T.acc=r.acc||0;T.dir=R.dir;T.dest=WST[R.stops.at(-1)].n;
-if(r.st==='dwell'){T.si=R.stops[r.j];T.door=Math.max(0,Math.min(1,Math.min(tau-r.arr-2,r.dep-6-tau)/2.2));T.dep=r.dep-tau;T.next=R.stops[Math.min(r.j+1,R.stops.length-1)];T.near=false}else{T.si=R.stops[r.j];T.door=0;T.next=R.stops[r.nx];T.rem=Math.abs(r.tgt-r.sA);T.near=T.rem<400;T.dep=1e9}
-placeWT(T);drawLCD(T);if(T.lcd2){drawN10LCD(T);n10Side(T)}setDest(T,T.type,T.dest);{const op=T.door>.02;T.lampL.color.setHex(op&&T.oside>0?0xff3a20:0x3a1410);T.lampR.color.setHex(op&&T.oside<0?0xff3a20:0x3a1410)}
-const j=RT.stops.indexOf(5);if(!CONN.msg&&s.tn===j&&s.mode==='dwell'){CONN.msg=true;showToast(RT.type==='普通'?'吉浜中央: 特急の通過待ち・接続をします(特急の発車後に発車)':'吉浜中央: 待避線の普通列車と接続します')}}
 
 </script>
 <script type="text/x-part" data-w="9">
@@ -2335,7 +2420,6 @@ pb(.26,.2,.03,0x1c1e22,.86,.13,0);for(const c of[0,1]){plate(['表示','照明']
 pb(.3,.19,.02,0x8e939a,.86,-.13,0);plate('発車信号',.12,.026,.86,-.05,{bg:'#e8e8e4',z:.022});
 pb(.08,.07,.012,0xc0262a,.8,-.12,.02);pb(.06,.05,.01,0xdfe3e0,.8,-.12,.032);const DEPL=lamp(.016,0x441111,.8,-.12,.043);
 for(const v of[-.1,-.16]){pb(.05,.03,.012,0xe4e6e2,.93,v,.02)}for(let i=0;i<4;i++)for(let j=0;j<3;j++)pb(.006,.006,.002,0x333333,.83+i*.012,-.18-j*.012,.022);
-// ---- 机の上: マスコン(左)・ブレーキハンドル(右)。前後に倒れる ----
 // ---- 机の上: ワンハンドルマスコン(手前に引くと力行、奥へ押すとブレーキ) ----
 const BH=new THREE.Group();
 {cb(.14,.06,.26,0x1b1c20,.3-CABD,-.63,-.8);cb(.02,.003,.17,0x2f3a2f,.35-CABD,-.598,-.866);BH.position.set(.3-CABD,-.6,-.8);cab.add(BH);
@@ -2343,7 +2427,8 @@ const sh=new THREE.Mesh(new THREE.BoxGeometry(.05,.11,.05),CM(0x1d1e22));sh.posi
 const hd=new THREE.Mesh(new THREE.BoxGeometry(.09,.035,.06),CM(0x2a2c30));hd.position.set(-.015,.105,0);BH.add(hd);const tp=new THREE.Mesh(new THREE.BoxGeometry(.085,.006,.055),CM(0xbfc3c8));tp.position.set(-.015,.125,0);BH.add(tp);
 const kn=new THREE.Mesh(new THREE.CylinderGeometry(.02,.02,.05,12),CM(0x222222));kn.rotation.z=Math.PI/2;kn.position.set(-.075,.1,0);BH.add(kn)}
 const BNL=[];for(let i=0;i<15;i++){const mt=new THREE.MeshBasicMaterial({color:0x101410}),m=new THREE.Mesh(new THREE.PlaneGeometry(.012,.01),mt);m.rotation.x=-Math.PI/2;m.position.set(.35-CABD,-.596,-.94+i*.0105);cab.add(m);BNL.push(mt)}   // ノッチ表示(奥から 非常・B8〜B1・N・P1〜P5)
-const pilot=(()=>{const c=document.createElement('canvas');c.width=1760;c.height=198;const tx=new THREE.CanvasTexture(c);const m=new THREE.Mesh(new THREE.PlaneGeometry(.8,.09),new THREE.MeshBasicMaterial({map:tx}));m.position.set(-CABD,-.17,-1.5);m.rotation.x=-.35;cab.add(m);cb(.86,.15,.04,BLK,-CABD,-.17,-1.55,-.35);cb(.04,.06,.04,BLK,-.3-CABD,-.235,-1.56);cb(.04,.06,.04,BLK,.3-CABD,-.235,-1.56);const g=c.getContext('2d');g.scale(2,2);return{g,t:tx}})();
+const PILG=new THREE.Group();   // 表示灯の箱(N10系の時は正面の窓ガラスより内側へ寄せる: n10CabPlace)
+const pilot=(()=>{const c=document.createElement('canvas');c.width=1760;c.height=198;const tx=new THREE.CanvasTexture(c);const m=new THREE.Mesh(new THREE.PlaneGeometry(.8,.09),new THREE.MeshBasicMaterial({map:tx}));m.position.set(-CABD,-.17,-1.5);m.rotation.x=-.35;cab.add(m);const bs=[m,cb(.86,.15,.04,BLK,-CABD,-.17,-1.55,-.35),cb(.04,.06,.04,BLK,-.3-CABD,-.235,-1.56),cb(.04,.06,.04,BLK,.3-CABD,-.235,-1.56)];cab.add(PILG);for(const q of bs)PILG.add(q);const g=c.getContext('2d');g.scale(2,2);return{g,t:tx}})();
 const clk=sec=>{const q=CFG.t0+Math.floor(sec);return Math.floor(q/3600)+':'+String(Math.floor(q%3600/60)).padStart(2,'0')+':'+String(q%60).padStart(2,'0')};
 let ttScr=-1;   // 左モニターの停車駅一覧のスクロール位置(段)
 function drawSide(){
@@ -2353,14 +2438,16 @@ g.textBaseline='middle';g.textAlign='left';g.fillStyle='#fff';g.font='bold 22px 
 // 上: 現在時刻と定刻/遅れ
 g.textAlign='left';g.fillStyle='#555';g.font='18px sans-serif';g.fillText('現在時刻',16,60);
 g.fillStyle='#111';g.font='bold 50px sans-serif';g.fillText(clk(T),16,98);
+{g.textAlign='right';g.fillStyle='#2c3340';g.font='bold 24px sans-serif';const w=g.measureText('両').width;g.fillText('両',LW-16,100);g.font='bold 44px sans-serif';g.fillText(String(NCARS()),LW-18-w,98);g.textAlign='left'}   // 時計の右に両数(数字)
 let txt,col;
 if(s.mode==='dwell'){const w=s.dep-T;txt=w>0?'発車まで あと '+Math.ceil(w)+' 秒':'発車時刻です';col='#1b7f3b'}
 else if(s.mode==='done'){txt='運転終了';col='#555'}
 else if(RT.free){txt='フリードライブ';col='#555'}
+else if(RT.shunt){txt='入換(回送)';col='#555'}   // 回送には時刻表がない
 else{const rem=ARR[tn]-T;if(rem<0){txt='遅れ '+Math.round(-rem)+' 秒';col='#c62828'}else{txt='定刻まであと '+Math.round(rem)+' 秒';col='#1b7f3b'}}
 g.fillStyle=col;g.font='bold 26px sans-serif';g.fillText(txt,16,140);
 // 下: 停車駅の一覧(4駅分の枠。今いる駅/次の駅が上から2段目に来るよう自動でスクロール)
-const LT=166,RH=68,NV=4,ord=WST.map((_,i)=>DIR>0?i:WST.length-1-i),rows=ord.map(wi=>({wi,j:STN.findIndex(x=>x.n===WST[wi].n)}));
+const LT=166,RH=68,NV=4,ord=WST.map((_,i)=>DIR>0?i:WST.length-1-i),rows=RT.shunt?STN.map((x,j)=>({n:x.n+(x.n==='珀南'?' '+RT.trk+'番線':''),j})):ord.map(wi=>({n:WST[wi].n,j:STN.findIndex(x=>x.n===WST[wi].n)}));   // 入換中は 珀南 と 引き上げ線 の2つだけ
 const ci=Math.max(0,rows.findIndex(r=>r.j===tn)),tgt=Math.max(0,Math.min(rows.length-NV,ci-1));
 if(ttScr<0||Math.abs(ttScr-tgt)>3)ttScr=tgt;else ttScr+=(tgt-ttScr)*.06;
 g.fillStyle='#2c3340';g.fillRect(0,LT-6,LW,2);
@@ -2368,11 +2455,11 @@ g.save();g.beginPath();g.rect(0,LT-4,LW,LH-LT+4);g.clip();
 rows.forEach((r,k)=>{const y=LT+(k-ttScr)*RH;if(y<LT-RH||y>LH)return;const pass=r.j<0,cur=r.j===tn,done=r.j>=0&&(r.j<tn||(cur&&(s.mode==='dwell'||s.mode==='done')));
 if(cur){g.fillStyle='#fff3c4';g.fillRect(4,y,LW-8,RH)}
 g.strokeStyle='#bbb';g.lineWidth=1;g.beginPath();g.moveTo(8,y+RH);g.lineTo(LW-8,y+RH);g.stroke();
-g.textAlign='left';g.fillStyle=pass?'#9a9fa8':'#111';g.font=(pass?'':'bold ')+'26px sans-serif';g.fillText(WST[r.wi].n,16,y+RH*.32);
+g.textAlign='left';g.fillStyle=pass?'#9a9fa8':'#111';g.font=(pass?'':'bold ')+'26px sans-serif';g.fillText(r.n,16,y+RH*.32);
 g.textAlign='right';if(cur&&s.mode==='run'){g.fillStyle='#c62828';g.font='bold 18px sans-serif';g.fillText('▶ 次駅',LW-16,y+RH*.32)}else if(!pass){g.fillStyle='#555';g.font='18px sans-serif';g.fillText(trk(STN[r.j])+'番線',LW-16,y+RH*.32)}
 g.textAlign='left';g.font='20px sans-serif';
 if(pass){g.fillStyle='#9a9fa8';g.fillText('レ 通過',16,y+RH*.74)}
-else{g.fillStyle=done&&!cur?'#9a9fa8':'#111';const a=r.j&&!RT.free?clk(ARR[r.j]):'‥',d=r.j<STN.length-1&&!RT.free?clk(cur&&s.mode==='dwell'?s.dep:DEP[r.j]):'‥';g.fillText('着 '+a,16,y+RH*.74);g.fillText('発 '+d,206,y+RH*.74)}});
+else{g.fillStyle=done&&!cur?'#9a9fa8':'#111';const a=r.j&&!RT.free&&!RT.shunt?clk(ARR[r.j]):'‥',d=r.j<STN.length-1&&!RT.free?clk(cur&&s.mode==='dwell'?s.dep:DEP[r.j]):'‥';g.fillText('着 '+a,16,y+RH*.74);g.fillText('発 '+d,206,y+RH*.74)}});
 g.restore();
 // スクロールできる向きを小さな三角で示す
 g.fillStyle='#8a8f99';if(ttScr>.05){g.beginPath();g.moveTo(LW-24,LT+2);g.lineTo(LW-16,LT-6+2);g.lineTo(LW-8,LT+2);g.fill()}
@@ -2516,7 +2603,7 @@ function awsHit(m){if(SIG[m.i].a==='G'){if(s.aws==='warn')return;s.aws='clear';c
 </script>
 <script type="text/x-part" data-w="1">
 // ================= イベントモード =================
-// 優等列車(確定): 普通は北川で急行の通過待ち(ダイヤを自動で余裕ありに変更)/急行は待避線に普通列車
+// 通過待ち(普通が北川・吉浜中央で急行・特急を待つ)はダイヤ(DIA)にあり、イベントモードでなくても毎回ある
 // 注意(確定): 黄色い線を越えて客がいる(警笛で下がる)  トラフィック/事故: どちらか片方か両方(ランダム)
 let EV=null;
 const EVOBJ=[];
@@ -2525,14 +2612,10 @@ function mkPerson(c){const g=new THREE.Group(),a=(w,h,d,col,y)=>{const m=new THR
 a(.36,.62,.24,0x2a2f3a,.31);a(.5,.8,.3,c,1.0);const h=new THREE.Mesh(new THREE.SphereGeometry(.14,10,8),M(0xe8c4a0));h.position.y=1.55;g.add(h);g.scale.setScalar(1.1);scene.add(g);EVOBJ.push(g);return g}
 function mkCar(c){const g=new THREE.Group(),a=(w,h,d,col,y,x)=>{const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),M(col));m.position.set(x||0,y,0);g.add(m)};
 a(4.2,.4,1.95,0x222428,.2);a(4.4,.7,1.9,c,.65);a(2.3,.75,1.7,0x1d2430,1.35,-.2);a(2.2,.1,1.75,c,1.77,-.2);a(.1,.3,1.6,0xffe9a8,.8,2.2);g.visible=false;scene.add(g);EVOBJ.push(g);return g}
-function clearEv(){EVOBJ.forEach(o=>scene.remove(o));EVOBJ.length=0;EXPG.visible=false;NPCS.forEach(g=>g.visible=false)}
+function clearEv(){EVOBJ.forEach(o=>scene.remove(o));EVOBJ.length=0}
 function jamCands(t){const a=STN[t-1].z+120,b=STN[t].z-80,c=[];for(let j=1;j<SIG.length;j++)if(SIG[j-1].z>a&&SIG[j].z<b&&SIG[j].z-SIG[j-1].z>=330)c.push(j);return c}
-function initEvents(){clearEv();EV=null;if(!CFG.event||!RT||RT.free)return;
+function initEvents(){clearEv();EV=null;if(!CFG.event||!RT||RT.free||RT.shunt)return;
 const kt=STN.findIndex(x=>x.n==='北川'),last=STN.length-1;EV={log:[],pen:0};
-if(kt>0){if(RT.type==='普通'){EV.sup={k:kt,st:'wait',V:28+Math.random()*5,tPass:50+Math.random()*10,H:100};
-// 通過待ちの分だけ、ゲーム開始時から余裕を持たせたダイヤにする
-ARR=RT.arr.map(x=>x+(RT.off||0));DEP=RT.dep.map(x=>x+(RT.off||0));for(let i=kt;i<DEP.length-1;i++)DEP[i]+=EV.sup.H;for(let i=kt+1;i<ARR.length;i++)ARR[i]+=EV.sup.H}
-else{EV.sup={k:kt,st:'static'};NPCS[DIR>0?0:1].visible=true;EV.log.push('北川の待避線に普通列車が待機')}}
 const cand=[];for(let i=1;i<last;i++)if(i!==kt)cand.push(i);
 if(cand.length){const k=pick(cand),S=STN[k],wz=DIR>0?S.z:Z0-S.z,pz=wz-DIR*25,tx=PX(wz),cs=PLCS(S.n),c=cs.reduce((x,y)=>Math.abs(y-tx)<Math.abs(x-tx)?y:x),sg=c>tx?1:-1;
 const off=mkPerson(0xd0463b);placeO(off,pz,tx+sg*2.1,PT);
@@ -2544,23 +2627,10 @@ if(r!==0){const xs=XING.filter(X=>!X.ped&&!(X.z>WST[0].z&&X.z<WST[1].z)&&!(X.z>W
 if(xs.length){const o=pick(xs);EV.acc={X:o.X,rp:o.rp,st:'idle',cx:0,t:0,car:mkCar(pick([0xe8e8ec,0xc43a2a,0x2f4f7a,0xe8c23a]))}}}}
 function planJam(){s.jam=null;if(!EV||!EV.traf||s.tn!==EV.segT)return;const c=jamCands(s.tn);if(!c.length)return;
 s.jam={j:pick(c),ph:0,t:0,T:45+Math.random()*30};EV.log.push('前の列車の遅れで信号が停止現示('+STN[s.tn-1].n+'〜'+STN[s.tn].n+')')}
-// 普通で北川へ向かう出発時: 通過待ちの分だけダイヤに余裕を持たせ、出発信号を停止現示にする
-function evDepart(){const U=EV&&EV.sup;if(!U||U.st!=='wait'||U.adj||s.tn!==U.k)return;U.adj=1;
-const j=SIG.findIndex(g=>g.z>STN[U.k].z+40);if(j>0)s.hold={j,ph:1,t:0,T:1e9,zs:DIR>0?SK+140:Z0-(SK-90)}}
 function accident(){s.v=0;s.mode='done';stopHold();if(A){thump(0,55,1);puff(1.2,.6,500)}
 $('ov').className='';$('ov').innerHTML='<div class="box"><div class="big">×</div><h1>ゲームオーバー</h1><p>踏切内の自動車に衝突しました。</p><div class="ml"><button class="go" id="again">もう一度</button><button id="toT">メニューへ</button></div></div>';
-$('ov').style.display='flex';$('again').onclick=()=>reset();$('toT').onclick=toTitle;$('again').focus()}
-function evStep(dt,dw){updXSG();if(!EV)return;const U=EV.sup,T=EV.att,C=EV.acc;
-if(U&&U.st!=='static'&&U.st!=='done'){const SZ=STN[U.k].z;
-if(U.st==='wait'&&dw&&s.tn===U.k)U.st='arm';
-if(U.st==='arm'&&dw&&s.dw>=U.tPass-41){U.st='run';U.ph=0;U.v=U.V;U.w=0;U.q=SZ-U.V*8-U.V*U.V/1.8;EXPG.visible=true;EV.log.push('北川で急行の通過待ち(退避)が発生')}
-if(U.st==='run'){const rem=SZ-U.q;
-if(U.ph===0){U.v=rem>U.V*U.V/1.8?U.V:Math.max(Math.sqrt(1.8*Math.max(rem,0)),.8);U.q+=U.v*dt;if(!U.snd&&rem<200){U.snd=1;if(A){puff(2.4,.4,800);thump(0,60,.35)}}if(SZ-U.q<=.3){U.q=SZ;U.v=0;U.ph=1;U.w=0}}
-else if(U.ph===1){U.w+=dt;if(U.w>=22)U.ph=2}
-else{U.v=Math.min(U.V,U.v+.9*dt);U.q+=U.v*dt}
-setDest(EXPG,'急行',DIR>0?'北川空港':'珀南');placeTrain(EXPG,DIR>0?U.q:Z0-U.q,DIR>0?MD:MU,DIR);
-if(s.hold&&U.ph===2&&U.q>SZ+260)s.hold.ph=2;
-if(U.q>SZ+800){U.st='done';EXPG.visible=false;if(s.hold)s.hold.ph=2}}}
+$('ov').style.display='flex';$('again').onclick=()=>restart();$('toT').onclick=toTitle;$('again').focus()}
+function evStep(dt,dw){updXSG();if(!EV)return;const T=EV.att,C=EV.acc;
 if(T){const d=T.pr-s.z;
 if(T.st==='stand'){if(hornN&&d<400&&d>8){T.st='react';T.tH=0}else if(d<=-2){T.st='missed'}   /* 任意の小ネタ: 鳴らさなくても減点しない */}
 else if(T.st==='react'){T.tH+=dt;if(T.tH>.7){const k=Math.min(1,(T.tH-.7)/1.4);placeO(T.off,T.ws,T.x0+(T.x1-T.x0)*k,PT);if(k>=1){T.st='ok';EV.log.push('線の外側にいた客が警笛で下がりました')}}}}
@@ -2638,7 +2708,7 @@ else AX.forEach((o,i)=>{const k=Math.floor((s.z-o)/25);if(k!==A.jk[i]){A.jk[i]=k
 <script type="text/x-part" data-w="1">
 let FBELL=false;addEventListener('keyup',function(e){if((e.key==='b'||e.key==='B')&&FBELL){FBELL=false;bellOff()}});addEventListener('blur',()=>{if(FBELL){FBELL=false;bellOff()}});
 function newState(mode){return{z:0,v:0,n:0,pow:0,brk:0,t:0,ats:false,pen:0,pen0:0,moved:false,mode,bt:0,tn:1,res:[],clk:false,dw:0,rg:false,rt:0,paused:false,aws:'clear',awsT:0,hb:0,aeb:false,jam:null,pl:60,gr:0,sp:false,dep:0,dc:false,wh:false}}
-function reset(o){o=o||{};newNum();s=newState(RT.free?'run':'dwell');s.tn=RT.free?1:0;s.t=o.t0!==undefined?o.t0:(RT.free?0:-30);s.clk=true;s.n=-6;s.z=STN[0].z;s.dep=DEP[0];connStart();closeMenu();hideToast();ONC.on=false;ONC.cd=25;ONC.g.visible=false;$('ov').className='';$('ov').style.display='none';$('warn').style.display='none';initEvents()}
+function reset(o){o=o||{};newNum();s=newState(RT.free?'run':'dwell');s.tn=RT.free?1:0;s.t=o.t0!==undefined?o.t0:(RT.free?0:(RT.off||0)-30);s.clk=true;s.n=-6;s.z=STN[0].z;s.dep=DEP[0];closeMenu();hideToast();ONC.on=false;ONC.cd=25;ONC.g.visible=false;$('ov').className='';$('ov').style.display='none';$('warn').style.display='none';initEvents()}
 s=newState('ready');
 const bar=$('bar');for(let k=0;k<15;k++){const i=document.createElement('i');i.className=k<9?'b':k===9?'n':'';bar.appendChild(i)}
 const setN=n=>{if((s.mode==='run'||s.mode==='dwell')&&!s.paused)s.n=Math.max(-9,Math.min(5,n))};
@@ -2668,8 +2738,8 @@ $('toast').addEventListener('click',e=>{const b=e.target.closest('button');if(!b
 function offerTurn(){s.tt=true;showToast('折り返しますか？',true)}
 function turnBack(){const near=STN.find(x=>TURN.includes(x.n)&&Math.abs(s.z-x.z)<70);if(!near)return;const aA=near.n==='北川空港';startFree(WST.findIndex(w=>w.n===near.n),-DIR,true,{t0:s.t,pos:Z0-s.z+TRLEN(),trk:aA?undefined:RT.trk,ka:aA?RT.trkA:undefined})}   // 着いた番線のまま折り返す
 let LASTF=null;   // フリードライブを始めた地点(やり直し用)
-function restart(){if(COND.on)startCond(COND.k);else if(WALK.on)startWalk(WALK.i);else if(RT&&RT.free&&LASTF)startFree(LASTF[0],LASTF[1],false,Object.assign({},LASTF[2]));else reset()}
-function startFree(idx,dir,turned,o){o=o||{};if(!turned)LASTF=[idx,dir,Object.assign({},o)];stopWalk();if(o.sp){if(idx===0)o.stab=true;else if(idx===5){if(dir>0)o.stab3=true;else o.stab2=true}else if(idx===6){o.depot=true}else if(idx===2)o.kn=dir>0?4:1}audio();setRoute(dir>0?'fN':'fH',o);reset(o);const S=STN.find(x=>x.n===WST[idx].n);s.z=o.pos!==undefined?o.pos:S.z;const nx=STN.findIndex(x=>x.z>s.z+1);s.tn=nx<0?STN.length-1:nx;if(o.depot){s.z=ZM-290;s.tn=STN.findIndex(x=>x.z>s.z+1)}
+function restart(){if(COND.on)startCond(COND.k);else if(WALK.on)startWalk(WALK.i);else if(RT&&RT.free&&LASTF)startFree(LASTF[0],LASTF[1],false,Object.assign({},LASTF[2]));else if(RUNTRIP)startDia(RUNTRIP);else reset()}
+function startFree(idx,dir,turned,o){o=o||{};if(!turned)LASTF=[idx,dir,Object.assign({},o)];stopWalk();diaStop();if(o.sp){if(idx===0)o.stab=true;else if(idx===5){if(dir>0)o.stab3=true;else o.stab2=true}else if(idx===6){o.depot=true}else if(idx===2)o.kn=dir>0?4:1}audio();setRoute(dir>0?'fN':'fH',o);reset(o);const S=STN.find(x=>x.n===WST[idx].n);s.z=o.pos!==undefined?o.pos:S.z;const nx=STN.findIndex(x=>x.z>s.z+1);s.tn=nx<0?STN.length-1:nx;if(o.depot){s.z=ZM-290;s.tn=STN.findIndex(x=>x.z>s.z+1)}
 if(o.sp&&(idx===0||idx===5)){if(idx===0){s.z=20*CFG.cars-95;s.tn=1}else{s.z=dir>0?ZY+390:Z0-(ZY+215);s.tn=STN.findIndex(x=>x.n==='吉浜中央')+(dir>0?1:0)}}if(turned)showToast('折り返しました(運転台を移動)',false)}
 function freeStep(){while(s.tn<STN.length-1&&s.z>STN[s.tn].z+90)s.tn++;
 const endP=DIR>0?Z0+135:Z0+99;if(s.z>endP){s.z=endP;s.v=0}   // 線路の終端(車止め)
@@ -2678,10 +2748,28 @@ else if(s.v<.03&&s.moved){s.moved=false;if(STN.some(x=>TURN.includes(x.n)&&Math.
 // ---- メニュー ----
 let menuKind=null,prevMenu='title';
 const menuEl=$('menu'),mbox=$('mbox');
-function startGame(k){stopWalk();audio();setRoute(k||RT.key);reset()}
+// 運転モード: 選んだ時刻のあとに始発駅を出るダイヤの列車を運転する。ほかのダイヤの列車も時刻どおりに走る(自分の編成は出さない)
+let RUNTRIP=null;
+function startDia(tr,t0,ov,ex){const q=diaTrip(tr),R=ROUTES[tr.k],dn=R.dir>0;RUNTRIP=tr;setRoute(tr.k,Object.assign(dn?{dep:tr.d-CFG.t0,trk:q.tb,ta:q.ta}:{dep:tr.d-CFG.t0,ka:q.ta,tb:q.tb},ov||{}));walkTrainStart(0,[tr].concat(ex||[]));reset({t0:t0!==undefined?t0:tr.d-CFG.t0-30})}
+function startGame(k){stopWalk();audio();const tr=tripFor(KB(k||CFG.kind),CFG.t0);if(!tr){setRoute(k||RT.key);reset();return}startDia(tr)}
+// ---- 珀南の入換(運転モード): 上りで1・2番線に着いたら、降車のあと回送で引き上げ線へ → 運転台を移って発車番線へ → 次の列車になる。全部自分で運転する ----
+let SHN=null;   // {ph:1(引き上げ線へ)|2(発車番線へ), p:着いた番線, d:発車番線, tr:次に乗る列車, prev:着いた列車, td:発車時刻}
+function setShunt(ph){const p=SHN.p,d=SHN.d,TL=TRLEN(),out=ph===1;
+RT={key:'hk'+ph,type:'回送',pre:'回',lo:1,hi:99,dir:out?1:-1,stops:[0,0],arr:[0,0],dep:[0,0],dest:out?'引き上げ線':'珀南 '+d+'番線',shunt:ph,off:0};DIR=RT.dir;newNum();
+STN=out?[{n:'珀南',no:'01',en:'Hakunan',z:-97.5+TL},{n:'引き上げ線',no:'01',en:'Pull-out track',z:HKZ+TL}]:[{n:'引き上げ線',no:'01',en:'Pull-out track',z:Z0-HKZ},{n:'珀南',no:'01',en:'Hakunan',z:Z0+97.5}];
+ARR=[0,0];DEP=[SHN.td,SHN.td+150];LIM=out?[[600+TL,45]]:[[Z0-600,30]];LIMBASE=out?30:45;GR=out?GRF:GRR;GBASE=out?0:GRRB;SIG=[];MAG=[];XACT=[];XACT45=[];PX=out?HKO[p]:HKI[d];RT.trk=out?p:d;RT.trkA=4}
+function shuntStart(ty){const key=ty==='特急'?'tn':ty==='急行'?'en':'ln',tr=tripFor(key,CFG.t0+s.t+HK_MIN('普通')+30),q=diaTrip(tr),d=q.tb||TRK_HK[ty][0],t0=s.t;
+SHN={ph:1,p:RT.trk,d,tr,prev:RUNTRIP,td:t0+30};walkTrainStart(0,[tr,RUNTRIP]);setShunt(1);reset({t0});
+showToast('回送: 引き上げ線へ入ります(発車 '+hm(CFG.t0+SHN.td)+')。そのあと '+d+'番線へ入れて、'+hm(tr.d)+'発の'+ty+'になります')}
+function shuntStop(over){if(over){s.mode='done';s.v=0;$('ov').className='';$('ov').innerHTML='<div class="box"><div class="big">×</div><h1>オーバーラン(入換)</h1><p>'+(RT.shunt===1?'引き上げ線の車止めを越えました':'ホームの停止位置を大きく越えました')+'</p><div class="ml"><button class="go" id="again">もう一度</button><button id="toT">メニューへ</button></div></div>';$('ov').style.display='flex';$('again').onclick=()=>restart();$('toT').onclick=toTitle;return}
+if(s.z<STN[1].z-8){s.moved=false;showToast('停止位置まで進んでください');return}   // 手前すぎる(渡り線を抜けていない)
+s.v=0;const head=DIR>0?s.z:Z0-s.z,sA=DIR>0?head-TRLEN():head,t0=s.t;
+if(SHN.ph===1){SHN.ph=2;SHN.td=t0+HK_REV;setShunt(2);reset({t0});s.z=Z0-sA;showToast('運転台を移りました。'+SHN.d+'番線へ入ります(発車 '+hm(CFG.t0+SHN.td)+')');return}
+const S=SHN;SHN=null;startDia(S.tr,t0,{trk:S.d},[S.prev]);showToast(hm(S.tr.d)+'発 '+ROUTES[S.tr.k].type+' '+ROUTES[S.tr.k].dest+'。お客さまが乗ってきます')}
+function diaStop(){SHN=null;if(WT_ON&&!WALK.on)walkTrainStop();RUNTRIP=null}   // 運転モードのダイヤの列車を止める(メニュー・フリードライブへ)
 function closeMenu(){menuKind=null;menuEl.style.display='none';if(s)s.paused=false}
 function openPause(){if(s.mode==='ready'||menuKind)return;s.paused=true;stopHold();showMenu('pause')}
-function toTitle(){stopWalk();s=newState('ready');$('ov').style.display='none';showMenu('title')}
+function toTitle(){stopWalk();diaStop();s=newState('ready');$('ov').style.display='none';showMenu('title')}
 const KINDS=[['ln','普通','下り','珀南 → 北川空港'],['lh','普通','上り','北川空港 → 珀南'],['en','急行','下り','珀南 → 北川空港'],['eh','急行','上り','北川空港 → 珀南'],['tn','特急','下り','珀南 → 北川空港 (N10系)'],['th','特急','上り','北川空港 → 珀南 (N10系)']];
 const SPAWN=[{i:0,d:1,a:'珀南',b:'留置線から',c:'北川空港方面'},{i:2,d:1,a:'北川',b:'待避線から',c:'北川空港方面'},{i:2,d:-1,a:'北川',b:'待避線から',c:'珀南方面'},{i:5,d:-1,a:'吉浜中央',b:'留置線から',c:'珀南方面'},{i:5,d:1,a:'吉浜中央',b:'留置線から',c:'北川空港方面'},{i:6,d:1,a:'南川総合車両基地',b:'入出庫線から',c:'北川空港方面'}];
 const hm=sec=>{const q=Math.floor(sec);return Math.floor(q/3600)+':'+String(Math.floor(q%3600/60)).padStart(2,'0')};
@@ -2693,18 +2781,18 @@ h+=TL('k:free',CFG.kind==='free','フリードライブ','スタート地点を�
 if(CFG.kind!=='free'&&CFG.kind!=='walk'&&CFG.kind!=='cond')h+='<h2>モード</h2><div class="tl c2">'+TL('ev:0',!CFG.event,'通常','イベントなし')+TL('ev:1',CFG.event,'イベント','走行中に出来事が起こる')+'</div>';
 h+='</div><div class="mgl"><h2>出発時刻<span class="tv">'+hm(CFG.t0)+'</span></h2><div class="tl c6">';
 for(let x=6;x<=23;x++)h+=TL('h:'+x,hr===x,x+'時','','mini');
-h+='</div><div class="tl c2" style="margin-top:8px">'+TL('m:0',mn===0,'00分','','mini')+'<button class="tile mini'+(mn===30?' on':'')+'" data-a="m:30"'+(hr===23?' disabled':'')+'><b>30分</b></button></div>';
+h+='</div><div class="tl c6" style="margin-top:8px">'+TL('m:0',mn===0,'00分','','mini');for(const m of[10,20,30,40,50])h+='<button class="tile mini'+(mn===m?' on':'')+'" data-a="m:'+m+'"'+(hr===23?' disabled':'')+'><b>'+m+'分</b></button>';h+='</div>';   // 10分ごと(23時は00分だけ)
 if(CFG.kind!=='walk'&&CFG.kind!=='cond'){h+='<h2>両数<span class="tv">'+CFG.cars+'両</span></h2><div class="tl c3">';
 {const tkm=CFG.kind==='tn'||CFG.kind==='th'||(CFG.kind==='free'&&CFG.fv==='N');for(const n of[2,4,6])h+=tkm&&n===2?'<button class="tile" disabled><b>2両</b><small>N10系は4・6両</small></button>':TL('c:'+n,CFG.cars===n,n+'両',tkm?'特急 '+n+'両':'停止位置 Cars '+(n===2||n===4?'2･4':n))}
 h+='</div>'}h+='</div><div class="mgr">';
 if(CFG.kind==='cond'){h+=condMenuHTML()}
 else if(CFG.kind==='walk'){h+='<h2>スタートする駅</h2><div class="tl c2">';WST.forEach((S,i)=>{h+=TL('ws:'+i,CFG.wsp===i,S.n,'H'+S.no+' のホーム')});h+='</div><p class="note">W A S D／矢印で移動、Shiftで走る、Spaceでジャンプ。マウスで見回す(画面をクリックすると視点が固定されます。Escで解除)。スマホは画面の左半分で移動、右半分で見回し、タップでジャンプ。ホームの階段やスロープで上り下りできます。</p>'}
 else if(CFG.kind==='free'){h+='<h2>スタート地点</h2><div class="tl c1">';SPAWN.forEach((p,i)=>{h+=TL('sp:'+i,CFG.sp===i,p.a,p.b+' → '+p.c)});h+='</div><h2>車両</h2><div class="tl c2">'+TL('fv:H',CFG.fv!=='N','H1000系','普通・急行の車両')+TL('fv:N',CFG.fv==='N','N10系','特急の車両(4・6両)')+'</div><p class="note">フリードライブには時刻表と採点がありません。珀南と北川空港では折り返せます。</p>'}
-else{const R=ROUTES[CFG.kind],ex=R.type!=='普通',ord=WST.map((_,i)=>R.dir>0?i:WST.length-1-i);
+else{const tr=tripFor(CFG.kind,CFG.t0),R=ROUTES[tr?tr.k:CFG.kind],T0=tr?tr.d:CFG.t0,ex=R.type!=='普通',ord=WST.map((_,i)=>R.dir>0?i:WST.length-1-i);
 h+='<div class="rh"><span class="bd '+(R.type==='特急'?'tk':ex?'ex':'lc')+'">'+R.type+'</span><b>'+R.dest+'</b><small>'+(R.dir>0?'下り':'上り')+'・'+(R.type==='特急'?Math.max(4,CFG.cars):CFG.cars)+'両</small></div><ol class="st'+(ex?' ex':'')+'">';
 for(const i of ord){const j=R.stops.indexOf(i),n=WST[i].n;if(j<0){h+='<li class="pass"><b>'+n+'</b><small>通過</small></li>';continue}
-const t=j===0?'発 '+hm(CFG.t0+R.dep[0]):j===R.stops.length-1?'着 '+hm(CFG.t0+R.arr[j]):'着 '+hm(CFG.t0+R.arr[j])+'　発 '+hm(CFG.t0+R.dep[j]);h+='<li><b>'+n+'</b><small>'+t+'</small></li>'}
-h+='</ol>'+(CFG.event?'<p class="note">イベントモード: 優等列車イベントと注意イベントは必ず発生。トラフィックイベントと事故イベントは、どちらか一方または両方がランダムで発生します。</p>':'')}
+const t=j===0?'発 '+hm(T0+R.dep[0]):j===R.stops.length-1?'着 '+hm(T0+R.arr[j]):'着 '+hm(T0+R.arr[j])+'　発 '+hm(T0+R.dep[j])+(R.dep[j]-R.arr[j]>50?'(通過待ち)':'');h+='<li><b>'+n+'</b><small>'+t+'</small></li>'}
+h+='</ol><p class="note">選んだ時刻のあとに出る列車を運転します。ほかの列車もダイヤどおりに走ります(普通は北川・吉浜中央で急行・特急の通過待ちをします)。</p>'+(CFG.event?'<p class="note">イベントモード: 注意イベントは必ず発生。トラフィックイベントと事故イベントは、どちらか一方または両方がランダムで発生します。</p>':'')}
 return h+'</div></div><div class="mf"><button data-a="totitle">戻る</button><button class="go" data-a="go">運転開始</button></div>'}
 function showMenu(k){if((k==='help'||k==='set')&&(menuKind==='title'||menuKind==='pause'))prevMenu=menuKind;
 const was=menuKind,la=document.activeElement&&document.activeElement.dataset?document.activeElement.dataset.a:null,sc=mbox.scrollTop;
@@ -2713,7 +2801,7 @@ if(k==='select')h=selectHTML();
 else if(k==='title')h='<h1>珀南鉄道 珀南本線</h1><p class="sub">珀南 → 新山北 → 北川 → 青山港前 → 吉浜 → 吉浜中央 → 南川 → 北川空港</p><div class="tl c1">'+TL('start',false,'運転開始','種別・出発時刻・両数を選ぶ','go')+'<div class="tl c2">'+TL('help',false,'遊び方')+TL('set',false,'設定','重いときはこちらで調節できます')+'</div></div><p class="ver">Version '+VER+'</p>';
 else if(k==='pause')h='<h1>一時停止</h1><div class="tl c2">'+TL('resume',false,'再開','','go wide')+TL('restart',false,'最初からやり直す')+TL('title',false,'タイトルへ戻る')+TL('help',false,'遊び方')+TL('set',false,'設定','重いときはこちらで調節できます')+'</div>';
 else if(k==='help')h='<h1>遊び方</h1><p>各駅のホームにある黄色い停止位置標識の真横に、先頭を止めてください。</p><p>停車後は発車の少し前にドアが閉まり、閉まったあとに電鈴が鳴ります。電鈴の約1.5秒後が発車時刻で、ボタン操作は不要です。ゲームは 珀南 で発車30秒前・ドアが開いた状態から始まります。電鈴を聞いたら、力行して発車します。</p><p><kbd>↓</kbd>/<kbd>S</kbd> 力行側へ1段　<kbd>↑</kbd>/<kbd>W</kbd> ブレーキ側へ1段　<kbd>Space</kbd> 非常ブレーキ　<kbd>H</kbd> 警笛　<kbd>B</kbd> 電鈴(フリードライブ)　<kbd>R</kbd> やり直し　<kbd>Esc</kbd> メニュー</p><p>画面をドラッグ(スマホは1本指でなぞる)で見回し、マウスホイール・2本指・<kbd>Z</kbd>・右上の「ズーム」でズーム。<kbd>V</kbd> か「視点を戻す」で元の視点に戻ります。</p><p>制限速度を超えると警報音が鳴り、さらに超えるとATSが非常ブレーキをかけて減点されます。ブレーキは効くまで少し遅れます。信号の300m手前にAWS磁石があり、青信号(進行)ならチャイムが鳴ります。</p><p>上り坂と下り坂もあり、隣の線路を対向列車が通ります。</p><p>イベントモードでは、運転中にさまざまな出来事が起こります。</p><div class="mf"><button data-a="back">戻る</button></div>';
-else if(k==='set')h='<h1>設定</h1><div class="tl c1"><div class="tl c2">'+TL('sh:1',SHADOW,'影 あり','きれい(少し重い)')+TL('sh:0',!SHADOW,'影 なし','軽い')+'</div><div class="tl c2">'+TL('rtx:1',RTX,'高画質(RTX風) オン','物のすみ・すき間の陰(重い)')+TL('rtx:0',!RTX,'高画質 オフ','軽い')+'</div><div class="tl c3">'+TL('rs:1',RES===1,'画質 標準','ネイティブ')+TL('rs:1.25',RES===1.25,'画質 高','1.25倍')+TL('rs:1.5',RES===1.5,'画質 最高','1.5倍(重い)')+'</div><div class="sc"><div class="sh"><b>揺れ</b><span id="shkv">'+SHK+'%</span></div><input type="range" id="shk" min="0" max="100" value="'+SHK+'"></div><div class="sc"><div class="sh"><b>音量</b><span id="volv">'+VOL+'%</span></div><input type="range" id="vol" min="0" max="100" value="'+VOL+'"></div></div><div class="mf"><button data-a="back">戻る</button></div><p class="ver">珀南鉄道 運転シミュレーター　Version '+VER+'</p>';
+else if(k==='set')h='<h1>設定</h1><div class="tl c1"><div class="tl c2">'+TL('sh:1',SHADOW,'影 あり','きれい(少し重い)')+TL('sh:0',!SHADOW,'影 なし','軽い')+'</div><div class="tl c2">'+TL('rtx:1',RTX,'高画質 オン','物のすみ・すき間の陰(重い)')+TL('rtx:0',!RTX,'高画質 オフ','軽い')+'</div><div class="tl c3">'+TL('rs:1',RES===1,'画質 標準','ネイティブ')+TL('rs:1.25',RES===1.25,'画質 高','1.25倍')+TL('rs:1.5',RES===1.5,'画質 最高','1.5倍(重い)')+'</div><div class="sc"><div class="sh"><b>揺れ</b><span id="shkv">'+SHK+'%</span></div><input type="range" id="shk" min="0" max="100" value="'+SHK+'"></div><div class="sc"><div class="sh"><b>音量</b><span id="volv">'+VOL+'%</span></div><input type="range" id="vol" min="0" max="100" value="'+VOL+'"></div></div><div class="mf"><button data-a="back">戻る</button></div><p class="ver">珀南鉄道 運転シミュレーター　Version '+VER+'</p>';
 mbox.innerHTML=h;const v=$('vol');if(v)v.oninput=e=>{VOL=+e.target.value;$('volv').textContent=VOL+'%';try{localStorage.setItem('tsVol2',VOL)}catch(_){}};
 const sh=$('shk');if(sh)sh.oninput=e=>{SHK=+e.target.value;$('shkv').textContent=SHK+'%';try{localStorage.setItem('tsShk2',SHK)}catch(_){}};
 let f=null;if(was===k&&la)f=[...mbox.querySelectorAll('button')].find(x=>x.dataset.a===la&&!x.disabled);if(!f)f=mbox.querySelector('button:not(:disabled)');if(f)f.focus({preventScroll:true});if(was===k)mbox.scrollTop=sc}
@@ -2726,16 +2814,16 @@ if(over){g='D';b=0}else if(a<=.5){g='S';b=100}else if(a<=1){g='A';b=90}else if(a
 const dl=s.t-ARR[i],late=Math.max(0,Math.round(dl-5)),pen=s.pen-s.pen0,sc=Math.max(0,b-pen-late);
 const dt=dl<-.5?Math.round(-dl)+'秒早着':dl<=.5?'定刻':Math.round(dl)+'秒遅れ';
 return{n:S.n,g,sc,pen,late,dt,over,msg:over?'ホームの端を越えてオーバーランしました':a<.05?'ぴったり停止位置です':`停止位置から ${a.toFixed(2)} m ${err<0?'手前':'先'}で停止`}}
-function finish(over){if(RT.free){s.v=0;s.mode='done';$('ov').className='';$('ov').innerHTML='<div class="box"><h1>フリードライブ終了</h1><p>'+(over?'終端まで進みました':'終点に停車しました')+'</p><button class="go" id="again">もう一度走る</button></div>';$('ov').style.display='flex';$('again').onclick=restart;$('again').focus();return}const r=judge(over);s.res.push(r);s.v=0;s.jam=null;
+function finish(over){if(RT.shunt){shuntStop(over);return}if(RT.free){s.v=0;s.mode='done';$('ov').className='';$('ov').innerHTML='<div class="box"><h1>フリードライブ終了</h1><p>'+(over?'終端まで進みました':'終点に停車しました')+'</p><button class="go" id="again">もう一度走る</button></div>';$('ov').style.display='flex';$('again').onclick=restart;$('again').focus();return}const r=judge(over);s.res.push(r);s.v=0;s.jam=null;
 if(over||s.tn===STN.length-1){s.mode='done';
 const tot=Math.max(0,Math.round(s.res.reduce((x,y)=>x+y.sc,0)/(STN.length-1))-(EV?EV.pen:0));
 $('ov').className='';$('ov').innerHTML=`<div class="box"><div class="big">${r.g}</div><h1>${over?'オーバーラン':'終点に到着しました'}</h1>${s.res.map(x=>`<p><b>${x.n}</b>　${x.g}　${x.msg}／${x.dt}／ATS ${x.pen/10}回　→ ${x.sc}点</p>`).join('')}<p>合計 ${tot} 点(${STN.length-1}駅の平均${over?'・未到達は0点':''}${EV&&EV.pen?'・イベント減点 −'+EV.pen:''})</p>${evHTML()}<p style="margin-top:12px;font-weight:700">折り返しますか？</p><div class="ml"><button class="go" id="turnL">普通で折り返す</button><button class="go" id="turnE">急行で折り返す</button><button class="go" id="turnT">特急で折り返す</button><button id="turnN">いいえ(メニューへ)</button></div></div>`;
-$('ov').style.display='flex';const turnAs=ty=>{const aA=DIR>0,t0=s.t,pos=Z0-s.z+TRLEN(),trk=RT.trk,ka=RT.trkA,key=aA?(ty==='特急'?'th':ty==='急行'?'eh':'lh'):(ty==='特急'?'tn':ty==='急行'?'en':'ln');setRoute(key,{dep:Math.ceil((t0+60)/10)*10,trk:aA?undefined:trk,ka:aA?ka:undefined});reset({t0});s.z=pos};   // 折り返すときに種別を選べる
+$('ov').style.display='flex';const turnAs=ty=>{if(DIR<0&&(RT.trk===1||RT.trk===2)){shuntStart(ty);return}const aA=DIR>0,t0=s.t,pos=Z0-s.z+TRLEN(),key=aA?(ty==='特急'?'th':ty==='急行'?'eh':'lh'):(ty==='特急'?'tn':ty==='急行'?'en':'ln'),tr=tripFor(key,CFG.t0+t0+60),trk=RT.trk,ka=RT.trkA;startDia(tr,t0,aA?{ka}:{trk});s.z=pos};   // 折り返すときに種別を選べる。その種別の、1分後より後に出るダイヤの列車になる
 $('turnL').onclick=()=>turnAs('普通');$('turnE').onclick=()=>turnAs('急行');$('turnT').onclick=()=>turnAs('特急');$('turnN').onclick=toTitle;$(RT.type==='特急'?'turnT':RT.type==='急行'?'turnE':'turnL').focus()}
-else{s.mode='dwell';s.ats=false;s.rg=false;s.dw=0;s.dep=Math.max(DEP[s.tn],s.t+8);s.dc=false;s.wh=false;setTimeout(()=>{if(s.mode==='dwell'&&!s.paused)doorOpen()},900);
+else{s.mode='dwell';s.ats=false;s.rg=false;s.dw=0;s.dep=Math.max(DEP[s.tn],s.t+8);if(!RT.free&&s.tn<STN.length-1&&DEP[s.tn]-ARR[s.tn]>50)showToast(STN[s.tn].n+': 急行・特急の通過待ちをします(発車 '+hm(CFG.t0+DEP[s.tn])+')');s.dc=false;s.wh=false;setTimeout(()=>{if(s.mode==='dwell'&&!s.paused)doorOpen()},900);
 $('ov').className='dw';$('ov').innerHTML=`<div class="box"><h1>${r.n} に停車 — ${r.g}</h1><p>${r.msg}</p><p>${r.dt}／ATS ${r.pen/10}回　→ ${r.sc}点</p><p id="dwt" style="margin-top:8px;font-weight:700;color:var(--ok)"></p></div>`;
 $('ov').style.display='flex'}}
-function depart(){if(s.mode!=='dwell')return;s.tn++;s.mode='run';s.moved=false;s.pen0=s.pen;s.rg=false;s.dc=false;s.wh=false;planJam();evDepart();s.pl=limitAt(s.z);$('ov').style.display='none';$('ov').className=''}
+function depart(){if(s.mode!=='dwell')return;s.tn++;s.mode='run';s.moved=false;s.pen0=s.pen;s.rg=false;s.dc=false;s.wh=false;planJam();s.pl=limitAt(s.z);$('ov').style.display='none';$('ov').className=''}
 function size(){renderer.setSize(innerWidth,innerHeight);cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();cab.position.z=-Math.max(0,Math.min(1,(1.5/cam.aspect-1)*.5))}
 addEventListener('resize',size);size();
 let last=performance.now();
@@ -2745,21 +2833,21 @@ if(WALK.on){walkFrame(dt);return}   // 乗り鉄モード
 if(menuBG(dt))return;   // メニューの背景(定点カメラ)
 if(s.paused){}
 else if(s.mode==='run'||s.mode==='dwell'){
-connUpdate();const dw=s.mode==='dwell',kmh=s.v*3.6,lim=limitAt(s.z),over=kmh-lim;evStep(dt,dw);
+if(WT_ON&&!WALK.on)walkTrainUpdate(dt);   // ダイヤの列車
+const dw=s.mode==='dwell',kmh=s.v*3.6,lim=limitAt(s.z),over=kmh-lim;evStep(dt,dw);
 if(!dw){if(lim<s.pl)s.gr=3;s.pl=lim;if(s.gr>0)s.gr-=dt;if(!s.ats&&over>5&&s.gr<=0){s.ats=true;s.pen+=10}   // 制限が下がった直後の3秒は猶予
 
 if(s.ats&&kmh<lim-3)s.ats=false}
 const tp=(dw||s.ats||s.aeb||s.n<=0)?0:accelOf(s.n,kmh);
-const BS=3.5/3.6/7,BE=4.2/3.6;   // 常用最大(B7)=3.5km/h/s、非常=4.2km/h/s
 const tb=dw?Math.max(.6,s.n<0?BR[-s.n]:0):(s.ats||s.aeb)?BR[9]:s.n<0?BR[-s.n]:0;
 s.pow+=(tp-s.pow)*(1-Math.exp(-dt/.5));
 s.brk+=(tb-s.brk)*(1-Math.exp(-dt/(tb<=s.brk?.35:(s.ats||s.aeb||s.n===-9)?.2:.3)));
 if(!s.clk&&!dw&&(s.n>0||s.v>.1))s.clk=true;   // 最初に力行した瞬間から時計が進む
 if(s.clk)s.t+=dt;
-if(dw){s.dw+=dt;if(s.hold&&s.hold.ph<2&&EV&&EV.sup&&s.tn===EV.sup.k&&s.dep-s.t<9)s.dep=s.t+9;const wt=s.dep-s.t;
-if(!s.wh&&wt<=7.6){s.wh=true;whistle(.12*Math.max(.06,Math.exp(-(NCARS()-1)*CARP()/22)))}   // 車掌の笛(約2.6秒)。鳴り終わってから1.5秒後にドアが閉まる
-if(!s.dc&&wt<=3.5){s.dc=true;doorClose()}   // 先にドアが閉まる
-if(!s.rg&&wt<=1.5){s.rg=true;ring()}   // 閉まったあと、発車の1.5秒前に電鈴
+if(dw){s.dw+=dt;const wt=s.dep-s.t;
+if(!s.wh&&wt<=7.6&&!RT.shunt){s.wh=true;whistle(.12*Math.max(.06,Math.exp(-(NCARS()-1)*CARP()/22)))}   // 車掌の笛(約2.6秒)。鳴り終わってから1.5秒後にドアが閉まる
+if(!s.dc&&wt<=3.5){s.dc=true;if(RT.shunt!==2)doorClose()}   // 先にドアが閉まる
+if(!s.rg&&wt<=1.5){s.rg=true;if(!RT.shunt)ring()}   // 閉まったあと、発車の1.5秒前に電鈴
 if(wt<=1)depart();   // 発車1秒前から動かせる
 const e=$('dwt');if(e)e.textContent=s.rg?'ドアが閉まります':wt>0?'発車まで あと '+Math.ceil(wt)+' 秒':'まもなく発車します'}
 else{
@@ -2768,9 +2856,10 @@ if(s.aeb&&(s.v<.03||(!s.sp&&kmh<40))){s.aeb=false;s.sp=false}
 let a=s.pow-s.brk-9.8*gradeAt(s.z)-(.012+.00012*s.v*s.v);
 s.v+=a*dt;if(s.v<0)s.v=0;
 const z0=s.z;s.z+=s.v*dt;if(s.v>3)s.moved=true;for(const m of MAG)if(z0<m.zm&&s.z>=m.zm)awsHit(m);
-for(const J of[s.jam,s.hold]){if(!J)continue;if(J.ph===0&&s.z>=SIG[J.j-1].z)J.ph=1;if(J.ph===1){J.t+=dt;if(J.t>=J.T)J.ph=2}const zs=J.zs||SIG[J.j].z;if(J.ph<2&&z0<zs&&s.z>=zs){s.aeb=true;s.sp=true;s.pen+=30}}   // 赤信号を越えたら非常ブレーキ
+for(const i of SIGRO)if(z0<SIG[i].z&&s.z>=SIG[i].z){s.aeb=true;s.sp=true;s.pen+=30}   // ダイヤの列車がいる閉そくの赤信号を越えた
+for(const J of[s.jam]){if(!J)continue;if(J.ph===0&&s.z>=SIG[J.j-1].z)J.ph=1;if(J.ph===1){J.t+=dt;if(J.t>=J.T)J.ph=2}const zs=J.zs||SIG[J.j].z;if(J.ph<2&&z0<zs&&s.z>=zs){s.aeb=true;s.sp=true;s.pen+=30}}   // 赤信号を越えたら非常ブレーキ
 if(s.ats||over>1){s.bt-=dt;if(s.bt<=0){beep();s.bt=s.ats?.4:.6}}else s.bt=0;
-if(RT.free)freeStep();else if(s.z>STN[s.tn].z+(DIR<0&&s.tn===STN.length-1?50:90))finish(true);
+if(RT.free)freeStep();else if(s.z>STN[s.tn].z+(RT.shunt===1?780-HKZ-TRLEN():DIR<0&&s.tn===STN.length-1?50:90))finish(true);   // 入換で引き上げ線の車止めを越えたらオーバーラン
 else if(s.moved&&s.v<.03){if(s.z>STN[s.tn].z-60){s.v=0;finish(false)}else s.moved=false}}
 // 対向列車
 if(ONC.on){
@@ -2779,7 +2868,7 @@ else{const st=ONC.stops.find(x=>x.q<ONC.q-.5&&!ONC.done[x.i]);
 if(st){const d=ONC.q-st.q;if(ONC.v>0&&ONC.v*ONC.v/2>=d-1){ONC.v=Math.max(0,ONC.v-Math.min(2.2,ONC.v*ONC.v/(2*Math.max(d,.5)))*dt);if(d<.8||ONC.v<.05){ONC.v=0;ONC.q=st.q;ONC.done[st.i]=true;ONC.dw=15+Math.random()*10}}else if(ONC.v<ONC.cv)ONC.v=Math.min(ONC.cv,ONC.v+.7*dt)}
 else if(ONC.v<ONC.cv)ONC.v=Math.min(ONC.cv,ONC.v+.7*dt)}   // NPC列車も駅に停まって、しばらくして発車
 ONC.q-=ONC.v*dt;if(ONC.q<Math.max(s.z-140,-40)){ONC.on=false;ONC.cd=90+Math.random()*60}}
-else{ONC.cd-=dt;if(ONC.cd<=0&&s.z<Z0-650&&s.z>=(DIR>0?500:250)){ONC.on=true;ONC.q=s.z+480;ONC.cv=18+Math.random()*8;ONC.v=ONC.cv;ONC.dw=0;ONC.done={};ONC.stops=WST.map((S,i)=>({i,q:DIR>0?S.z+40:Z0-S.z})).filter(x=>x.q<ONC.q).sort((a,b)=>b.q-a.q)}}
+else{ONC.cd-=dt;if(RT.free&&ONC.cd<=0&&s.z<Z0-650&&s.z>=(DIR>0?500:250)){ONC.on=true;ONC.q=s.z+480;ONC.cv=18+Math.random()*8;ONC.v=ONC.cv;ONC.dw=0;ONC.done={};ONC.stops=WST.map((S,i)=>({i,q:DIR>0?S.z+40:Z0-S.z})).filter(x=>x.q<ONC.q).sort((a,b)=>b.q-a.q)}}
 ONC.g.visible=ONC.on;if(ONC.on){const of=DIR>0?MU:MD;setDest(ONC.g,'普通',DIR>0?'珀南':'北川空港');placeTrain(ONC.g,DIR>0?ONC.q-40:Z0-ONC.q+40,of,-DIR)}}
 updSig();updDSig();if(!s.paused)updCross(dt);
 const d=STN[s.tn].z-s.z;
