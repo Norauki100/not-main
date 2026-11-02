@@ -8,9 +8,7 @@
 
 https://norauki100.github.io/not-main/train-stop.html
 
-**クラシック版**
-
-https://norauki100.github.io/not-main/train-stop-classic.html
+**クラシック版** : https://norauki100.github.io/not-main/train-stop-classic.html
 
 
 
