@@ -2,13 +2,17 @@
 
 
 
-リンク
+##### リンク一覧
+
+
 
 **電車運転するだけのゲーム**
 
 https://norauki100.github.io/not-main/train-stop.html
 
-**クラシック版** : https://norauki100.github.io/not-main/train-stop-classic.html
+**クラシック版** (通常版が重かった人向け)
+
+https://norauki100.github.io/not-main/train-stop-classic.html
 
 
 
@@ -46,11 +50,15 @@ https://norauki100.github.io/not-main/links.html
 
 
 
-**くわしい紹介**
+##### くわしい紹介
+
+
 
 **・train-stop.html**
 
 珀南鉄道の珀南本線（架空）を運転します。1.6アップデートで特急とかも運転できるよ
+
+1.7アップデートでは乗り鉄の時、フリーカムとか運行状況が確認できるようになったよ
 
 **・device-tycoon**
 
@@ -69,8 +77,6 @@ MMORPG初代のイメージで新しいタイクーンゲー作ってみたけ�
 これ一個でいろんなmodを入れて、しかもそれをプロファイルごとに管理できるよってだけ
 
 多分調べたら俺のやつよりもマシなやつがあると思う
-
-
 
 ・glb-viewer
 
