@@ -8,7 +8,7 @@
 
 **電車運転するだけのゲーム**
 
-https://norauki100.github.io/not-main/train-stop.html
+https://norauki100.github.io/not-main/train-hakunan.html
 
 **クラシック版** (通常版が重かった人向け)
 
@@ -59,6 +59,8 @@ https://norauki100.github.io/not-main/links.html
 珀南鉄道の珀南本線（架空）を運転します。1.6アップデートで特急とかも運転できるよ
 
 1.7アップデートでは乗り鉄の時、フリーカムとか運行状況が確認できるようになったよ
+
+1.8アップデートで神麓胡駅まで延伸して寝台列車に乗れるようになったよ
 
 **・device-tycoon**
 
