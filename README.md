@@ -16,6 +16,8 @@ https://norauki100.github.io/not-main/train-stop-classic.html
 
 
 
+
+
 **スマホとか作るタイクーンゲー**
 
 https://norauki100.github.io/not-main/device-tycoon.html
@@ -64,7 +66,21 @@ https://norauki100.github.io/not-main/links.html
 
 1.9アップデートでH1000系の車内更新、側面の行先表示機アプデとN10系のVVVF更新をしたよ
 
-ちなみに1.5.0のアーカイブがあります。
+1.10アップデートでH1200系とか快急とか音系のアプデとかしてますよ
+
+～珀南鉄道の車両一覧(最終更新11月16日、1.10.2)～
+
+H1000系 - Claudeが一から作ったもの モーター音と展望席以外は全部Claudeまかせ
+
+H1200系 - 俺が全部Claudeに指示して作ったもの（遊ぶならおすすめ）
+
+N10系 - 俺が工作で作った車両を3D化させたもの 特急専用車
+
+s13n系 -  夜行特急専用車、N10系ベース
+
+
+
+
 
 **・device-tycoon**
 
