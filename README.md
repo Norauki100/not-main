@@ -6,7 +6,9 @@
 
 ～遊ぶならおすすめゲーム/最近ちゃんとバイブコーディングしてる枠～
 
-###### **電車運転するだけのゲーム**
+
+
+**電車運転するだけのゲーム**
 
 https://norauki100.github.io/not-main/train-hakunan.html
 
@@ -16,7 +18,7 @@ https://norauki100.github.io/not-main/train-stop-classic.html
 
 
 
-###### **スマホうみだしタイクーン**
+**スマホうみだしタイクーン**
 
 https://norauki100.github.io/not-main/device-tycoon.html
 
