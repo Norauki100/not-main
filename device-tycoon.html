@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>デバイスタイクーン</title>
+<title>スマホ帝国を作ろう！</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=M+PLUS+1p:wght@400;500;700;800;900&display=swap" rel="stylesheet">
@@ -17,7 +17,7 @@
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:"M PLUS 1p","Hiragino Sans","Yu Gothic UI","Meiryo",system-ui,sans-serif;line-height:1.6;font-size:15px;min-height:100vh}
 button{font:inherit;color:inherit;cursor:pointer}
-.layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(300px,26%);grid-template-rows:minmax(0,1fr) 22vh;gap:16px;padding:16px;height:100vh}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(300px,26%);grid-template-rows:minmax(0,1fr) 22vh;gap:16px;padding:16px;height:calc(100vh - 46px)}
 .layout.off{display:none}
 .stage{grid-column:1;grid-row:1;position:relative;overflow:hidden;border:1px solid var(--line);border-radius:8px}
 .side{grid-column:2;grid-row:1/3;border:1px solid var(--line);border-radius:8px;background:var(--panel);overflow:auto;display:flex;flex-direction:column}
@@ -51,7 +51,7 @@ button{font:inherit;color:inherit;cursor:pointer}
 .grow{flex:1}
 .sub{display:none}
 .sub.on{display:block}
-.subbar{position:sticky;top:0;z-index:5;background:var(--panel);border-bottom:1px solid var(--line);display:flex;flex-wrap:wrap;align-items:center;gap:8px 18px;padding:10px 16px}
+.subbar{position:sticky;top:46px;z-index:5;background:var(--panel);border-bottom:1px solid var(--line);display:flex;flex-wrap:wrap;align-items:center;gap:8px 18px;padding:10px 16px}
 .subbar h1{margin:0;font-size:18px}
 .sk small{display:block;color:var(--sub);font-size:11px;line-height:1.3}
 .sk b{font-variant-numeric:tabular-nums}
@@ -169,8 +169,7 @@ th{font-size:11.5px;color:var(--sub);font-weight:600}
 #title.on{display:grid}
 .tbox{padding:30px 18px;width:min(760px,100%)}
 .thead{text-align:center;margin-bottom:28px}
-.logo{font-size:clamp(40px,10vw,64px);font-weight:900;line-height:1.05;letter-spacing:.04em;color:var(--ink)}
-.jp{color:var(--sub);margin:10px 0 4px;letter-spacing:.2em;font-size:13px}
+.logo{font-size:clamp(34px,8vw,56px);font-weight:900;line-height:1.2;letter-spacing:.02em;color:var(--ink);margin-bottom:8px}
 .tcols{display:grid;grid-template-columns:1fr 260px;gap:16px;align-items:start}
 @media(max-width:640px){.tcols{grid-template-columns:1fr}}
 .tdata h2{margin-bottom:8px}
@@ -201,7 +200,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--acc);outline-of
 .ver{color:var(--mute);font-size:12px;font-variant-numeric:tabular-nums}
 .sw{display:inline-block;width:12px;height:12px;border-radius:50%;border:1px solid var(--line);vertical-align:-1px;margin-right:6px}
 #pg-dev{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
-.viewer{position:sticky;top:76px;height:calc(100vh - 108px);padding:0;overflow:hidden}
+.viewer{position:sticky;top:122px;height:calc(100vh - 154px);padding:0;overflow:hidden}
 .viewer canvas{display:block;width:100%;height:100%;cursor:grab;touch-action:none}
 .viewer canvas:active{cursor:grabbing}
 .vmsg{position:absolute;inset:0;display:grid;place-items:center;margin:0;color:var(--sub);font-size:13px;pointer-events:none}
@@ -213,10 +212,17 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--acc);outline-of
 .dtab.on{color:var(--ink);border-bottom-color:var(--acc)}
 .ccol{grid-column:1/-1;display:flex;align-items:center;gap:10px;font-size:13px;color:var(--sub)}
 .ccol input{width:56px;height:32px;padding:0;border:1px solid var(--line);border-radius:6px;background:none;cursor:pointer}
+.topbar{position:sticky;top:0;z-index:6;height:46px;display:flex;align-items:center;gap:28px;padding:0 18px;background:var(--panel);border-bottom:1px solid var(--line)}
+.tk{display:flex;align-items:baseline;gap:8px}
+.tk small{color:var(--sub);font-size:12px}
+.tk b{font-size:17px;font-variant-numeric:tabular-nums}
+.tk em{font-style:normal;color:var(--sub);font-size:12px;font-variant-numeric:tabular-nums}
+.res button.fire,.res button[data-act=fire]{border-color:var(--line);color:var(--sub)}
 </style>
 </head>
 <body>
-<div id="title"><div class="tbox"><div class="thead"><div class="logo">DEVICE<br>TYCOON</div><div class="jp">デバイスタイクーン</div><div class="ver" id="ver"></div></div><div class="tcols"><section class="tdata" id="tdata"></section><section class="tmenu" id="tmenu"></section></div></div></div>
+<div id="title"><div class="tbox"><div class="thead"><div class="logo">スマホ帝国を<br>作ろう！</div><div class="ver" id="ver"></div></div><div class="tcols"><section class="tdata" id="tdata"></section><section class="tmenu" id="tmenu"></section></div></div></div>
+<div class="topbar" id="topbar"></div>
 <div class="layout" id="home">
 <div class="stage">
   <div class="svgwrap" id="hero"></div>
@@ -365,6 +371,10 @@ Object.keys(DRES).forEach(k=>{
   TECH.push({id:'d_'+k,tab:'design',name,desc,lv:costs.map((c,i)=>[c,i+1])});
 });
 
+const SURNAMES=['佐藤','鈴木','高橋','田中','伊藤','渡辺','山本','中村','小林','加藤','吉田','山田','佐々木','山口','松本','井上','木村','林','斎藤','清水','森','池田','橋本','石川','前田','藤田','岡田','後藤','長谷川','村上'];
+const GIVEN=['翔太','大輔','健太','拓也','直樹','陽菜','美咲','結衣','葵','さくら','悠斗','蓮','颯太','大和','優花','真央','彩','亮','誠','恵','和也','由美','智子','隆','光','遥','海斗','七海','千尋','航'];
+const CAND_N=4;
+
 let S,playing=false,timer=null,inGame=false;
 const newMon=()=>({rev:0,cogs:0,fixed:0,units:0,demand:0,lost:0,sup:0});
 function fresh(name){
@@ -375,7 +385,7 @@ function fresh(name){
     rival:{q:14,name:RIVALS[0]},log:[],last:null,mon:newMon(),goals:{},retired:[],
     ui:{tab:'home',rtab:'parts',dtab:'parts'},
     sel:{type:'phone',parts:{screen:0,cpu:0,battery:0,camera:0,material:0,comm:0,storage:0,thick:1,finish:0,color:0,bezel:0,fcam:0,camShape:0,camPos:0,mp:0,btn:0,corner:1,frame:1,ant:0,fp:0,face:0,os:0,port:0,jack:0},price:0,touched:false},
-    n:1,over:false,top:false,released:0,totalUnits:0};
+    n:1,over:false,top:false,released:0,totalUnits:0,rp:0,staff:[{id:0,name:(name||'ノーネーム社')+'の社長(あなた)',score:5,sal:0,boss:true}],cands:[],sid:1};
 }
 function peek(){try{const r=localStorage.getItem(KEY);return r?JSON.parse(r):null}catch(e){return null}}
 function merge(d){
@@ -386,6 +396,9 @@ function merge(d){
   d.sel.parts=Object.assign({},f.sel.parts,d.sel.parts);
   (d.sales||[]).forEach(p=>{p.stars=p.stars||[0,0,0,0,0];p.rvs=p.rvs||[];p.rvN=p.rvN||0;p.rvCarry=p.rvCarry||0});
   d.retired=d.retired||[];
+  if(d.rp==null)d.rp=0;
+  if(!d.staff)d.staff=[{id:0,name:d.name+'の社長(あなた)',score:5,sal:0,boss:true}];
+  if(!d.cands)d.cands=[];if(!d.sid)d.sid=1;
   d.ui=Object.assign({},f.ui,d.ui);d.ui.tab='home';
   return Object.assign(f,d);
 }
@@ -458,9 +471,25 @@ function devTarget(q){return Math.round(60+q*5)}
 function bugCost(q){return Math.round((10000+q*500)/1000)*1000}
 function review(q,price){return clamp(1.5+q/11-Math.max(0,price/refPrice(q)-1)*3+.4*techLv('qa'),1,10)}
 function office(){return OFFICES[S.office]}
+const rpCost=yen=>Math.max(1,Math.round(yen/10000));
+const staffRp=sc=>Math.pow(sc,1.5)*.04;
+function rpPerDay(){return S.staff.reduce((a,p)=>a+staffRp(p.score),0)}
+function salaryOf(sc){return Math.round((120000+sc*sc*6000)/1000)*1000}
+function staffCap(){return office().staff}
+function salaries(){return S.staff.reduce((a,p)=>a+p.sal,0)}
+function newCands(){
+  const mean=3+S.office*1.2,out=[];
+  for(let i=0;i<CAND_N;i++){
+    const g=(Math.random()+Math.random()+Math.random()-1.5)*2.4;
+    const sc=clamp(Math.round(mean+g),1,10);
+    out.push({id:S.sid++,name:SURNAMES[Math.floor(Math.random()*SURNAMES.length)]+' '+GIVEN[Math.floor(Math.random()*GIVEN.length)],score:sc,sal:salaryOf(sc)});
+  }
+  S.cands=out;
+}
 function fixedCost(){
   let f=Math.round(150000*(1+Math.floor(S.day/30)/24))+office().rent;
   FAC.forEach(x=>{f+=x.up*S.fac[x.id]});
+  f+=salaries();
   return f;
 }
 function resMonths(base){return Math.max(1,Math.ceil(base*(1-.2*S.fac.lab)))}
@@ -546,6 +575,7 @@ function tickDay(){
   S.money+=rev+sup-cogs-fixed;S.totalUnits+=units;
   const m=S.mon;
   m.rev+=rev+sup;m.sup+=sup;m.cogs+=cogs;m.fixed+=fixed;m.units+=units;m.demand+=D;m.lost+=D*(1-f);
+  S.rp+=rpPerDay();
   S.research=S.research.filter(r=>{
     r.left--;
     if(r.left>0)return true;
@@ -586,6 +616,7 @@ function monthEnd(say){
     say(S.rival.name+'が新型フラッグシップを発表(品質 '+S.rival.q.toFixed(0)+')');
   }
   if(!S.top&&S.money>=1e9)S.top=true;
+  newCands();
   S.mon=newMon();
   save();
 }
@@ -1006,22 +1037,25 @@ function renderBar(){
   document.getElementById('bar').innerHTML=
    '<div class="co"><small id="b-rank"></small><b id="b-name"></b><span id="b-office"></span></div>'+
    '<div class="date" id="b-date"></div>'+timeCtl()+
-   '<div class="kvs">'+kvRow('b-money','資金')+kvRow('b-users','ユーザー数')+kvRow('b-fans','ファン')+kvRow('b-rel','発売した製品')+kvRow('b-cap','生産能力')+kvRow('b-fixed','毎月の固定費')+'</div>'+
+   '<div class="kvs">'+kvRow('b-users','ユーザー数')+kvRow('b-fans','ファン')+kvRow('b-rel','発売した製品')+kvRow('b-cap','生産能力')+kvRow('b-fixed','毎月の固定費')+'</div>'+
    '<span class="grow"></span>'+
    '<button class="go alt" data-act="title">タイトルへ</button>';
   document.getElementById('subbar').innerHTML=
    '<button class="go alt" data-act="tab" data-k="home">本社に戻る</button><h1 id="s-title"></h1><span class="grow"></span>'+
-   '<span class="sk"><small>日付</small><b id="s-date"></b></span><span class="sk"><small>資金</small><b id="s-money"></b></span>'+timeCtl();
+   '<span class="sk"><small>日付</small><b id="s-date"></b></span>'+timeCtl();
+  document.getElementById('topbar').innerHTML=
+   '<span class="tk"><small>資金</small><b id="t-money"></b></span><span class="tk"><small>研究ポイント</small><b id="t-rp"></b><em id="t-rpd"></em></span>';
   updateBar();
 }
 function updateBar(){
   const t=(id,v)=>{const e=document.getElementById(id);if(e&&e.textContent!==v)e.textContent=v};
   const o=office();
-  t('b-name',S.name);t('b-rank',o.rank);t('b-office',o.name+' ・ 社員 '+o.staff+'人');
-  t('b-money',fmt(S.money));t('b-date',dayLabel(S.day));t('s-money',fmt(S.money));t('s-date',dayLabel(S.day));
+  t('b-name',S.name);t('b-rank',o.rank);t('b-office',o.name+' ・ 社員 '+S.staff.length+' / '+staffCap()+'人');
+  t('t-money',fmt(S.money));t('b-date',dayLabel(S.day));t('s-date',dayLabel(S.day));
+  t('t-rp',Math.floor(S.rp).toLocaleString()+' pt');t('t-rpd','+'+rpPerDay().toFixed(1)+' pt/日');
   t('b-users',S.totalUnits.toLocaleString()+'人');t('b-fans',Math.round(S.fans).toLocaleString()+'人');t('b-cap',cap()+'台/月');
   t('b-rel',String(S.released));t('b-fixed',fmt(fixedCost()));
-  ['b-money','s-money'].forEach(id=>{const m=document.getElementById(id);if(m)m.className=S.money<0?'neg':''});
+  ['t-money'].forEach(id=>{const m=document.getElementById(id);if(m)m.className=S.money<0?'neg':''});
   document.querySelectorAll('[data-act=play]').forEach(p=>{const v=playing?'停止':'再生';if(p.textContent!==v)p.textContent=v;p.classList.toggle('stop',playing)});
   document.querySelectorAll('[data-act=speed]').forEach(e=>e.classList.toggle('on',S.speed===+e.dataset.v));
   setIf('overBox',S.over?'<div class="over">倒産しました。累計販売 '+S.totalUnits.toLocaleString()+'台、発売 '+S.released+'製品。<button data-act="restart">同じ会社名で最初からやり直す</button></div>':'');
@@ -1219,8 +1253,8 @@ function renderResearch(){
       const nt=S.unl[c.id]+1;
       if(nt>4){h+='<div class="res"><span>'+c.name+'</span><span>すべて解禁済み</span></div>';return}
       const key='part:'+c.id;
-      h+='<div class="res"><span>'+c.name+'「'+c.tiers[nt][0]+'」<small>解禁済み '+nt+' / 5 ・ '+fmt(RC[nt])+' ・ '+resMonths(nt)+'ヶ月</small></span>'+
-         '<button data-act="res" data-kind="part" data-id="'+c.id+'"'+(full||busy(key)||S.money<RC[nt]?' disabled':'')+'>'+(busy(key)?'研究中':'研究する')+'</button></div>';
+      h+='<div class="res"><span>'+c.name+'「'+c.tiers[nt][0]+'」<small>解禁済み '+nt+' / 5 ・ '+rpCost(RC[nt]).toLocaleString()+' pt ・ '+resMonths(nt)+'ヶ月</small></span>'+
+         '<button data-act="res" data-kind="part" data-id="'+c.id+'"'+(full||busy(key)||S.rp<rpCost(RC[nt])?' disabled':'')+'>'+(busy(key)?'研究中':'研究する')+'</button></div>';
     });
   }
   {
@@ -1228,8 +1262,8 @@ function renderResearch(){
       const lv=techLv(x.id),key='tech:'+x.id;
       if(lv>=x.lv.length){h+='<div class="res"><span>'+x.name+'<small>'+x.desc+'</small></span><span>完了</span></div>';return}
       const nx=x.lv[lv];
-      h+='<div class="res"><span>'+x.name+(x.lv.length>1?' Lv'+(lv+1):'')+'<small>'+x.desc+'<br>'+fmt(nx[0])+' ・ '+resMonths(nx[1])+'ヶ月</small></span>'+
-         '<button data-act="res" data-kind="tech" data-id="'+x.id+'"'+(full||busy(key)||S.money<nx[0]?' disabled':'')+'>'+(busy(key)?'研究中':'研究する')+'</button></div>';
+      h+='<div class="res"><span>'+x.name+(x.lv.length>1?' Lv'+(lv+1):'')+'<small>'+x.desc+'<br>'+rpCost(nx[0]).toLocaleString()+' pt ・ '+resMonths(nx[1])+'ヶ月</small></span>'+
+         '<button data-act="res" data-kind="tech" data-id="'+x.id+'"'+(full||busy(key)||S.rp<rpCost(nx[0])?' disabled':'')+'>'+(busy(key)?'研究中':'研究する')+'</button></div>';
     });
   }
   setIf('resList',h);
@@ -1238,11 +1272,24 @@ function renderResearch(){
 function renderOffice(){
   const o=office(),nx=OFFICES[S.office+1];
   let h='<h2>オフィス</h2><div class="office"><b>'+o.name+'</b><div>'+
-    '<span>社員 '+o.staff+'人</span><span>同時開発 '+o.dev+'本</span><span>同時研究 '+o.res+'件</span><span>家賃 '+fmt(o.rent)+'/月</span></div></div>';
+    '<span>社員 '+S.staff.length+' / '+o.staff+'人</span><span>同時開発 '+o.dev+'本</span><span>同時研究 '+o.res+'件</span><span>家賃 '+fmt(o.rent)+'/月</span></div></div>';
   if(nx){
-    h+='<div class="res"><span>引っ越し先: '+nx.name+'<small>社員 '+nx.staff+'人 ・ 同時開発 '+nx.dev+'本 ・ 同時研究 '+nx.res+'件 ・ 家賃 '+fmt(nx.rent)+'/月</small></span>'+
+    h+='<div class="res"><span>引っ越し先: '+nx.name+'<small>定員 '+nx.staff+'人 ・ 同時開発 '+nx.dev+'本 ・ 同時研究 '+nx.res+'件 ・ 家賃 '+fmt(nx.rent)+'/月</small></span>'+
        '<button data-act="office"'+(S.money<nx.cost?' disabled':'')+'>'+fmt(nx.cost)+'で移転</button></div>';
   }else h+='<p class="empty">これ以上大きなオフィスはありません。</p>';
+  const full=S.staff.length>=staffCap();
+  h+='<h2 style="margin-top:18px">人材</h2><p class="note">研究ポイントは社員のスコア(10段階)が高いほど早くたまります。いま 1日 +'+rpPerDay().toFixed(1)+' pt ・ 月給の合計 '+fmt(salaries())+'</p>';
+  h+='<div class="sub2">社員 '+S.staff.length+' / '+staffCap()+'人</div>';
+  S.staff.forEach(p=>{
+    h+='<div class="res"><span>'+esc(p.name)+'<small>スコア '+p.score+' / 10 ・ 1日 +'+staffRp(p.score).toFixed(2)+' pt'+(p.boss?'':' ・ 月給 '+fmt(p.sal))+'</small></span>'+
+       (p.boss?'<span></span>':'<button data-act="fire" data-id="'+p.id+'">解雇</button>')+'</div>';
+  });
+  h+='<div class="sub2">応募者(毎月入れ替わります)</div>';
+  if(!S.cands.length)h+='<p class="empty">今月の応募者はもういません。</p>';
+  S.cands.forEach(c=>{
+    h+='<div class="res"><span>'+esc(c.name)+'<small>スコア '+c.score+' / 10 ・ 1日 +'+staffRp(c.score).toFixed(2)+' pt ・ 月給 '+fmt(c.sal)+'</small></span>'+
+       '<button data-act="hire" data-id="'+c.id+'"'+(full?' disabled':'')+'>'+(full?'定員':'採用する')+'</button></div>';
+  });
   h+='<h2 style="margin-top:18px">設備</h2>';
   FAC.forEach(f=>{
     const lv=S.fac[f.id];
@@ -1333,7 +1380,7 @@ function exportSave(){
   save();const d=peek();if(!d)return;
   const a=document.createElement('a');
   a.href=URL.createObjectURL(new Blob([JSON.stringify(d)],{type:'application/json'}));
-  a.download='device-tycoon-'+String(d.name).replace(/[\\/:*?"<>|]/g,'')+'-'+(Math.floor((d.day||0)/360)+1)+'年目.json';
+  a.download='スマホ帝国-'+String(d.name).replace(/[\\/:*?"<>|]/g,'')+'-'+(Math.floor((d.day||0)/360)+1)+'年目.json';
   document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
 }
 function importSave(file){
@@ -1351,7 +1398,7 @@ function hideTitle(){document.getElementById('title').classList.remove('on')}
 function startNew(){
   const i=document.getElementById('cname');
   const name=(i&&i.value.trim())||'ノーネーム社';
-  S=fresh(name);inGame=true;addLog('「'+name+'」を設立。最初の製品を作ろう');save();hideTitle();renderAll();
+  S=fresh(name);newCands();inGame=true;addLog('「'+name+'」を設立。最初の製品を作ろう');save();hideTitle();renderAll();
 }
 
 document.addEventListener('keydown',e=>{
@@ -1388,7 +1435,7 @@ document.addEventListener('click',e=>{
   if(a==='export'){exportSave();return}
   if(a==='import'){document.getElementById('importFile').click();return}
   if(a==='theme'){setTheme(b.dataset.k);showTitle('settings');return}
-  if(a==='cont'){const d=peek();if(d){S=merge(d);normalizeDesign(S.sel.type,S.sel.parts);inGame=true;hideTitle();renderAll()}return}
+  if(a==='cont'){const d=peek();if(d){S=merge(d);if(!S.cands.length)newCands();normalizeDesign(S.sel.type,S.sel.parts);inGame=true;hideTitle();renderAll()}return}
   if(a==='play'){setPlaying(!playing);return}
   if(a==='speed'){S.speed=+b.dataset.v;schedule();updateBar();save();return}
   if(a==='tab'){S.ui.tab=b.dataset.k;save();renderNav();window.scrollTo(0,0);return}
@@ -1437,16 +1484,29 @@ document.addEventListener('click',e=>{
     const id=b.dataset.id;let item;
     if(b.dataset.kind==='part'){
       const c=CATS.find(x=>x.id===id),nt=S.unl[id]+1,m=resMonths(nt)*30;
-      if(S.money<RC[nt])return;
-      S.money-=RC[nt];
+      if(S.rp<rpCost(RC[nt]))return;
+      S.rp-=rpCost(RC[nt]);
       item={kind:'part',key:'part:'+id,cat:id,tier:nt,name:c.name+'「'+c.tiers[nt][0]+'」',total:m,left:m};
     }else{
       const x=TECH.find(t=>t.id===id),lv=techLv(id)+1,nx=x.lv[lv-1],m=resMonths(nx[1])*30;
-      if(S.money<nx[0])return;
-      S.money-=nx[0];
+      if(S.rp<rpCost(nx[0]))return;
+      S.rp-=rpCost(nx[0]);
       item={kind:'tech',key:'tech:'+id,id,lv,name:x.name+(x.lv.length>1?' Lv'+lv:''),total:m,left:m};
     }
     S.research.push(item);addLog('研究開始: '+item.name);
+    save();renderAll();return;
+  }
+  if(a==='hire'){
+    const c=S.cands.find(x=>String(x.id)===b.dataset.id);if(!c)return;
+    if(S.staff.length>=staffCap()){toast('オフィスの定員です。大きなオフィスに移転すると増やせます');return}
+    S.cands=S.cands.filter(x=>x!==c);S.staff.push(c);
+    addLog(c.name+'さんを採用(スコア '+c.score+' / 月給 '+fmt(c.sal)+')');
+    save();renderAll();return;
+  }
+  if(a==='fire'){
+    const p=S.staff.find(x=>String(x.id)===b.dataset.id);if(!p||p.boss)return;
+    if(!confirm(p.name+'さんを解雇しますか?'))return;
+    S.staff=S.staff.filter(x=>x!==p);addLog(p.name+'さんが退職');
     save();renderAll();return;
   }
   if(a==='office'){
