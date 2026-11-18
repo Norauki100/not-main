@@ -204,7 +204,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--acc);outline-of
 .viewer canvas{display:block;width:100%;height:100%;cursor:grab;touch-action:none}
 .viewer canvas:active{cursor:grabbing}
 .vmsg{position:absolute;inset:0;display:grid;place-items:center;margin:0;color:var(--sub);font-size:13px;pointer-events:none}
-.vhint{position:absolute;left:12px;bottom:8px;margin:0;color:var(--mute);font-size:12px;pointer-events:none}
+.vhint{position:absolute;left:12px;right:12px;bottom:8px;margin:0;color:var(--mute);font-size:12px;pointer-events:none}
 @media(max-width:900px){#pg-dev{grid-template-columns:1fr}.viewer{position:relative;top:0;height:340px}}
 .dtabs{display:flex;gap:2px;border-bottom:1px solid var(--line);margin:4px 0 14px;overflow-x:auto}
 .dtab{border:0;background:none;padding:8px 14px;font-weight:700;color:var(--sub);border-bottom:2px solid transparent;white-space:nowrap}
@@ -218,6 +218,9 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--acc);outline-of
 .tk b{font-size:17px;font-variant-numeric:tabular-nums}
 .tk em{font-style:normal;color:var(--sub);font-size:12px;font-variant-numeric:tabular-nums}
 .res button.fire,.res button[data-act=fire]{border-color:var(--line);color:var(--sub)}
+.vtools{position:absolute;top:12px;right:12px;display:flex;flex-direction:column;align-items:flex-end;gap:8px;max-width:60%}
+.vside{display:flex;align-items:center;gap:6px;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:6px 8px;font-size:12.5px}
+.vside .tab{padding:3px 10px;font-size:12.5px}
 </style>
 </head>
 <body>
@@ -236,7 +239,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--acc);outline-of
 <header class="subbar" id="subbar"></header>
 <main>
   <div class="page two" id="pg-dev">
-    <section class="viewer" id="viewer"><p class="vmsg" id="vmsg">3Dモデルを読み込み中…</p><p class="vhint">ドラッグで回転</p></section>
+    <section class="viewer" id="viewer"><p class="vmsg" id="vmsg">3Dモデルを読み込み中…</p><p class="vhint">ドラッグで回転</p><div class="vtools" id="vtools"></div></section>
     <section id="design"></section>
   </div>
   <div class="page two" id="pg-works">
@@ -256,7 +259,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--acc);outline-of
 <div id="toast"></div>
 
 <script>
-const VERSION='1.0.0';
+const VERSION='1.0.11';
 const TYPES={
   phone:{name:'スマホ',base:8000,market:200,w:[.22,.22,.17,.17,.08,.08,.06],dev:2,unlock:0,pre:'P'},
   tablet:{name:'タブレット',base:12000,market:120,w:[.30,.22,.20,.04,.08,.08,.08],dev:2,unlock:800000,pre:'T'},
@@ -338,9 +341,7 @@ const DOPT={
   bezel:{name:'ベゼル',mul:true,req:[0,1,2,3],opts:[['太い',0,0],['標準',800,1],['細い',2000,2],['極細',4000,3]]},
   fcam:{name:'フロントカメラ',req:[0,1,1,2,3],opts:[['ベゼル内',0,0],['ノッチ',300,.5],['水滴型ノッチ',200,.4],['パンチホール',500,1],['画面下カメラ',3000,1.2]]},
   camShape:{name:'カメラの形',req:[0,1,1,2,2],opts:[['ユニットなし',0,0],['縦長',0,0],['正方形',0,0],['丸型',300,0],['横一列',500,0]]},
-  camPos:{name:'カメラの位置',req:[0,1,1],opts:[['左上',0,0],['中央上',0,0],['中央',0,0]]},
   mp:{name:'画素数(メイン)',req:[0,1,2,2,3,4],opts:[['8MP',0,0],['12MP',500,.8],['48MP',1500,1.8],['50MP',1800,2],['108MP',3000,2.6],['200MP',5000,3.2]]},
-  btn:{name:'ボタンの配置',req:[0,1,1],opts:[['電源右・音量左',0,0],['右側にまとめる',0,0],['電源上・音量右',0,0]]},
   corner:{name:'角の丸み',req:[1,0,1],opts:[['角ばった',0,0],['標準',0,0],['丸い',0,0]]},
   frame:{name:'側面の形',req:[1,0],opts:[['平ら',200,0],['丸み',0,0]]},
   ant:{name:'アンテナ',req:[0,1,2,3],opts:[['2本',0,0],['4本',500,.5],['6本',1000,1],['8本',1600,1.3]]},
@@ -351,18 +352,18 @@ const DOPT={
     lap:[['USB-A ×2',0,0],['USB-C ×2',200,1],['USB-C ×2 + USB-A + HDMI',600,1.6],['Thunderbolt ×3 + HDMI + SDカード',1200,2]]},
   jack:{name:'イヤホンジャック',req:[0,0],opts:[['あり',300,.3],['なし',0,0]]}
 };
-const DDEF={glass:0,bezel:0,fcam:0,camShape:0,camPos:0,mp:0,btn:0,corner:1,frame:1,ant:0,fp:0,face:0,os:0,port:0,jack:0};
+const DDEF={glass:0,bezel:0,fcam:0,camShape:0,mp:0,corner:1,frame:1,ant:0,fp:0,face:0,os:0,port:0,jack:0};
 const LREQ={thick:[0,0,1,2],finish:[0,1,2],color:[0,0,1,1,2,2]};
 const MP_SCALE=[.85,.92,1,1.03,1.12,1.25];
 const DTABS=[['parts','部品'],['look','外観'],['cam','画面・カメラ'],['func','機能']];
-const DTAB_KEYS={look:['thick','finish','color','corner','frame'],cam:['glass','bezel','fcam','mp','camShape','camPos'],func:['fp','face','os','port','jack','btn','ant']};
+const DTAB_KEYS={look:['thick','finish','color','corner','frame'],cam:['glass','bezel','fcam','mp','camShape'],func:['fp','face','os','port','jack','ant']};
 const DRES={
   thick:['薄型化技術',[600000,2500000]],finish:['表面加工技術',[300000,1200000]],color:['カラーバリエーション',[150000,500000,1500000]],glass:['アンチグレア加工',[800000]],
   corner:['筐体設計',[200000]],frame:['フレーム加工',[300000]],
   bezel:['狭額縁技術',[300000,1200000,4000000]],fcam:['フロントカメラ技術',[400000,1500000,5000000]],
-  mp:['イメージセンサー技術',[300000,1000000,3000000,8000000]],camShape:['カメラユニット設計',[200000,800000]],camPos:['カメラ配置設計',[150000]],
+  mp:['イメージセンサー技術',[300000,1000000,3000000,8000000]],camShape:['カメラユニット設計',[200000,800000]],
   fp:['指紋認証',[300000,800000,2000000,6000000]],face:['顔認証',[400000,5000000]],os:['OS開発',[3000000,15000000]],
-  port:['端子技術',[200000,800000,3000000]],btn:['ボタン配置設計',[150000]],ant:['アンテナ設計',[300000,1000000,3000000]]
+  port:['端子技術',[200000,800000,3000000]],ant:['アンテナ設計',[300000,1000000,3000000]]
 };
 Object.keys(DRES).forEach(k=>{
   const [name,costs]=DRES[k],src=DOPT[k]?DOPT[k].opts.map(o=>o[0]):k==='thick'?THICK.map(t=>t.name):null;
@@ -374,6 +375,7 @@ Object.keys(DRES).forEach(k=>{
 const SURNAMES=['佐藤','鈴木','高橋','田中','伊藤','渡辺','山本','中村','小林','加藤','吉田','山田','佐々木','山口','松本','井上','木村','林','斎藤','清水','森','池田','橋本','石川','前田','藤田','岡田','後藤','長谷川','村上'];
 const GIVEN=['翔太','大輔','健太','拓也','直樹','陽菜','美咲','結衣','葵','さくら','悠斗','蓮','颯太','大和','優花','真央','彩','亮','誠','恵','和也','由美','智子','隆','光','遥','海斗','七海','千尋','航'];
 const CAND_N=4;
+const RENAME_COST=100000;
 
 let S,playing=false,timer=null,inGame=false;
 const newMon=()=>({rev:0,cogs:0,fixed:0,units:0,demand:0,lost:0,sup:0});
@@ -384,7 +386,7 @@ function fresh(name){
     research:[],dev:[],sales:[],trend:null,
     rival:{q:14,name:RIVALS[0]},log:[],last:null,mon:newMon(),goals:{},retired:[],
     ui:{tab:'home',rtab:'parts',dtab:'parts'},
-    sel:{type:'phone',parts:{screen:0,cpu:0,battery:0,camera:0,material:0,comm:0,storage:0,thick:1,finish:0,color:0,bezel:0,fcam:0,camShape:0,camPos:0,mp:0,btn:0,corner:1,frame:1,ant:0,fp:0,face:0,os:0,port:0,jack:0},price:0,touched:false},
+    sel:{type:'phone',parts:{screen:0,cpu:0,battery:0,camera:0,material:0,comm:0,storage:0,thick:1,finish:0,color:0,bezel:0,fcam:0,camShape:0,mp:0,corner:1,frame:1,ant:0,fp:0,face:0,os:0,port:0,jack:0},price:0,touched:false},
     n:1,over:false,top:false,released:0,totalUnits:0,rp:0,staff:[{id:0,name:(name||'ノーネーム社')+'の社長(あなた)',score:5,sal:0,boss:true}],cands:[],sid:1};
 }
 function peek(){try{const r=localStorage.getItem(KEY);return r?JSON.parse(r):null}catch(e){return null}}
@@ -398,6 +400,7 @@ function merge(d){
   d.retired=d.retired||[];
   if(d.rp==null)d.rp=0;
   if(!d.staff)d.staff=[{id:0,name:d.name+'の社長(あなた)',score:5,sal:0,boss:true}];
+  d.staff.forEach(p=>{if(!p.boss&&!p.rp)p.rp=rpRoll(p.score)});
   if(!d.cands)d.cands=[];if(!d.sid)d.sid=1;
   d.ui=Object.assign({},f.ui,d.ui);d.ui.tab='home';
   return Object.assign(f,d);
@@ -472,8 +475,9 @@ function bugCost(q){return Math.round((10000+q*500)/1000)*1000}
 function review(q,price){return clamp(1.5+q/11-Math.max(0,price/refPrice(q)-1)*3+.4*techLv('qa'),1,10)}
 function office(){return OFFICES[S.office]}
 const rpCost=yen=>Math.max(1,Math.round(yen/10000));
-const staffRp=sc=>Math.pow(sc,1.5)*.04;
-function rpPerDay(){return S.staff.reduce((a,p)=>a+staffRp(p.score),0)}
+const staffRp=p=>p.boss?5:p.rp||rpRoll(p.score);
+function rpRoll(sc){return clamp(Math.round(1+(sc-1)*4/9+(Math.random()-.5)*2),1,5)}
+function rpPerDay(){return S.staff.reduce((a,p)=>a+staffRp(p),0)}
 function salaryOf(sc){return Math.round((120000+sc*sc*6000)/1000)*1000}
 function staffCap(){return office().staff}
 function salaries(){return S.staff.reduce((a,p)=>a+p.sal,0)}
@@ -482,7 +486,7 @@ function newCands(){
   for(let i=0;i<CAND_N;i++){
     const g=(Math.random()+Math.random()+Math.random()-1.5)*2.4;
     const sc=clamp(Math.round(mean+g),1,10);
-    out.push({id:S.sid++,name:SURNAMES[Math.floor(Math.random()*SURNAMES.length)]+' '+GIVEN[Math.floor(Math.random()*GIVEN.length)],score:sc,sal:salaryOf(sc)});
+    out.push({id:S.sid++,name:SURNAMES[Math.floor(Math.random()*SURNAMES.length)]+' '+GIVEN[Math.floor(Math.random()*GIVEN.length)],score:sc,sal:salaryOf(sc),rp:rpRoll(sc)});
   }
   S.cands=out;
 }
@@ -710,15 +714,63 @@ function initViewer(){
   const msg=document.getElementById('vmsg');if(msg)msg.textContent='';
   new ResizeObserver(()=>resizeView()).observe(box);
   let drag=null;
-  r.domElement.addEventListener('pointerdown',e=>{drag={x:e.clientX,y:e.clientY,rx:V.rx,ry:V.ry};r.domElement.setPointerCapture(e.pointerId)});
+  const rc=new T.Raycaster();
+  const ray=e=>{const b=r.domElement.getBoundingClientRect();rc.setFromCamera(new T.Vector2((e.clientX-b.left)/b.width*2-1,-(e.clientY-b.top)/b.height*2+1),V.cam)};
+  const hitLocal=(e,normal,point)=>{
+    ray(e);V.group.updateMatrixWorld();
+    const n=normal.clone().transformDirection(V.group.matrixWorld),p=V.group.localToWorld(point.clone());
+    const out=new T.Vector3();if(!rc.ray.intersectPlane(new T.Plane().setFromNormalAndCoplanarPoint(n,p),out))return null;
+    return V.group.worldToLocal(out);
+  };
+  const planeFor=o=>{const u=V.group.userData;
+    if(o.userData.drag==='cam')return [new T.Vector3(0,0,1),new T.Vector3(0,0,u.zb)];
+    if(o.userData.side==='t')return [new T.Vector3(0,1,0),new T.Vector3(0,u.H/2,0)];
+    return [new T.Vector3(1,0,0),new T.Vector3((o.userData.side==='r'?1:-1)*u.W/2,0,0)];
+  };
+  r.domElement.addEventListener('pointerdown',e=>{
+    r.domElement.setPointerCapture(e.pointerId);
+    if(V.edit&&V.group){
+      ray(e);
+      const hit=rc.intersectObjects(V.group.children,true)[0];
+      let o=hit&&hit.object;while(o&&!o.userData.drag&&o.parent!==V.group)o=o.parent;
+      if(o&&o.userData.drag){
+        const [n,pt]=planeFor(o),h=hitLocal(e,n,pt);
+        if(h){
+          if(o.userData.drag==='btn'&&V.selBtn!==o.userData.i){V.selBtn=o.userData.i;V.key='';updateModel();renderVtools();
+            o=V.group.children.find(c=>c.userData.drag==='btn'&&c.userData.i===V.selBtn)}
+          drag={obj:o,start:h,pos:o.position.clone(),n,pt};return;
+        }
+      }
+    }
+    drag={x:e.clientX,y:e.clientY,rx:V.rx,ry:V.ry};
+  });
   r.domElement.addEventListener('pointermove',e=>{
     if(!drag)return;
+    if(drag.obj){
+      const h=hitLocal(e,drag.n,drag.pt);if(!h)return;
+      const o=drag.obj,d=h.sub(drag.start);
+      if(o.userData.drag==='cam'){
+        const L=o.userData.lim,u=V.group.userData;
+        const nx=clamp(L.cx+drag.pos.x+d.x,-L.x,L.x),ny=clamp(L.cy+drag.pos.y+d.y,-L.y,L.y);
+        o.position.set(nx-L.cx,ny-L.cy,0);
+      }else if(o.userData.side==='t')o.position.x=clamp(drag.pos.x+d.x,-o.userData.lim,o.userData.lim);
+      else o.position.y=clamp(drag.pos.y+d.y,-o.userData.lim,o.userData.lim);
+      drawView();return;
+    }
     V.ry=drag.ry+(e.clientX-drag.x)*0.01;
     V.rx=clamp(drag.rx+(e.clientY-drag.y)*0.01,-1.3,1.3);
     if(V.group)V.group.rotation.set(V.rx,V.ry,0);
     drawView();
   });
-  const end=()=>{drag=null};
+  const end=()=>{
+    if(drag&&drag.obj){
+      const o=drag.obj,P=S.sel.parts;
+      if(o.userData.drag==='cam'){const L=o.userData.lim;P.camX=L.cx+o.position.x;P.camY=L.cy+o.position.y}
+      else{const bl=btnList(S.sel.type,P);bl[o.userData.i].p=o.userData.side==='t'?o.position.x:o.position.y;P.btns=bl}
+      drag=null;renderDesign();return;
+    }
+    drag=null;
+  };
   r.domElement.addEventListener('pointerup',end);r.domElement.addEventListener('pointercancel',end);
   resizeView();
 }
@@ -773,6 +825,7 @@ function updateModel(){
   const g=s.type==='laptop'?buildLaptop(s.parts):buildSlate(s.type,s.parts);
   g.scale.setScalar(0.01);g.rotation.set(V.rx,V.ry,0);
   V.group=g;V.scene.add(g);
+  renderVtools();
   resizeView();
 }
 function disposeTree(o){
@@ -782,6 +835,26 @@ function disposeTree(o){
   });
 }
 
+function btnList(type,parts){
+  if(parts.btns&&parts.btns.length)return parts.btns.map(b=>Object.assign({},b));
+  const u=type==='tablet'?1.3:1,H=type==='tablet'?247.6:147.6;
+  return [{k:'pw',s:'r',p:H/2-48*u},{k:'vu',s:'l',p:H/2-36*u},{k:'vd',s:'l',p:H/2-50*u}];
+}
+const BTN_NAME={pw:'電源ボタン',vu:'音量+',vd:'音量-'};
+function renderVtools(){
+  const el=document.getElementById('vtools');if(!el)return;
+  const ok=V.ready&&S.owned[S.sel.type]&&S.sel.type!=='laptop';
+  if(!ok){el.innerHTML='';V.edit=false;const hn=document.querySelector('.vhint');if(hn)hn.textContent='ドラッグで回転';return}
+  let h='<button class="go alt" data-act="vedit">'+(V.edit?'調整を終える':'位置を調整')+'</button>';
+  if(V.edit){
+    if(V.selBtn!=null){
+      const b=btnList(S.sel.type,S.sel.parts)[V.selBtn];
+      if(b)h+='<div class="vside"><span>'+BTN_NAME[b.k]+'</span>'+[['r','右側'],['l','左側'],['t','上側']].map(x=>'<button class="tab '+(b.s===x[0]?'on':'')+'" data-act="vside" data-k="'+x[0]+'">'+x[1]+'</button>').join('')+'</div>';
+    }
+  }
+  el.innerHTML=h;
+  const hint=document.querySelector('.vhint');if(hint)hint.textContent=V.edit?'カメラやボタンをドラッグで移動 ・ ボタンをクリックすると付ける面を変えられます ・ 何もない所をドラッグで回転':'ドラッグで回転';
+}
 function rrShape(w,h,r){
   const s=new T.Shape(),x=-w/2,y=-h/2;r=Math.max(0.01,Math.min(r,w/2,h/2));
   s.moveTo(x+r,y);s.lineTo(x+w-r,y);s.absarc(x+w-r,y+r,r,-Math.PI/2,0,false);
@@ -868,12 +941,14 @@ function buildSlate(type,parts){
   frontCam(g,dv(parts,'fcam'),W,H,bz,zf,tab?1.15:1,bev,dv(parts,'face')===2);
   const bd=Math.min(3,D*.45),bm=M.frame;
   const pw=fpv===2?phys(darker(L.color[1],.55),{metalness:.4,roughness:.3}):bm,pl=fpv===2?20:17;
-  const sideBtn=(sx,y,len,m)=>g.add(mesh(new T.BoxGeometry(1.2,len,bd),m||bm,sx*(W/2+0.25),y,0));
-  const topBtn=(x,len,m)=>g.add(mesh(new T.BoxGeometry(len,1.2,bd),m||bm,x,H/2+0.25,0));
-  const b=dv(parts,'btn'),u=tab?1.3:1;
-  if(b===0){sideBtn(1,H/2-48*u,pl*u,pw);sideBtn(-1,H/2-36*u,11*u);sideBtn(-1,H/2-50*u,11*u)}
-  else if(b===1){sideBtn(1,H/2-30*u,11*u);sideBtn(1,H/2-44*u,11*u);sideBtn(1,H/2-64*u,pl*u,pw)}
-  else{topBtn(W/2-18*u,(pl-4)*u,pw);sideBtn(1,H/2-30*u,11*u);sideBtn(1,H/2-44*u,11*u)}
+  const u=tab?1.3:1;
+  g.userData={W,H,zb,R,btn:[]};
+  btnList(type,parts).forEach((b,i)=>{
+    const len=(b.k==='pw'?pl:11)*u,m=V.edit&&V.selBtn===i?phys('#2f6fd8',{roughness:.3}):b.k==='pw'?pw:bm;
+    const lim=(b.s==='t'?W:H)/2-len/2-R*.7,p=clamp(b.p,-lim,lim);
+    const o=b.s==='t'?mesh(new T.BoxGeometry(len,1.2,bd),m,p,H/2+0.25,0):mesh(new T.BoxGeometry(1.2,len,bd),m,(b.s==='r'?1:-1)*(W/2+0.25),p,0);
+    o.userData={drag:'btn',i,lim,side:b.s};g.add(o);
+  });
   const pt=dv(parts,'port');
   if(pt===0)g.add(mesh(new T.BoxGeometry(7.2,1.2,Math.min(2.3,D*.42)),DARK(),0,-H/2+0.2,0));
   else{const pc=mesh(slab(8.6,Math.min(2.8,D*.48),Math.min(1.4,D*.24),1.4,.1),DARK(),0,-H/2+0.3,0);pc.rotation.x=Math.PI/2;g.add(pc)}
@@ -927,7 +1002,7 @@ function frontCam(g,fc,W,H,bz,zf,u,bev,face3d){
   }
 }
 function addCameras(g,M,parts,W,H,zb,tab){
-  const c=parts.camera||0,shape=dv(parts,'camShape'),pos=dv(parts,'camPos');
+  const c=parts.camera||0,shape=dv(parts,'camShape'),G=g;g=new T.Group();g.userData.drag='cam';
   const mps=MP_SCALE[dv(parts,'mp')];
   let k=tab?.9:1;const mg=tab?9:7;
   const ring=phys('#8a8c90',{metalness:1,roughness:.25});
@@ -957,8 +1032,10 @@ function addCameras(g,M,parts,W,H,zb,tab){
   if(shape===4){mw=Math.max(W/k-2*mg,x1-x0+10);mr=mh/2;pts=pts.map(p=>[p[0]-(mw/2-(x1-x0)/2-5),p[1]]);fl=[fl[0]-(mw/2-(x1-x0)/2-5),fl[1]]}
   const fit=Math.min(1,(W-2*mg)/(mw*k),(H*.42)/(mh*k));k*=fit;
   mw*=k;mh*=k;
-  let cx=shape===4||pos>0?0:W/2-mg-mw/2;
-  let cy=H/2-mg-mh/2;if(pos===2)cy=Math.min(cy,H*.14);
+  const lx=shape===4?0:W/2-mg-mw/2,ly=H/2-mg-mh/2;
+  let cx=shape===4?0:parts.camX==null?lx:clamp(parts.camX,-lx,lx);
+  let cy=parts.camY==null?ly:clamp(parts.camY,-ly,ly);
+  g.userData.lim={x:lx,y:ly,cx,cy};
   const bh=shape===0?0:[1,1.2,1.8,2.6,2.2][c];
   const z0=zb-bh;
   if(shape>0)g.add(mesh(slab(mw,mh,Math.min(mr*k,mw/2,mh/2),bh,Math.min(.6,bh*.35)),bumpMat,cx,cy,zb-bh/2));
@@ -976,7 +1053,8 @@ function addCameras(g,M,parts,W,H,zb,tab){
     }
   });
   g.add(mesh(disc(2.2*k,.3),flash,cx-fl[0]*k,cy+fl[1]*k,(shape===0?zb:z0)-.1));
-  return cy-mh/2-(shape===0?0:0);
+  G.add(g);G.userData.cam=g;
+  return cy-mh/2;
 }
 
 function buildLaptop(parts){
@@ -1052,7 +1130,7 @@ function updateBar(){
   const o=office();
   t('b-name',S.name);t('b-rank',o.rank);t('b-office',o.name+' ・ 社員 '+S.staff.length+' / '+staffCap()+'人');
   t('t-money',fmt(S.money));t('b-date',dayLabel(S.day));t('s-date',dayLabel(S.day));
-  t('t-rp',Math.floor(S.rp).toLocaleString()+' pt');t('t-rpd','+'+rpPerDay().toFixed(1)+' pt/日');
+  t('t-rp',Math.floor(S.rp).toLocaleString()+' pt');t('t-rpd','+'+rpPerDay()+' pt/日');
   t('b-users',S.totalUnits.toLocaleString()+'人');t('b-fans',Math.round(S.fans).toLocaleString()+'人');t('b-cap',cap()+'台/月');
   t('b-rel',String(S.released));t('b-fixed',fmt(fixedCost()));
   ['t-money'].forEach(id=>{const m=document.getElementById(id);if(m)m.className=S.money<0?'neg':''});
@@ -1271,23 +1349,25 @@ function renderResearch(){
 
 function renderOffice(){
   const o=office(),nx=OFFICES[S.office+1];
-  let h='<h2>オフィス</h2><div class="office"><b>'+o.name+'</b><div>'+
+  let h='<h2>会社</h2><div class="fl" style="margin-bottom:16px"><div><div class="lbl" style="font-size:13px;font-weight:700;margin-bottom:4px">社名(変更に '+fmt(RENAME_COST)+')</div><input type="text" id="rename" maxlength="16" value="'+esc(S.name)+'"></div>'+
+    '<button class="go alt" data-act="rename"'+(S.money<RENAME_COST?' disabled':'')+'>社名を変更</button></div>';
+  h+='<h2>オフィス</h2><div class="office"><b>'+o.name+'</b><div>'+
     '<span>社員 '+S.staff.length+' / '+o.staff+'人</span><span>同時開発 '+o.dev+'本</span><span>同時研究 '+o.res+'件</span><span>家賃 '+fmt(o.rent)+'/月</span></div></div>';
   if(nx){
     h+='<div class="res"><span>引っ越し先: '+nx.name+'<small>定員 '+nx.staff+'人 ・ 同時開発 '+nx.dev+'本 ・ 同時研究 '+nx.res+'件 ・ 家賃 '+fmt(nx.rent)+'/月</small></span>'+
        '<button data-act="office"'+(S.money<nx.cost?' disabled':'')+'>'+fmt(nx.cost)+'で移転</button></div>';
   }else h+='<p class="empty">これ以上大きなオフィスはありません。</p>';
   const full=S.staff.length>=staffCap();
-  h+='<h2 style="margin-top:18px">人材</h2><p class="note">研究ポイントは社員のスコア(10段階)が高いほど早くたまります。いま 1日 +'+rpPerDay().toFixed(1)+' pt ・ 月給の合計 '+fmt(salaries())+'</p>';
+  h+='<h2 style="margin-top:18px">人材</h2><p class="note">研究ポイントは社員ごとに1日にたまる量が決まっています(社長は5pt、ほかの社員は1〜5ptで、スコアが高い人ほど多い傾向)。いま 1日 +'+rpPerDay()+' pt ・ 月給の合計 '+fmt(salaries())+'</p>';
   h+='<div class="sub2">社員 '+S.staff.length+' / '+staffCap()+'人</div>';
   S.staff.forEach(p=>{
-    h+='<div class="res"><span>'+esc(p.name)+'<small>スコア '+p.score+' / 10 ・ 1日 +'+staffRp(p.score).toFixed(2)+' pt'+(p.boss?'':' ・ 月給 '+fmt(p.sal))+'</small></span>'+
+    h+='<div class="res"><span>'+esc(p.name)+'<small>スコア '+p.score+' / 10 ・ 1日 +'+staffRp(p)+' pt'+(p.boss?'':' ・ 月給 '+fmt(p.sal))+'</small></span>'+
        (p.boss?'<span></span>':'<button data-act="fire" data-id="'+p.id+'">解雇</button>')+'</div>';
   });
   h+='<div class="sub2">応募者(毎月入れ替わります)</div>';
   if(!S.cands.length)h+='<p class="empty">今月の応募者はもういません。</p>';
   S.cands.forEach(c=>{
-    h+='<div class="res"><span>'+esc(c.name)+'<small>スコア '+c.score+' / 10 ・ 1日 +'+staffRp(c.score).toFixed(2)+' pt ・ 月給 '+fmt(c.sal)+'</small></span>'+
+    h+='<div class="res"><span>'+esc(c.name)+'<small>スコア '+c.score+' / 10 ・ 1日 +'+staffRp(c)+' pt ・ 月給 '+fmt(c.sal)+'</small></span>'+
        '<button data-act="hire" data-id="'+c.id+'"'+(full?' disabled':'')+'>'+(full?'定員':'採用する')+'</button></div>';
   });
   h+='<h2 style="margin-top:18px">設備</h2>';
@@ -1439,6 +1519,11 @@ document.addEventListener('click',e=>{
   if(a==='play'){setPlaying(!playing);return}
   if(a==='speed'){S.speed=+b.dataset.v;schedule();updateBar();save();return}
   if(a==='tab'){S.ui.tab=b.dataset.k;save();renderNav();window.scrollTo(0,0);return}
+  if(a==='vedit'){V.edit=!V.edit;V.selBtn=null;V.key='';updateModel();renderVtools();return}
+  if(a==='vside'){
+    const P=S.sel.parts,bl=btnList(S.sel.type,P),b=bl[V.selBtn];if(!b)return;
+    b.s=e.target.closest('[data-k]').dataset.k;b.p=0;P.btns=bl;V.key='';renderDesign();return;
+  }
   if(a==='dtab'){S.ui.dtab=b.dataset.k;renderDesign();return}
   if(a==='rtab'){S.ui.rtab=b.dataset.k;save();renderResearch();return}
   if(a==='restart'){const n=S.name;S=fresh(n);addLog('「'+n+'」を再スタート');save();renderAll();return}
@@ -1450,6 +1535,7 @@ document.addEventListener('click',e=>{
       if(!confirm(t.name+'市場に参入します。'+fmt(t.unlock)+'かかります。よろしいですか?'))return;
       S.money-=t.unlock;S.owned[k]=true;addLog(t.name+'市場に参入');
     }
+    if(S.sel.type!==k){delete S.sel.parts.btns;delete S.sel.parts.camX;delete S.sel.parts.camY;V.selBtn=null}
     S.sel.type=k;normalizeDesign(k,S.sel.parts);S.sel.touched=false;save();renderAll();return;
   }
   if(a==='part'){
@@ -1465,7 +1551,7 @@ document.addEventListener('click',e=>{
     const name=(document.getElementById('pname').value.trim()||TYPES[s.type].pre+S.n).slice(0,20);
     const days=TYPES[s.type].dev*30;
     S.money-=cost;
-    S.dev.push({id:S.n,name,type:s.type,parts:Object.assign({},s.parts),q,price:s.price,cost:unitCost(s.type,s.parts),
+    S.dev.push({id:S.n,name,type:s.type,parts:JSON.parse(JSON.stringify(s.parts)),q,price:s.price,cost:unitCost(s.type,s.parts),
       total:days,left:days,score:0,bugs:0,target:devTarget(q)});
     addLog('「'+name+'」の開発を開始(開発費 '+fmt(cost)+')');
     S.n++;S.sel.touched=false;save();renderAll();toast('開発を始めました。再生で日が進みます');return;
@@ -1494,6 +1580,17 @@ document.addEventListener('click',e=>{
       item={kind:'tech',key:'tech:'+id,id,lv,name:x.name+(x.lv.length>1?' Lv'+lv:''),total:m,left:m};
     }
     S.research.push(item);addLog('研究開始: '+item.name);
+    save();renderAll();return;
+  }
+  if(a==='rename'){
+    const v=document.getElementById('rename').value.trim().slice(0,16);
+    if(!v){toast('社名を入力してください');return}
+    if(v===S.name){toast('今と同じ社名です');return}
+    if(S.money<RENAME_COST){toast('資金が足りません(必要 '+fmt(RENAME_COST)+')');return}
+    if(!confirm('社名を「'+v+'」に変更します。'+fmt(RENAME_COST)+'かかります。よろしいですか?'))return;
+    const old=S.name;S.money-=RENAME_COST;S.name=v;
+    const boss=S.staff.find(p=>p.boss);if(boss)boss.name=v+'の社長(あなた)';
+    addLog('社名を「'+old+'」から「'+v+'」に変更');toast('社名を「'+v+'」に変更しました');
     save();renderAll();return;
   }
   if(a==='hire'){
