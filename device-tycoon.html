@@ -131,6 +131,7 @@ th{font-size:11.5px;color:var(--sub);font-weight:600}
 .dstats small{color:var(--sub);font-size:12px;margin-right:6px}
 .dstats b{font-size:14px;font-variant-numeric:tabular-nums}
 .dstats .bugs b{color:var(--red)}
+.dstats b{font-size:13.5px}
 .dev .prog{width:100%}
 .dev .ft{display:flex;justify-content:space-between;align-items:center;margin-top:8px;font-size:12.5px;color:var(--sub)}
 .dev .ft button{border:1px solid var(--line);color:var(--ink);background:var(--panel);padding:4px 12px;border-radius:6px;font-size:12.5px}
@@ -221,6 +222,11 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--acc);outline-of
 .vtools{position:absolute;top:12px;right:12px;display:flex;flex-direction:column;align-items:flex-end;gap:8px;max-width:60%}
 .vside{display:flex;align-items:center;gap:6px;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:6px 8px;font-size:12.5px}
 .vside .tab{padding:3px 10px;font-size:12.5px}
+.ds .dn{display:flex;flex-wrap:wrap;gap:2px 12px;font-size:12px;color:var(--sub);font-variant-numeric:tabular-nums}
+.ds .dn b{color:var(--ink)}
+.ds .dn b.neg{color:var(--red)}
+.pcall{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:6px;margin-bottom:6px}
+.res .btns{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
 </style>
 </head>
 <body>
@@ -259,11 +265,11 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--acc);outline-of
 <div id="toast"></div>
 
 <script>
-const VERSION='1.0.11';
+const VERSION='1.0.2';
 const TYPES={
-  phone:{name:'スマホ',base:8000,market:200,w:[.22,.22,.17,.17,.08,.08,.06],dev:2,unlock:0,pre:'P'},
-  tablet:{name:'タブレット',base:12000,market:120,w:[.30,.22,.20,.04,.08,.08,.08],dev:2,unlock:800000,pre:'T'},
-  laptop:{name:'ノートPC',base:20000,market:80,w:[.17,.33,.15,.04,.12,.05,.14],dev:3,unlock:2500000,pre:'L'}
+  phone:{name:'スマホ',base:8000,market:200,w:[.22,.22,.17,.17,.08,.08,.06],dev:2,unlock:0,pre:'P',scale:1},
+  tablet:{name:'タブレット',base:12000,market:120,w:[.30,.22,.20,.04,.08,.08,.08],dev:2,unlock:800000,pre:'T',scale:1.2},
+  laptop:{name:'ノートPC',base:20000,market:80,w:[.17,.33,.15,.04,.12,.05,.14],dev:3,unlock:2500000,pre:'L',scale:1.5}
 };
 const CATS=[
   {id:'screen',name:'画面',tiers:[['液晶 HD',3000,10],['液晶 フルHD',6000,22],['有機EL',11000,38],['有機EL 120Hz',17000,52],['マイクロLED',26000,70]]},
@@ -278,6 +284,7 @@ const RC=[0,300000,1200000,4000000,12000000];
 const CAP=[40,80,160,320,640,1280];
 const TECH=[
   {id:'analytics',tab:'tech',name:'市場分析',desc:'設計画面に「予想販売数」と「予想レビュー」が表示される',lv:[[500000,2]]},
+  {id:'pc',tab:'tech',name:'社内IT投資',desc:'社員に使わせるパソコンの段階を解禁する(Lv1: 開発用ワークステーション / Lv2: ハイエンドワークステーション)',lv:[[300000,1],[1500000,2]]},
   {id:'qa',tab:'tech',name:'品質管理',desc:'レビュー点が1段階ごとに +0.4',lv:[[800000,2],[3000000,3],[10000000,4]]},
   {id:'patent',tab:'tech',name:'特許戦略',desc:'開発費が1段階ごとに 10% 下がる',lv:[[1500000,2],[6000000,3],[20000000,4]]},
   {id:'line',tab:'make',name:'生産ライン拡張',desc:'同時に生産できる量が増える(40 → 80 → 160 → 320 → 640 → 1280台/月)',lv:[[600000,2],[2000000,3],[7000000,4],[22000000,5],[70000000,6]]},
@@ -375,6 +382,20 @@ Object.keys(DRES).forEach(k=>{
 const SURNAMES=['佐藤','鈴木','高橋','田中','伊藤','渡辺','山本','中村','小林','加藤','吉田','山田','佐々木','山口','松本','井上','木村','林','斎藤','清水','森','池田','橋本','石川','前田','藤田','岡田','後藤','長谷川','村上'];
 const GIVEN=['翔太','大輔','健太','拓也','直樹','陽菜','美咲','結衣','葵','さくら','悠斗','蓮','颯太','大和','優花','真央','彩','亮','誠','恵','和也','由美','智子','隆','光','遥','海斗','七海','千尋','航'];
 const CAND_N=4;
+const STATS=[['res','研究',3],['bug','バグ対策',5],['qual','クオリティ',5],['des','デザイン',5]];
+const BOSS_STATS={res:2,bug:4,qual:4,des:2};
+const PCS=[
+  {name:'中古ノートPC',mul:1,cost:0,req:0},
+  {name:'事務用デスクトップ',mul:1.15,cost:150000,req:0},
+  {name:'開発用ワークステーション',mul:1.3,cost:400000,req:1},
+  {name:'ハイエンドワークステーション',mul:1.45,cost:1000000,req:2}
+];
+const SEGS=[
+  {id:'light',name:'ライト層',share:.5,spec:.8,price:1.3,qual:.6,des:1,bug:.6},
+  {id:'hard',name:'ハード層',share:.25,spec:1.3,price:.8,qual:1.1,des:.6,bug:1},
+  {id:'gamer',name:'ゲーマー',share:.15,spec:1.5,price:.9,qual:.7,des:.4,bug:1.4},
+  {id:'otaku',name:'オタク',share:.1,spec:1.1,price:.7,qual:1.2,des:1.6,bug:1.1}
+];
 const RENAME_COST=100000;
 
 let S,playing=false,timer=null,inGame=false;
@@ -387,7 +408,7 @@ function fresh(name){
     rival:{q:14,name:RIVALS[0]},log:[],last:null,mon:newMon(),goals:{},retired:[],
     ui:{tab:'home',rtab:'parts',dtab:'parts'},
     sel:{type:'phone',parts:{screen:0,cpu:0,battery:0,camera:0,material:0,comm:0,storage:0,thick:1,finish:0,color:0,bezel:0,fcam:0,camShape:0,mp:0,corner:1,frame:1,ant:0,fp:0,face:0,os:0,port:0,jack:0},price:0,touched:false},
-    n:1,over:false,top:false,released:0,totalUnits:0,rp:0,staff:[{id:0,name:(name||'ノーネーム社')+'の社長(あなた)',score:5,sal:0,boss:true}],cands:[],sid:1};
+    n:1,over:false,top:false,released:0,totalUnits:0,rp:0,staff:[Object.assign({id:0,name:(name||'ノーネーム社')+'の社長(あなた)',score:5,sal:0,boss:true},BOSS_STATS)],cands:[],sid:1};
 }
 function peek(){try{const r=localStorage.getItem(KEY);return r?JSON.parse(r):null}catch(e){return null}}
 function merge(d){
@@ -400,7 +421,9 @@ function merge(d){
   d.retired=d.retired||[];
   if(d.rp==null)d.rp=0;
   if(!d.staff)d.staff=[{id:0,name:d.name+'の社長(あなた)',score:5,sal:0,boss:true}];
-  d.staff.forEach(p=>{if(!p.boss&&!p.rp)p.rp=rpRoll(p.score)});
+  d.staff.forEach(p=>{if(p.boss)Object.assign(p,BOSS_STATS);else if(p.qual==null){Object.assign(p,rollStats());p.score=scoreOf(p);p.sal=salaryOf(p.score)}delete p.rp});
+  (d.cands||[]).forEach(c=>{if(c.qual==null){Object.assign(c,rollStats());c.score=scoreOf(c);c.sal=salaryOf(c.score)}delete c.rp});
+  (d.dev||[]).forEach(x=>{if(x.qp==null){x.qp=0;x.dp=0;x.bp=0}});
   if(!d.cands)d.cands=[];if(!d.sid)d.sid=1;
   d.ui=Object.assign({},f.ui,d.ui);d.ui.tab='home';
   return Object.assign(f,d);
@@ -470,23 +493,44 @@ function costMult(){return (1-.06*S.fac.factory)*(1-.04*techLv('prod'))}
 function quality(type,parts){const L=lookOf(parts);return CATS.reduce((a,c,i)=>a+TYPES[type].w[i]*c.tiers[parts[c.id]||0][2],0)+L.thick.q+L.finish[2]+designExtra(type,parts)[1]}
 function refPrice(q){return 15000+q*2200}
 function devCost(type,q){return Math.round((300000+q*20000)*TYPES[type].dev/2*(1-.1*techLv('patent'))/1000)*1000}
-function devTarget(q){return Math.round(60+q*5)}
-function bugCost(q){return Math.round((10000+q*500)/1000)*1000}
+function devScale(type,q){return q*TYPES[type].scale}
+function expQual(d){return devScale(d.type,d.q)*d.total*.4}
+function expDes(d){return devScale(d.type,d.q)*d.total*.2}
+function bugGen(d){return devScale(d.type,d.q)*.15}
+const BUG_RED=.25;
+const DEBUG_N=5;
+function debugRp(q){return rpCost(10000+q*500)}
+function bugFactor(b){return b<=100?1-b/100*.15:.85*Math.exp(-(b-100)/120)}
+function rateLabel(r){return r<.8?'低い':r<.95?'やや低い':r<=1.2?'普通':r<=1.5?'高い':'とても高い'}
 function review(q,price){return clamp(1.5+q/11-Math.max(0,price/refPrice(q)-1)*3+.4*techLv('qa'),1,10)}
 function office(){return OFFICES[S.office]}
 const rpCost=yen=>Math.max(1,Math.round(yen/10000));
-const staffRp=p=>p.boss?5:p.rp||rpRoll(p.score);
-function rpRoll(sc){return clamp(Math.round(1+(sc-1)*4/9+(Math.random()-.5)*2),1,5)}
+function rollStats(){
+  const m=.3+S.office*.12,o={};
+  STATS.forEach(([k,,mx])=>{const g=(Math.random()+Math.random()+Math.random()-1.5)*.35;o[k]=Math.round(clamp(m+g,0,1)*mx)});
+  return o;
+}
+function scoreOf(st){return clamp(Math.round(STATS.reduce((a,[k,,mx])=>a+st[k]/mx,0)/STATS.length*9)+1,1,10)}
+const pcMul=p=>PCS[p.pc||0].mul;
+const staffRp=p=>(p.res||0)*pcMul(p);
+function teamStat(k){return S.staff.reduce((a,p)=>a+(p[k]||0)*pcMul(p),0)}
+const r1=v=>Math.round(v*10)/10;
+function forecastDev(type,q){
+  const n=S.dev.length+1,d={type,q,total:TYPES[type].dev*30};
+  const qp=teamStat('qual')/n*d.total,dp=teamStat('des')/n*d.total;
+  const bp=Math.max(0,(bugGen(d)-teamStat('bug')/n*BUG_RED)*d.total);
+  return {qr:qp/expQual(d),dr:dp/expDes(d),bugs:Math.round(bp)};
+}
+function releaseReview(q,price,qr,dr,bp){return clamp(review(q,price)+clamp(qr-1,-.6,.5)*2+clamp(dr-1,-.6,.5)*1.5-Math.max(0,bp-50)/40,1,10)}
 function rpPerDay(){return S.staff.reduce((a,p)=>a+staffRp(p),0)}
 function salaryOf(sc){return Math.round((120000+sc*sc*6000)/1000)*1000}
 function staffCap(){return office().staff}
 function salaries(){return S.staff.reduce((a,p)=>a+p.sal,0)}
 function newCands(){
-  const mean=3+S.office*1.2,out=[];
+  const out=[];
   for(let i=0;i<CAND_N;i++){
-    const g=(Math.random()+Math.random()+Math.random()-1.5)*2.4;
-    const sc=clamp(Math.round(mean+g),1,10);
-    out.push({id:S.sid++,name:SURNAMES[Math.floor(Math.random()*SURNAMES.length)]+' '+GIVEN[Math.floor(Math.random()*GIVEN.length)],score:sc,sal:salaryOf(sc),rp:rpRoll(sc)});
+    const st=rollStats(),sc=scoreOf(st);
+    out.push(Object.assign({id:S.sid++,name:SURNAMES[Math.floor(Math.random()*SURNAMES.length)]+' '+GIVEN[Math.floor(Math.random()*GIVEN.length)],score:sc,sal:salaryOf(sc)},st));
   }
   S.cands=out;
 }
@@ -506,9 +550,15 @@ function demand(p,rnd){
   const decay=Math.exp(-p.age/150);
   const gm=[1,1.25,1.5,2][techLv('global')];
   const ad=1+.08*techLv('ads');
-  const bf=Math.max(.5,1-(p.bugs||0)*.012);
   const wom=(p.rvN||0)>=10?clamp(1+(userAvg(p)-3)*.1,.8,1.2):1;
-  return T.market*gm*ad*(.6+S.fans/500)*Math.pow(p.q/40,1.5)*pf*tm*rf*decay*bf*wom*rnd;
+  const qr=clamp(p.qr==null?1:p.qr,.4,1.6),dr=clamp(p.dr==null?1:p.dr,.4,1.6),bf=bugFactor(p.bugs||0);
+  const appeal=SEGS.reduce((a,s)=>a+s.share*Math.pow(segSpec(p,s)/40,1.5*s.spec)*Math.pow(pf,s.price)*Math.pow(qr,s.qual*.6)*Math.pow(dr,s.des*.6)*Math.pow(bf,s.bug),0);
+  return T.market*gm*ad*(.6+S.fans/500)*appeal*tm*rf*decay*wom*rnd;
+}
+function segSpec(p,s){
+  if(s.id!=='gamer')return p.q;
+  const t=id=>CATS.find(c=>c.id===id).tiers[p.parts[id]||0][2];
+  return p.q*.5+(t('cpu')*.5+t('screen')*.3+t('battery')*.2)*.5;
 }
 function userAvg(p){
   if(!p.rvN)return 0;
@@ -517,13 +567,21 @@ function userAvg(p){
 const POS={screen:'画面がとてもきれい',cpu:'動作がサクサクで快適',battery:'電池が長持ちする',camera:'写真がきれいに撮れる',material:'質感が高級',comm:'通信が速くて安定している',storage:'容量に余裕があって安心'};
 const NEG={screen:'画面が粗くて見づらい',cpu:'動作がもたつく',battery:'電池がすぐなくなる',camera:'カメラが物足りない',material:'作りが安っぽい',comm:'通信が遅い',storage:'容量がすぐいっぱいになる'};
 const NICK=['たろう','ゆき','けん','みさき','Haru','Sora','mika','りく','あおい','Ken','さくら','tomo'];
+function pickSeg(){let r=Math.random();for(const s of SEGS){if((r-=s.share)<0)return s}return SEGS[0]}
 function genReview(p){
-  const ratio=refPrice(p.q)/p.price;
-  const exp=clamp(1+p.review/10*4+clamp((ratio-1)*1.2,-1.2,1)*.8-Math.min(1.2,p.bugs*.06)*.5,1,5);
+  const sg=pickSeg(),ratio=refPrice(p.q)/p.price,b=p.bugs||0;
+  const qr=p.qr==null?1:p.qr,dr=p.dr==null?1:p.dr;
+  const bugPen=b<=100?b/100*.6:.6+(b-100)/60;
+  const exp=clamp(1+p.review/10*4+clamp((ratio-1)*1.2,-1.2,1)*.8*sg.price+clamp(qr-1,-.6,.5)*1.5*sg.qual+clamp(dr-1,-.6,.5)*1.5*sg.des-bugPen*sg.bug,1,5);
   const stars=clamp(Math.round(exp+(Math.random()-.5)*2.2),1,5);
   const pos=[],neg=[];
   CATS.forEach(c=>{const t=p.parts[c.id]||0;if(t>=3)pos.push(POS[c.id]);if(t<=1)neg.push(NEG[c.id])});
-  if(p.bugs>=8)neg.push('バグが多くてよく固まる');else if(p.bugs<=2)pos.push('不具合がほとんどなく安定している');
+  if(b>100)neg.push(...(sg.id==='gamer'?['ゲーム中によく落ちる','バグが多くてよく固まる']:['バグが多くてよく固まる','アプリがすぐ落ちる']));
+  else if(b>60)neg.push('たまに不具合がある');
+  else if(b<20)pos.push('不具合がほとんどなく安定している');
+  if(qr<.85)neg.push('作りが雑','ボタンがぐらつく','本体のすき間が気になる');else if(qr>1.2)pos.push('しっかりした作り');
+  if(dr<.85)neg.push('届いたら傷がついてた','見た目が安っぽい');else if(dr>1.2)pos.push('デザインが洗練されている');
+  if(sg.id==='otaku'&&dr<1.05)neg.push('細かいところの仕上げが気に食わない','パーツの継ぎ目が目立つ');
   if(ratio<.87)neg.push('値段が高すぎる');else if(ratio>1.25)pos.push('この価格ならコスパが良い');
   if(p.q<S.rival.q*.8)neg.push(S.rival.name+'の新型の方が良さそう');
   const pick=a=>a[Math.floor(Math.random()*a.length)];
@@ -533,7 +591,7 @@ function genReview(p){
   else if(pos.length&&neg.length)text=pick(pos)+'。でも'+pick(neg);
   else text=pos.length?pick(pos):neg.length?pick(neg):'値段相応だと思う';
   p.stars[stars-1]++;p.rvN++;
-  p.rvs.unshift({s:stars,t:text,n:pick(NICK)+Math.floor(Math.random()*90+10),d:S.day});
+  p.rvs.unshift({s:stars,t:text,n:pick(NICK)+Math.floor(Math.random()*90+10),seg:sg.name,d:S.day});
   if(p.rvs.length>12)p.rvs.length=12;
 }
 function addLog(t){S.log.unshift({d:S.day,t});if(S.log.length>80)S.log.length=80}
@@ -545,19 +603,19 @@ function tickDay(){
   const ev={msgs:[],released:[],research:false};
   const say=m=>{ev.msgs.push(m);addLog(m)};
   S.day++;
+  const nDev=S.dev.length,tq=teamStat('qual'),td=teamStat('des'),tb=teamStat('bug');
   S.dev=S.dev.filter(d=>{
     d.left--;
-    d.score+=d.target/d.total*(.6+Math.random()*.8)*(1+.08*S.office);
-    let b=.2+d.q/150;
-    while(b>0){if(Math.random()<Math.min(1,b))d.bugs++;b-=1}
+    const rn=()=>.8+Math.random()*.4;
+    d.qp+=tq/nDev*rn();d.dp+=td/nDev*rn();
+    d.bp=Math.max(0,d.bp+bugGen(d)*(.7+Math.random()*.6)-tb/nDev*BUG_RED*rn());
     if(d.left>0)return true;
-    const r=d.score/d.target;
-    const qe=d.q*clamp(.8+.2*r,.85,1.1);
-    const rv=clamp(review(qe,d.price)-d.bugs*.08,1,10);
-    const p={id:d.id,name:d.name,type:d.type,parts:d.parts,q:qe,q0:d.q,price:d.price,cost:d.cost,age:0,total:0,mUnits:0,last:0,carry:0,
-      review:rv,bugs:d.bugs,score:Math.round(d.score),target:d.target,stars:[0,0,0,0,0],rvs:[],rvN:0,rvCarry:0};
+    const qr=d.qp/expQual(d),dr=d.dp/expDes(d),bp=Math.round(d.bp);
+    const rv=releaseReview(d.q,d.price,qr,dr,bp);
+    const p={id:d.id,name:d.name,type:d.type,parts:d.parts,q:d.q,price:d.price,cost:d.cost,age:0,total:0,mUnits:0,last:0,carry:0,
+      review:rv,bugs:bp,qp:Math.round(d.qp),dp:Math.round(d.dp),eq:Math.round(expQual(d)),ed:Math.round(expDes(d)),qr,dr,stars:[0,0,0,0,0],rvs:[],rvN:0,rvCarry:0};
     S.sales.push(p);S.released++;ev.released.push(p);
-    say('「'+d.name+'」を発売。レビュー '+rv.toFixed(1)+' / 10(バグ '+d.bugs+'件)');
+    say('「'+d.name+'」を発売。レビュー '+rv.toFixed(1)+' / 10(クオリティ '+p.qp+' ・ デザイン '+p.dp+' ・ バグ '+bp+')');
     return false;
   });
   const ds=S.sales.map(p=>Math.max(0,demand(p,.7+Math.random()*.6))/30);
@@ -602,7 +660,7 @@ function monthEnd(say){
     p.mUnits=0;
     if(dead){
       say('「'+p.name+'」の販売を終了(累計 '+Math.round(p.total).toLocaleString()+'台)');
-      S.retired.unshift({name:p.name,type:p.type,parts:p.parts,q:p.q,price:p.price,bugs:p.bugs,total:Math.round(p.total),review:p.review,avg:userAvg(p),n:p.rvN,end:S.day});
+      S.retired.unshift({name:p.name,type:p.type,parts:p.parts,q:p.q,qp:p.qp,dp:p.dp,price:p.price,bugs:p.bugs,total:Math.round(p.total),review:p.review,avg:userAvg(p),n:p.rvN,end:S.day});
     }
     return !dead;
   });
@@ -617,7 +675,7 @@ function monthEnd(say){
   S.rival.q+=.4+Math.random()*.2;
   if((S.day/30)%6===0){
     S.rival.name=RIVALS[Math.floor(Math.random()*RIVALS.length)];
-    say(S.rival.name+'が新型フラッグシップを発表(品質 '+S.rival.q.toFixed(0)+')');
+    say(S.rival.name+'が新型フラッグシップを発表(性能 '+S.rival.q.toFixed(0)+')');
   }
   if(!S.top&&S.money>=1e9)S.top=true;
   newCands();
@@ -648,9 +706,10 @@ function stepDay(){
 function showRelease(p){
   document.getElementById('mbox').innerHTML=
    '<h3>「'+esc(p.name)+'」発売</h3><p class="sub">'+TYPES[p.type].name+' ・ '+dayLabel(S.day)+'(時間は止まっています)</p>'+
-   '<div class="kv"><span>開発スコア</span><b>'+p.score+' / 目標 '+p.target+'</b></div>'+
-   '<div class="kv"><span>バグ</span><b class="'+(p.bugs>10?'neg':'')+'">'+p.bugs+'件</b></div>'+
-   '<div class="kv"><span>品質(設計時 → 完成時)</span><b>'+p.q0.toFixed(1)+' → '+p.q.toFixed(1)+'</b></div>'+
+   '<div class="kv"><span>性能</span><b>'+p.q.toFixed(1)+'</b></div>'+
+   '<div class="kv"><span>クオリティ(目安 '+p.eq+')</span><b class="'+(p.qr<.85?'neg':'')+'">'+p.qp+' ・ '+rateLabel(p.qr)+'</b></div>'+
+   '<div class="kv"><span>デザイン(目安 '+p.ed+')</span><b class="'+(p.dr<.85?'neg':'')+'">'+p.dp+' ・ '+rateLabel(p.dr)+'</b></div>'+
+   '<div class="kv"><span>バグ(目安 0〜100)</span><b class="'+(p.bugs>100?'neg':'')+'">'+p.bugs+'</b></div>'+
    '<div class="kv"><span>レビュー</span><b>'+p.review.toFixed(1)+' / 10</b></div>'+
    '<div class="kv"><span>販売価格</span><b>'+yen(p.price)+'</b></div>'+
    '<button class="go" data-act="close">閉じる</button>';
@@ -693,7 +752,7 @@ const V={loading:false,failed:false,ready:false,key:'',type:'',rx:0,ry:0,group:n
 
 function loadThree(){
   if(V.loading)return;V.loading=true;
-  import(THREE_URL).then(mod=>{T=mod;initViewer();updateModel()}).catch(()=>{
+  import(THREE_URL).then(mod=>{T=mod;initViewer();initOffice();updateModel();updateOffice()}).catch(()=>{
     V.failed=true;const m=document.getElementById('vmsg');
     if(m)m.textContent='3Dモデルを読み込めませんでした(インターネット接続が必要です)';
   });
@@ -1102,6 +1161,156 @@ function buildLaptop(parts){
   return g;
 }
 
+const O={ready:false,key:'',ang:0,last:0};
+const OFFICE3D=[
+  {w:6,d:5,h:2.6,floor:'#8f8c87',wall:'#d8d3ca',max:2,kind:'garage'},
+  {w:8,d:6,h:2.7,floor:'#5f6b78',wall:'#e7e5e0',max:8,kind:'small'},
+  {w:13,d:9,h:2.8,floor:'#666d78',wall:'#ebeae6',max:30,kind:'mid'},
+  {w:18,d:12,h:3,floor:'#9a7a5a',wall:'#efeeea',max:48,kind:'bld'},
+  {w:24,d:16,h:3.4,floor:'#ad8960',wall:'#f2f1ed',max:72,kind:'campus'}
+];
+const SHIRTS=['#4a6fa5','#7a8b99','#b5651d','#5b8c5a','#8e6c8a','#c0a060','#3d5a6c','#a05050','#6c7a4f','#9a8f80'];
+function isDark(){const t=document.documentElement.dataset.theme;return t?t==='dark':window.matchMedia('(prefers-color-scheme: dark)').matches}
+
+function initOffice(){
+  const box=document.getElementById('hero');if(!box)return;
+  const r=new T.WebGLRenderer({antialias:true,alpha:true});
+  r.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
+  r.toneMapping=T.ACESFilmicToneMapping;r.shadowMap.enabled=true;r.shadowMap.type=T.PCFSoftShadowMap;
+  box.innerHTML='';cache.hero='__3d';box.appendChild(r.domElement);
+  const scene=new T.Scene();
+  scene.environment=new T.PMREMGenerator(r).fromScene(studioRoom(),0.03).texture;
+  const hemi=new T.HemisphereLight(0xffffff,0x8a8070,.9);scene.add(hemi);
+  const sun=new T.DirectionalLight(0xfff2e0,1.5);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);sun.shadow.bias=-.0004;scene.add(sun);scene.add(sun.target);
+  const cam=new T.PerspectiveCamera(32,1,.1,300);
+  Object.assign(O,{r,scene,cam,box,hemi,sun,ready:true});
+  new ResizeObserver(()=>{O.sized=false}).observe(box);
+  let drag=null;
+  r.domElement.addEventListener('pointerdown',e=>{drag={x:e.clientX,a:O.ang};O.dragging=true;r.domElement.setPointerCapture(e.pointerId)});
+  r.domElement.addEventListener('pointermove',e=>{if(drag)O.ang=drag.a+(e.clientX-drag.x)*.006});
+  const end=()=>{drag=null;O.dragging=false;O.released=performance.now()};r.domElement.addEventListener('pointerup',end);r.domElement.addEventListener('pointercancel',end);
+  requestAnimationFrame(officeLoop);
+}
+function officeLoop(t){
+  requestAnimationFrame(officeLoop);
+  if(!O.ready||!O.group||t-O.last<33)return;
+  const tl=document.getElementById('title');
+  if(S.ui.tab!=='home'||document.hidden||(tl&&tl.classList.contains('on')))return;
+  O.last=t;
+  if(!O.sized){
+    const w=O.box.clientWidth,h=O.box.clientHeight;if(!w||!h)return;
+    O.r.setSize(w,h,false);O.cam.aspect=w/h;
+    const shift=w>900?Math.min(w*.22,300):0;
+    O.cam.setViewOffset(w,h,shift,0,w,h);O.cam.updateProjectionMatrix();O.sized=true;
+  }
+  if(!O.dragging&&O.ang&&t-(O.released||0)>1500){O.ang*=.9;if(Math.abs(O.ang)<.001)O.ang=0}
+  const L=O.cfg,yaw=.62+O.ang;
+  const rad=Math.max(L.w,L.d)*1.15+4.5,el=.62;
+  O.cam.position.set(Math.sin(yaw)*Math.cos(el)*rad,Math.sin(el)*rad,Math.cos(yaw)*Math.cos(el)*rad);
+  O.cam.lookAt(0,.6,0);
+  O.r.render(O.scene,O.cam);
+}
+function updateOffice(){
+  if(!O.ready)return;
+  const shown=S.staff.slice(0,OFFICE3D[S.office].max);
+  const key=S.office+'|'+isDark()+'|'+shown.map(p=>(p.boss?'b':'')+(p.pc||0)).join(',');
+  if(key===O.key)return;
+  O.key=key;
+  if(O.group){O.scene.remove(O.group);disposeTree(O.group)}
+  O.cfg=OFFICE3D[S.office];
+  O.group=buildOffice(O.cfg,shown);O.scene.add(O.group);
+  const dark=isDark(),m=Math.max(O.cfg.w,O.cfg.d);
+  O.hemi.intensity=dark?.45:.9;O.sun.intensity=dark?.7:1.5;O.sun.color.set(dark?0xffd9a8:0xfff2e0);
+  O.sun.position.set(m*.5,m*.9,m*.6);
+  const sc=O.sun.shadow.camera;sc.left=sc.bottom=-m*.8;sc.right=sc.top=m*.8;sc.far=m*3;sc.updateProjectionMatrix();
+  O.sized=false;
+}
+
+function buildOffice(L,staff){
+  const g=new T.Group(),dark=isDark();
+  const std=(c,o)=>new T.MeshStandardMaterial(Object.assign({color:new T.Color(c),roughness:.8},o||{}));
+  const box=(w,h,d,m,x,y,z,ry)=>{const o=new T.Mesh(new T.BoxGeometry(w,h,d),m);o.position.set(x,y,z);if(ry)o.rotation.y=ry;o.castShadow=o.receiveShadow=true;g.add(o);return o};
+  const {w,d,h}=L,wallM=std(L.wall,{roughness:.95}),floorM=std(L.floor,{roughness:L.kind==='garage'?.95:.85});
+  const fl=new T.Mesh(new T.BoxGeometry(w,.1,d),floorM);fl.position.y=-.05;fl.receiveShadow=true;g.add(fl);
+  box(w,h,.12,wallM,0,h/2,-d/2-.06);
+  box(.12,h,d,wallM,-w/2-.06,h/2,0);
+  const sky=new T.MeshBasicMaterial({color:dark?'#1b2740':'#cfe2f4'}),frameM=std('#5d6168',{roughness:.5,metalness:.4});
+  if(L.kind!=='garage'){
+    const n=Math.max(2,Math.floor(w/2.4)),ww=w/n*.72,wh=h*(L.kind==='campus'||L.kind==='bld'?.72:.5),wy=h*(L.kind==='campus'||L.kind==='bld'?.48:.58);
+    for(let i=0;i<n;i++){
+      const x=-w/2+(i+.5)*w/n;
+      const p=new T.Mesh(new T.PlaneGeometry(ww,wh),sky);p.position.set(x,wy,-d/2+.005);g.add(p);
+      box(ww+.08,.05,.06,frameM,x,wy-wh/2,-d/2+.03);box(ww+.08,.05,.06,frameM,x,wy+wh/2,-d/2+.03);box(.05,wh,.06,frameM,x,wy,-d/2+.03);
+    }
+  }
+  const plant=(x,z,s)=>{s=s||1;box(.36*s,.4*s,.36*s,std('#e8e4dc'),x,.2*s,z);const lf=new T.Mesh(new T.SphereGeometry(.38*s,16,12),std('#4f7a45',{roughness:.9}));lf.position.set(x,.72*s,z);lf.castShadow=true;g.add(lf)};
+  if(L.kind==='garage'){
+    const sh=std('#b9bcc0',{roughness:.6,metalness:.3});
+    for(let i=0;i<14;i++)box(.04,.16,d*.7,sh,-w/2+.02,.12+i*.165,.1);
+    box(1.6,.04,.45,std('#7a5a3c'),w/2-1.2,1.1,-d/2+.3);box(1.6,.04,.45,std('#7a5a3c'),w/2-1.2,1.7,-d/2+.3);
+    [[-.5,1.1],[.1,1.1],[-.3,1.7]].forEach(([x,y])=>box(.4,.32,.36,std('#b8925f'),w/2-1.2+x,y+.18,-d/2+.3));
+    box(1.8,.06,.7,std('#6b5038'),w/2-1.3,.9,d/2-1);box(.08,.9,.6,std('#555'),w/2-2.1,.45,d/2-1);box(.08,.9,.6,std('#555'),w/2-.5,.45,d/2-1);
+  }else{
+    plant(-w/2+.5,-d/2+.5);plant(w/2-.5,-d/2+.5);
+    box(.04,1,1.8,std('#f7f7f5',{roughness:.3}),-w/2+.03,1.4,-d/2+2.2);
+    if(L.kind!=='small'){
+      box(.6,2,.9,std('#2b2d31',{roughness:.4,metalness:.5}),w/2-.5,1,-d/2+1.6);
+      const led=new T.MeshBasicMaterial({color:'#7fd18b'});for(let i=0;i<6;i++){const p=new T.Mesh(new T.PlaneGeometry(.04,.04),led);p.position.set(w/2-.79,.4+i*.28,-d/2+1.25);p.rotation.y=-Math.PI/2;g.add(p)}
+      plant(-w/2+.5,d/2-.6,1.2);
+    }
+    if(L.kind==='bld'||L.kind==='campus'){
+      const gl=new T.MeshPhysicalMaterial({color:'#dfeaf2',transparent:true,opacity:.22,roughness:.05,depthWrite:false});
+      const mx=w/2-2.6,mz=d/2-2.2;
+      [[0,-1.6,3.6,0],[-1.8,0,3.2,Math.PI/2]].forEach(([x,z,len,ry])=>{const p=new T.Mesh(new T.BoxGeometry(len,h*.85,.03),gl);p.position.set(mx+x,h*.425,mz+z);p.rotation.y=ry;g.add(p)});
+      box(2,.06,1,std('#e9e6df',{roughness:.4}),mx+.2,.74,mz);
+      for(let i=0;i<4;i++)box(.42,.08,.42,std('#3a3d42'),mx-.6+i*.55,.46,mz+(i%2?.75:-.75));
+    }
+    if(L.kind==='campus'){
+      for(let i=0;i<4;i++)plant(-w/2+3+i*2.2,d/2-.7,1.3);
+      for(let i=0;i<3;i++){box(.9,.05,.9,std('#d9cbb2',{roughness:.5}),w/2-2.4+(i-1)*1.4,.74,-d/2+3.6);}
+    }
+  }
+  const deskM=std('#d9d2c4',{roughness:.6}),legM=std('#6f7378',{roughness:.4,metalness:.5}),chairM=std('#2e3136',{roughness:.7});
+  const pcM=std('#2a2c30',{roughness:.45,metalness:.3}),silver=std('#c4c6ca',{roughness:.35,metalness:.6});
+  const scr=new T.MeshBasicMaterial({color:dark?'#9cc0f0':'#8fb4e6'}),led=new T.MeshBasicMaterial({color:'#9fd0ff'});
+  const skin=std('#e0b896',{roughness:.7});
+  const rsv=L.kind==='bld'||L.kind==='campus'?5.2:L.kind==='garage'?2.4:1.2;
+  const x0=-w/2+1.3,x1=w/2-rsv,z0=-d/2+1.5,z1=d/2-1.1,sx=1.9,sz=2.2;
+  const cols=Math.max(1,Math.floor((x1-x0)/sx)+1),rows=Math.max(1,Math.floor((z1-z0)/sz)+1);
+  const nDesk=Math.min(L.max,cols*rows,Math.max(staff.length,1));
+  for(let i=0;i<nDesk;i++){
+    const cx=x0+(i%cols)*sx,cz=z0+Math.floor(i/cols)*sz,p=staff[i];
+    box(1.4,.04,.7,deskM,cx,.74,cz);
+    [-.66,.66].forEach(o=>box(.04,.72,.62,legM,cx+o,.36,cz));
+    box(.46,.06,.46,chairM,cx,.46,cz+.62);box(.46,.5,.06,chairM,cx,.75,cz+.85);box(.06,.42,.06,legM,cx,.22,cz+.62);
+    if(!p)continue;
+    const body=new T.Mesh(new T.CylinderGeometry(.17,.19,.52,16),std(p.boss?'#2c3446':SHIRTS[(p.id||0)%SHIRTS.length]));
+    body.position.set(cx,.76,cz+.6);body.castShadow=true;g.add(body);
+    const head=new T.Mesh(new T.SphereGeometry(.11,16,12),skin);head.position.set(cx,1.13,cz+.58);head.castShadow=true;g.add(head);
+    const hair=new T.Mesh(new T.SphereGeometry(.115,16,12,0,Math.PI*2,0,Math.PI*.55),std('#2b2622'));hair.position.copy(head.position);hair.rotation.x=.25;g.add(hair);
+    const tier=p.pc||0;
+    if(tier===0){
+      box(.34,.015,.23,silver,cx,.77,cz-.02);
+      const lid=box(.34,.22,.01,silver,cx,.87,cz-.13);lid.rotation.x=-.3;
+      const s=new T.Mesh(new T.PlaneGeometry(.3,.18),scr);s.position.set(cx,.87,cz-.123);s.rotation.x=-.3;g.add(s);
+      continue;
+    }
+    const mon=(x,ry,wd)=>{
+      wd=wd||.54;const m=box(wd,.33,.03,pcM,x,1.03,cz-.2,ry);
+      const s=new T.Mesh(new T.PlaneGeometry(wd-.03,.3),scr);s.position.set(x+Math.sin(ry||0)*.017,1.03,cz-.2+Math.cos(ry||0)*.017);s.rotation.y=ry||0;g.add(s);
+      box(.05,.18,.05,pcM,x,.85,cz-.22);
+    };
+    box(.42,.015,.13,pcM,cx,.77,cz+.08);
+    if(tier===1)mon(cx,0);
+    else if(tier===2){mon(cx-.28,.22);mon(cx+.28,-.22)}
+    else{mon(cx,0,.62);mon(cx-.6,.38,.5);mon(cx+.6,-.38,.5)}
+    const tw=tier===3?.23:.19,th=tier===3?.5:.42;
+    box(tw,th,.44,pcM,cx+.5,th/2,cz-.05);
+    if(tier===3){const s=new T.Mesh(new T.PlaneGeometry(.02,th*.8),led);s.position.set(cx+.5-tw/2-.002,th/2,cz+.172);g.add(s)}
+  }
+  return g;
+}
+
 const cache={};
 function setIf(id,html){
   const el=document.getElementById(id);
@@ -1119,7 +1328,7 @@ function renderBar(){
    '<span class="grow"></span>'+
    '<button class="go alt" data-act="title">タイトルへ</button>';
   document.getElementById('subbar').innerHTML=
-   '<button class="go alt" data-act="tab" data-k="home">本社に戻る</button><h1 id="s-title"></h1><span class="grow"></span>'+
+   '<button class="go alt" data-act="tab" data-k="home">ホームに戻る</button><h1 id="s-title"></h1><span class="grow"></span>'+
    '<span class="sk"><small>日付</small><b id="s-date"></b></span>'+timeCtl();
   document.getElementById('topbar').innerHTML=
    '<span class="tk"><small>資金</small><b id="t-money"></b></span><span class="tk"><small>研究ポイント</small><b id="t-rp"></b><em id="t-rpd"></em></span>';
@@ -1130,7 +1339,7 @@ function updateBar(){
   const o=office();
   t('b-name',S.name);t('b-rank',o.rank);t('b-office',o.name+' ・ 社員 '+S.staff.length+' / '+staffCap()+'人');
   t('t-money',fmt(S.money));t('b-date',dayLabel(S.day));t('s-date',dayLabel(S.day));
-  t('t-rp',Math.floor(S.rp).toLocaleString()+' pt');t('t-rpd','+'+rpPerDay()+' pt/日');
+  t('t-rp',Math.floor(S.rp).toLocaleString()+' pt');t('t-rpd','+'+r1(rpPerDay())+' pt/日');
   t('b-users',S.totalUnits.toLocaleString()+'人');t('b-fans',Math.round(S.fans).toLocaleString()+'人');t('b-cap',cap()+'台/月');
   t('b-rel',String(S.released));t('b-fixed',fmt(fixedCost()));
   ['t-money'].forEach(id=>{const m=document.getElementById(id);if(m)m.className=S.money<0?'neg':''});
@@ -1151,13 +1360,14 @@ function renderNav(){
 }
 
 function renderHome(){
-  setIf('hero',hqSvg(S.office));
+  if(O.ready)updateOffice();else setIf('hero',hqSvg(S.office));
   let n='<h2>最新ニュース</h2><div class="log">';
   if(!S.log.length)n+='<p class="empty">「再生」を押すと日が進みます。</p>';
   S.log.slice(0,6).forEach(l=>{n+='<p><b>'+dayLabel(l.d)+'</b>'+esc(l.t)+'</p>'});
   setIf('homeNews',n+'</div>');
   setIf('devSum',S.dev.length?S.dev.map(d=>
     '<div class="ds"><div class="dt"><b>'+esc(d.name)+'</b><span>'+TYPES[d.type].name+' ・ あと'+d.left+'日</span></div>'+
+    '<div class="dn"><span>クオリティ <b>'+Math.round(d.qp)+'</b>/'+Math.round(expQual(d))+'</span><span>デザイン <b>'+Math.round(d.dp)+'</b>/'+Math.round(expDes(d))+'</span><span>バグ <b'+(d.bp>100?' class="neg"':'')+'>'+Math.round(d.bp)+'</b></span></div>'+
     '<div class="prog"><div style="width:'+((d.total-d.left)/d.total*100)+'%"></div></div></div>').join(''):
     '<p class="empty">開発中の製品はありません。</p>');
   const done=GOALS.filter(g=>S.goals[g.id]).length;
@@ -1241,15 +1451,16 @@ function updateSum(){
   const margin=s.price-uc;
   let fc='<span class="lockt">未解禁</span>',rv=fc,note='予想は、研究タブの技術「市場分析」を完了すると使えるようになります。';
   if(an){
-    const u=Math.round(demand({type:s.type,parts:s.parts,q,price:s.price,age:0,bugs:0},1));
+    const f=forecastDev(s.type,q);
+    const u=Math.round(demand({type:s.type,parts:s.parts,q,price:s.price,age:0,bugs:f.bugs,qr:f.qr,dr:f.dr},1));
     fc='約'+u.toLocaleString()+'台';
-    rv=review(q,s.price).toFixed(1)+' / 10';
+    rv=releaseReview(q,s.price,f.qr,f.dr,f.bugs).toFixed(1)+' / 10';
     note=u>cap()?'予想が生産能力('+cap()+'台/月)を超えています。研究タブの「生産ライン拡張」で増やせます。':'';
   }
   document.getElementById('pv').textContent=yen(s.price)+'(目安 '+yen(refPrice(q))+')';
   document.getElementById('sumNote').textContent=note;
   el.innerHTML=
-   '<div><small>品質</small><b>'+q.toFixed(1)+'</b></div>'+
+   '<div><small>性能</small><b>'+q.toFixed(1)+'</b></div>'+
    '<div><small>1台の原価</small><b>'+yen(uc)+'</b></div>'+
    '<div><small>1台の利益</small><b class="'+(margin>=0?'pos':'neg')+'">'+yen(margin)+'</b></div>'+
    '<div><small>予想レビュー</small><b>'+rv+'</b></div>'+
@@ -1261,15 +1472,15 @@ function renderSales(){
   setIf('salesHead','<p class="note">同時に開発できる数: '+S.dev.length+' / '+office().dev+'(オフィスで増えます)<br>毎月の生産能力: '+cap()+'台(研究「生産ライン拡張」で増えます)。需要がこれを超えた分は売れません。</p>');
   setIf('devList',S.dev.map(d=>
     '<div class="dev" data-id="'+d.id+'"><div class="dt"><b>'+esc(d.name)+'</b><span>'+TYPES[d.type].name+'</span></div>'+
-    '<div class="dstats"><div class="score"><small>開発スコア</small><b data-f="score"></b></div><div class="bugs"><small>バグ</small><b data-f="bug"></b></div><div><small>残り</small><b data-f="days"></b></div></div>'+
+    '<div class="dstats"><div><small>クオリティ</small><b data-f="q"></b></div><div><small>デザイン</small><b data-f="d"></b></div><div class="bugs"><small>バグ</small><b data-f="bug"></b></div><div><small>残り</small><b data-f="days"></b></div></div>'+
     '<div class="prog"><div data-f="bar"></div></div>'+
-    '<div class="ft"><span>デバッグ費用 <b data-f="dcost"></b></span><button data-act="debug" data-id="'+d.id+'">デバッグ(5件)</button></div></div>').join(''));
+    '<div class="ft"><span>デバッグ費用 <b data-f="dcost"></b></span><button data-act="debug" data-id="'+d.id+'">デバッグ(バグ -'+DEBUG_N+')</button></div></div>').join(''));
   updateDevLive();
   let t='';
   if(S.sales.length){
-    t='<p class="note" style="margin-top:6px">販売中</p><div class="tbl"><table><tr><th>製品</th><th>品質</th><th>専門</th><th>ユーザー評価</th><th>バグ</th><th>価格</th><th>今月</th><th>ユーザー数</th></tr>';
+    t='<p class="note" style="margin-top:6px">販売中</p><div class="tbl"><table><tr><th>製品</th><th>性能</th><th>クオリティ</th><th>デザイン</th><th>バグ</th><th>専門</th><th>ユーザー評価</th><th>価格</th><th>今月</th><th>ユーザー数</th></tr>';
     S.sales.forEach(p=>{
-      t+='<tr><td>'+esc(p.name)+'</td><td>'+p.q.toFixed(0)+'</td><td>'+p.review.toFixed(1)+'</td><td>'+(p.rvN?'★'+userAvg(p).toFixed(1):'-')+'</td><td>'+p.bugs+'</td><td>'+yen(p.price)+'</td><td>'+p.mUnits.toLocaleString()+'台</td><td>'+Math.round(p.total).toLocaleString()+'人</td></tr>';
+      t+='<tr><td>'+esc(p.name)+'</td><td>'+p.q.toFixed(0)+'</td><td>'+(p.qp!=null?p.qp:'-')+'</td><td>'+(p.dp!=null?p.dp:'-')+'</td><td>'+p.bugs+'</td><td>'+p.review.toFixed(1)+'</td><td>'+(p.rvN?'★'+userAvg(p).toFixed(1):'-')+'</td><td>'+yen(p.price)+'</td><td>'+p.mUnits.toLocaleString()+'台</td><td>'+Math.round(p.total).toLocaleString()+'人</td></tr>';
     });
     t+='</table></div>';
   }
@@ -1278,9 +1489,9 @@ function renderSales(){
   let r='<h2>今まで作った製品</h2>';
   if(!S.retired.length)r+='<p class="empty">販売を終了した製品はまだありません。</p>';
   else{
-    r+='<div class="tbl"><table><tr><th>製品</th><th>種類</th><th>品質</th><th>価格</th><th>専門</th><th>ユーザー評価</th><th>ユーザー数</th></tr>';
+    r+='<div class="tbl"><table><tr><th>製品</th><th>種類</th><th>性能</th><th>クオリティ</th><th>デザイン</th><th>バグ</th><th>価格</th><th>専門</th><th>ユーザー評価</th><th>ユーザー数</th></tr>';
     S.retired.forEach(x=>{
-      r+='<tr><td>'+esc(x.name)+'</td><td>'+TYPES[x.type].name+'</td><td>'+(x.q!=null?x.q.toFixed(0):'-')+'</td><td>'+(x.price!=null?yen(x.price):'-')+'</td><td>'+x.review.toFixed(1)+'</td><td>'+(x.n?'★'+x.avg.toFixed(1)+'('+x.n+'件)':'-')+'</td><td>'+x.total.toLocaleString()+'人</td></tr>';
+      r+='<tr><td>'+esc(x.name)+'</td><td>'+TYPES[x.type].name+'</td><td>'+(x.q!=null?x.q.toFixed(0):'-')+'</td><td>'+(x.qp!=null?x.qp:'-')+'</td><td>'+(x.dp!=null?x.dp:'-')+'</td><td>'+(x.bugs!=null?x.bugs:'-')+'</td><td>'+(x.price!=null?yen(x.price):'-')+'</td><td>'+x.review.toFixed(1)+'</td><td>'+(x.n?'★'+x.avg.toFixed(1)+'('+x.n+'件)':'-')+'</td><td>'+x.total.toLocaleString()+'人</td></tr>';
     });
     r+='</table></div>';
   }
@@ -1290,13 +1501,13 @@ function updateDevLive(){
   document.querySelectorAll('#devList .dev').forEach(el=>{
     const d=S.dev.find(x=>String(x.id)===el.dataset.id);if(!d)return;
     const f=k=>el.querySelector('[data-f="'+k+'"]');
-    f('score').textContent=Math.round(d.score)+' / '+d.target;
-    f('bug').textContent=d.bugs+'件';
+    f('q').textContent=Math.round(d.qp)+' / 目安 '+Math.round(expQual(d));
+    f('d').textContent=Math.round(d.dp)+' / 目安 '+Math.round(expDes(d));
+    f('bug').textContent=Math.round(d.bp)+'(目安 0〜100)';
     f('days').textContent=d.left+'日';
     f('bar').style.width=((d.total-d.left)/d.total*100)+'%';
-    const n=Math.min(5,d.bugs);
-    f('dcost').textContent=yen(bugCost(d.q))+'/件';
-    el.querySelector('button').disabled=n<=0||S.over;
+    f('dcost').textContent=(debugRp(d.q)*DEBUG_N)+' pt';
+    el.querySelector('button').disabled=d.bp<1||S.rp<debugRp(d.q)*DEBUG_N||S.over;
   });
 }
 
@@ -1305,8 +1516,8 @@ function renderMarket(){
   let h='<h2>市場</h2>'+
    '<div class="res"><span>いま話題のもの</span><b>'+t+'</b></div>'+
    '<p class="note" style="margin-top:6px">ブームはいつ来るか分かりません。話題の部品が3段階目以上だと売れ行きが増え、1段階目以下だと減ります。</p>'+
-   '<div class="res"><span>ライバル '+esc(S.rival.name)+'</span><b>品質 '+S.rival.q.toFixed(0)+'</b></div>'+
-   '<p class="note" style="margin-top:6px">ライバルの品質は毎月上がります。自社製品の品質が低いと売れ行きが落ちます。</p>'+
+   '<div class="res"><span>ライバル '+esc(S.rival.name)+'</span><b>性能 '+S.rival.q.toFixed(0)+'</b></div>'+
+   '<p class="note" style="margin-top:6px">ライバルの性能は毎月上がります。自社製品の性能が低いと売れ行きが落ちます。</p>'+
    '<div class="res"><span>毎月の生産能力</span><b>'+cap()+'台</b></div>'+
    '<div class="res"><span>毎月の固定費</span><b>'+fmt(fixedCost())+'</b></div>';
   if(S.last){
@@ -1347,6 +1558,7 @@ function renderResearch(){
   setIf('resList',h);
 }
 
+function statStr(p){return STATS.map(([k,n])=>n+' '+(p[k]||0)).join(' / ')}
 function renderOffice(){
   const o=office(),nx=OFFICES[S.office+1];
   let h='<h2>会社</h2><div class="fl" style="margin-bottom:16px"><div><div class="lbl" style="font-size:13px;font-weight:700;margin-bottom:4px">社名(変更に '+fmt(RENAME_COST)+')</div><input type="text" id="rename" maxlength="16" value="'+esc(S.name)+'"></div>'+
@@ -1358,16 +1570,26 @@ function renderOffice(){
        '<button data-act="office"'+(S.money<nx.cost?' disabled':'')+'>'+fmt(nx.cost)+'で移転</button></div>';
   }else h+='<p class="empty">これ以上大きなオフィスはありません。</p>';
   const full=S.staff.length>=staffCap();
-  h+='<h2 style="margin-top:18px">人材</h2><p class="note">研究ポイントは社員ごとに1日にたまる量が決まっています(社長は5pt、ほかの社員は1〜5ptで、スコアが高い人ほど多い傾向)。いま 1日 +'+rpPerDay()+' pt ・ 月給の合計 '+fmt(salaries())+'</p>';
+  h+='<h2 style="margin-top:18px">人材</h2><p class="note">社員は毎日、研究ポイントをためて、開発中の製品のクオリティ・デザインを上げ、増えていくバグを抑えます。チーム合計 1日: '+STATS.map(([k,n])=>n+' '+r1(teamStat(k))).join(' ・ ')+' ・ 月給の合計 '+fmt(salaries())+'</p>';
+  h+='<div class="sub2">パソコン(段階が上がるほど能力が増える)</div><div class="pcall">';
+  PCS.forEach((c,i)=>{
+    if(i===0)return;
+    const need=S.staff.filter(p=>(p.pc||0)<i),cost=need.length*c.cost,lock=techLv('pc')<c.req;
+    h+='<button class="opt'+(lock?' lock':'')+'" data-act="pcall" data-k="'+i+'"'+(lock||!need.length||S.money<cost?' disabled':'')+'>全員を'+c.name+'に<i>'+
+       (lock?'研究「社内IT投資」が必要':need.length?need.length+'台 ・ '+fmt(cost)+' ・ 能力×'+c.mul:'全員そろっています')+'</i></button>';
+  });
+  h+='</div>';
   h+='<div class="sub2">社員 '+S.staff.length+' / '+staffCap()+'人</div>';
   S.staff.forEach(p=>{
-    h+='<div class="res"><span>'+esc(p.name)+'<small>スコア '+p.score+' / 10 ・ 1日 +'+staffRp(p)+' pt'+(p.boss?'':' ・ 月給 '+fmt(p.sal))+'</small></span>'+
-       (p.boss?'<span></span>':'<button data-act="fire" data-id="'+p.id+'">解雇</button>')+'</div>';
+    const pc=p.pc||0,nx=PCS[pc+1],canUp=nx&&techLv('pc')>=nx.req;
+    h+='<div class="res"><span>'+esc(p.name)+'<small>スコア '+p.score+' / 10 ・ '+statStr(p)+(p.boss?'':' ・ 月給 '+fmt(p.sal))+'<br>パソコン: '+PCS[pc].name+'(能力×'+PCS[pc].mul+')</small></span>'+
+       '<span class="btns">'+(nx?'<button data-act="pcup" data-id="'+p.id+'"'+(!canUp||S.money<nx.cost?' disabled':'')+'>'+(canUp?nx.name+'に('+fmt(nx.cost)+')':'次の段階は研究が必要')+'</button>':'')+
+       (p.boss?'':'<button data-act="fire" data-id="'+p.id+'">解雇</button>')+'</span></div>';
   });
   h+='<div class="sub2">応募者(毎月入れ替わります)</div>';
   if(!S.cands.length)h+='<p class="empty">今月の応募者はもういません。</p>';
   S.cands.forEach(c=>{
-    h+='<div class="res"><span>'+esc(c.name)+'<small>スコア '+c.score+' / 10 ・ 1日 +'+staffRp(c)+' pt ・ 月給 '+fmt(c.sal)+'</small></span>'+
+    h+='<div class="res"><span>'+esc(c.name)+'<small>スコア '+c.score+' / 10 ・ '+statStr(c)+' ・ 月給 '+fmt(c.sal)+'</small></span>'+
        '<button data-act="hire" data-id="'+c.id+'"'+(full?' disabled':'')+'>'+(full?'定員':'採用する')+'</button></div>';
   });
   h+='<h2 style="margin-top:18px">設備</h2>';
@@ -1386,16 +1608,18 @@ function renderRep(){
   if(!S.sales.length)h+='<p class="empty">販売中の製品がありません。</p>';
   S.sales.forEach(p=>{
     const avg=userAvg(p);
-    h+='<div class="rep"><div class="dt"><b>'+esc(p.name)+'</b><span>'+TYPES[p.type].name+' ・ 品質 '+p.q.toFixed(0)+' ・ '+yen(p.price)+'</span></div>'+
+    h+='<div class="rep"><div class="dt"><b>'+esc(p.name)+'</b><span>'+TYPES[p.type].name+' ・ 性能 '+p.q.toFixed(0)+' ・ '+yen(p.price)+'</span></div>'+
       '<div class="kpis"><div><small>専門レビュー(発売時)</small><b>'+p.review.toFixed(1)+' / 10</b></div>'+
       '<div><small>ユーザー評価</small><b>'+(p.rvN?'★ '+avg.toFixed(1)+'('+p.rvN+'件)':'まだありません')+'</b></div>'+
       '<div><small>ユーザー数</small><b>'+Math.round(p.total).toLocaleString()+'人</b></div>'+
-      '<div><small>バグ</small><b>'+p.bugs+'件</b></div></div>';
+      '<div><small>クオリティ</small><b>'+(p.qp!=null?p.qp+'(目安 '+p.eq+')':'-')+'</b></div>'+
+      '<div><small>デザイン</small><b>'+(p.dp!=null?p.dp+'(目安 '+p.ed+')':'-')+'</b></div>'+
+      '<div><small>バグ</small><b>'+p.bugs+'</b></div></div>';
     if(p.rvN){
       h+='<div class="sub2">評価の内訳</div>';
       for(let i=5;i>=1;i--){const c=p.stars[i-1];h+='<div class="rb"><u>★'+i+'</u><i><b style="width:'+(c/p.rvN*100)+'%"></b></i><em>'+c+'</em></div>'}
       h+='<div class="sub2">最近のユーザーの声</div>';
-      p.rvs.slice(0,5).forEach(r=>{h+='<div class="cm"><span class="st">'+starStr(r.s)+'</span> '+esc(r.t)+'<small>'+esc(r.n)+'</small></div>'});
+      p.rvs.slice(0,5).forEach(r=>{h+='<div class="cm"><span class="st">'+starStr(r.s)+'</span> '+esc(r.t)+'<small>'+esc(r.n)+(r.seg?' ・ '+r.seg:'')+'</small></div>'});
     }
     h+='</div>';
   });
@@ -1552,17 +1776,17 @@ document.addEventListener('click',e=>{
     const days=TYPES[s.type].dev*30;
     S.money-=cost;
     S.dev.push({id:S.n,name,type:s.type,parts:JSON.parse(JSON.stringify(s.parts)),q,price:s.price,cost:unitCost(s.type,s.parts),
-      total:days,left:days,score:0,bugs:0,target:devTarget(q)});
+      total:days,left:days,qp:0,dp:0,bp:0});
     addLog('「'+name+'」の開発を開始(開発費 '+fmt(cost)+')');
     S.n++;S.sel.touched=false;save();renderAll();toast('開発を始めました。再生で日が進みます');return;
   }
   if(a==='debug'){
-    const d=S.dev.find(x=>String(x.id)===b.dataset.id);if(!d)return;
-    const n=Math.min(5,d.bugs);if(n<=0)return;
-    const cost=n*bugCost(d.q);
-    if(S.money<cost){toast('デバッグ費用が足りません(必要 '+fmt(cost)+')');return}
-    S.money-=cost;d.bugs-=n;
-    addLog('「'+d.name+'」のバグを'+n+'件修正(費用 '+fmt(cost)+')');
+    const d=S.dev.find(x=>String(x.id)===b.dataset.id);if(!d||d.bp<1)return;
+    const cost=debugRp(d.q)*DEBUG_N;
+    if(S.rp<cost){toast('研究ポイントが足りません(必要 '+cost+' pt)');return}
+    const n=Math.min(DEBUG_N,d.bp);
+    S.rp-=cost;d.bp-=n;
+    addLog('「'+d.name+'」のバグを'+Math.round(n)+'減らした(研究ポイント '+cost+' pt)');
     renderLive();return;
   }
   if(a==='res'){
@@ -1597,7 +1821,22 @@ document.addEventListener('click',e=>{
     const c=S.cands.find(x=>String(x.id)===b.dataset.id);if(!c)return;
     if(S.staff.length>=staffCap()){toast('オフィスの定員です。大きなオフィスに移転すると増やせます');return}
     S.cands=S.cands.filter(x=>x!==c);S.staff.push(c);
-    addLog(c.name+'さんを採用(スコア '+c.score+' / 月給 '+fmt(c.sal)+')');
+    addLog(c.name+'さんを採用(スコア '+c.score+' / '+statStr(c)+' / 月給 '+fmt(c.sal)+')');
+    save();renderAll();return;
+  }
+  if(a==='pcup'){
+    const p=S.staff.find(x=>String(x.id)===b.dataset.id);if(!p)return;
+    const i=(p.pc||0)+1,c=PCS[i];if(!c||techLv('pc')<c.req)return;
+    if(S.money<c.cost){toast('資金が足りません(必要 '+fmt(c.cost)+')');return}
+    S.money-=c.cost;p.pc=i;addLog(p.name+'のパソコンを'+c.name+'に替えた('+fmt(c.cost)+')');
+    save();renderAll();return;
+  }
+  if(a==='pcall'){
+    const i=+b.dataset.k,c=PCS[i];if(!c||techLv('pc')<c.req)return;
+    const need=S.staff.filter(p=>(p.pc||0)<i),cost=need.length*c.cost;if(!need.length)return;
+    if(S.money<cost){toast('資金が足りません(必要 '+fmt(cost)+')');return}
+    if(!confirm(need.length+'人のパソコンを'+c.name+'に替えます。'+fmt(cost)+'かかります。よろしいですか?'))return;
+    S.money-=cost;need.forEach(p=>{p.pc=i});addLog(need.length+'人のパソコンを'+c.name+'に替えた('+fmt(cost)+')');
     save();renderAll();return;
   }
   if(a==='fire'){
