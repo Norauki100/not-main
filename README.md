@@ -4,33 +4,43 @@
 
 ##### リンク一覧
 
-～遊ぶならおすすめゲーム/最近ちゃんとバイブコーディングしてる枠～
+**～遊ぶならおすすめゲーム/最近ちゃんとバイブコーディングしてる枠～**
 
 
 
 **電車運転するだけのゲーム**
 
-https://norauki100.github.io/not-main/train-hakunan.html
+https://norauki100.github.io/not-main/train-hakunan
 
 **クラシック版** (通常版が重かった人向け)
 
-https://norauki100.github.io/not-main/train-stop-classic.html
+https://norauki100.github.io/not-main/train-stop-classic
 
 
 
-**スマホうみだしタイクーン**
+**スマホ帝国を作ろう！**
 
-https://norauki100.github.io/not-main/device-tycoon.html
-
-
+https://norauki100.github.io/not-main/device-tycoon
 
 
+
+**謎の運転ゲー**
+
+https://norauki100.github.io/not-main/AnythingDrive
 
 
 
 **MMORPG風のタイクーンゲー**
 
 https://norauki100.github.io/not-main/ctrl-sim.html
+
+
+
+**～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～**
+
+
+
+
 
 
 
@@ -84,8 +94,6 @@ s13n系 -  夜行特急専用車、N10系ベース
 
 
 
-
-
 **・device-tycoon**
 
 タイクーンゲーが好きなので作らせてみたら、まあまあな完成度のものができた
@@ -101,6 +109,20 @@ s13n系 -  夜行特急専用車、N10系ベース
 MMORPG初代のイメージで新しいタイクーンゲー作ってみたけど、
 
 人によっては普通につまらなさすぎてすぐ飽きるかもしれん
+
+
+
+**・なんでも運転げー**
+
+なんか適当に3dで運転させるゲームを作った。
+
+Claudeに3400円も課金してんだから使わないのはもったいないから、
+
+とりあえず消費するために作ってる
+
+
+
+
 
 **・かんたんmodインストーラー**
 
