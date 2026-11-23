@@ -36,6 +36,12 @@ https://norauki100.github.io/not-main/ctrl-sim.html
 
 
 
+**新作のOS！！アルカOS、あるかい？（激寒）**
+
+https://norauki100.github.io/main/Alca-OS
+
+
+
 **～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～**
 
 
