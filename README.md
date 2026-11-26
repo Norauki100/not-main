@@ -24,12 +24,6 @@ https://norauki100.github.io/not-main/device-tycoon
 
 
 
-**謎の運転ゲー**
-
-https://norauki100.github.io/not-main/AnythingDrive
-
-
-
 **MMORPG風のタイクーンゲー**
 
 https://norauki100.github.io/not-main/ctrl-sim.html
@@ -42,6 +36,18 @@ https://norauki100.github.io/main/Alca-OS
 
 
 
+**glbファイル・3Dモデルを簡易的に作るサイト**
+
+https://norauki100.github.io/not-main/point-create
+
+
+
+**謎の運転ゲー**
+
+https://norauki100.github.io/not-main/AnythingDrive
+
+
+
 **～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～～**
 
 
@@ -49,10 +55,6 @@ https://norauki100.github.io/main/Alca-OS
 
 
 
-
-**glbファイルを見るだけ**
-
-https://norauki100.github.io/not-main/glb-viewer.html
 
 
 
